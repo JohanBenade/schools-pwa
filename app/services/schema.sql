@@ -197,3 +197,18 @@ CREATE INDEX IF NOT EXISTS idx_learner_mentor_group ON learner(mentor_group_id);
 CREATE INDEX IF NOT EXISTS idx_learner_tenant ON learner(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_mentor_group_tenant ON mentor_group(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tenant ON staff(tenant_id);
+
+-- ============================================
+-- PENDING ATTENDANCE (cross-device sync)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS pending_attendance (
+    mentor_group_id TEXT NOT NULL,
+    learner_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    marked_by TEXT,
+    marked_at TEXT,
+    PRIMARY KEY (mentor_group_id, learner_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_mentor_group ON pending_attendance(mentor_group_id);
