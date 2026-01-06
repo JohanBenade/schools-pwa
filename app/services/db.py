@@ -544,7 +544,7 @@ def get_learners_by_mentor_group_sqlite(mentor_group_id: str) -> list:
             FROM learner l
             LEFT JOIN learner_absent_tracking t ON l.id = t.learner_id
             WHERE l.mentor_group_id = ? AND l.is_active = 1
-            ORDER BY l.surname, l.first_name
+            ORDER BY l.first_name, l.surname
         ''', (mentor_group_id,))
         rows = cursor.fetchall()
     return [dict(row) for row in rows]
@@ -670,36 +670,46 @@ def create_attendance_entry(attendance_id: str, learner_id: str, status: str, no
     return entry_id
 
 def update_learner_absent_tracking(learner_id: str, increment: bool = True, tenant_id: str = "MARAGON"):
-    """Update consecutive absent days for a learner."""
+    """Update consecutive absent days for a learner. Idempotent - won't re-increment same day."""
     from datetime import datetime, date
     
     now = datetime.now().isoformat()
     today = date.today().isoformat()
-    status = "Absent" if increment else "Present"
+    new_status = "Absent" if increment else "Present"
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        if increment:
+        cursor.execute("""
+            SELECT consecutive_absent_days, last_status, last_attendance_date
+            FROM learner_absent_tracking WHERE learner_id = ?
+        """, (learner_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            current_days, last_status, last_date = row
+            
+            if last_date == today and last_status == new_status:
+                return
+            
+            if increment:
+                if last_date == today and last_status == "Absent":
+                    return
+                new_days = current_days + 1
+            else:
+                new_days = 0
+            
             cursor.execute("""
-                INSERT INTO learner_absent_tracking (learner_id, tenant_id, consecutive_absent_days, last_status, last_attendance_date, updated_at)
-                VALUES (?, ?, 1, ?, ?, ?)
-                ON CONFLICT(learner_id) DO UPDATE SET
-                    consecutive_absent_days = consecutive_absent_days + 1,
-                    last_status = ?,
-                    last_attendance_date = ?,
-                    updated_at = ?
-            """, (learner_id, tenant_id, status, today, now, status, today, now))
+                UPDATE learner_absent_tracking
+                SET consecutive_absent_days = ?, last_status = ?, last_attendance_date = ?, updated_at = ?
+                WHERE learner_id = ?
+            """, (new_days, new_status, today, now, learner_id))
         else:
+            new_days = 1 if increment else 0
             cursor.execute("""
                 INSERT INTO learner_absent_tracking (learner_id, tenant_id, consecutive_absent_days, last_status, last_attendance_date, updated_at)
-                VALUES (?, ?, 0, ?, ?, ?)
-                ON CONFLICT(learner_id) DO UPDATE SET
-                    consecutive_absent_days = 0,
-                    last_status = ?,
-                    last_attendance_date = ?,
-                    updated_at = ?
-            """, (learner_id, tenant_id, status, today, now, status, today, now))
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (learner_id, tenant_id, new_days, new_status, today, now))
         
         conn.commit()
 
@@ -780,6 +790,6 @@ def get_attendance_with_entries(attendance_id: str) -> list:
             FROM attendance_entry ae
             JOIN learner l ON ae.learner_id = l.id
             WHERE ae.attendance_id = ?
-            ORDER BY l.surname, l.first_name
+            ORDER BY l.first_name, l.surname
         ''', (attendance_id,))
         return [dict(row) for row in cursor.fetchall()]

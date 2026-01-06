@@ -19,21 +19,3 @@
         </div>
     </div>
 </div>
-
-<script>
-// Update submit button state
-(function() {
-    const btn = document.getElementById('submit-btn');
-    if (btn) {
-        {% if can_submit %}
-        btn.disabled = false;
-        btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-        {% else %}
-        btn.disabled = true;
-        btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-        btn.classList.add('bg-gray-300', 'cursor-not-allowed');
-        {% endif %}
-    }
-})();
-</script>

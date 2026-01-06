@@ -3,7 +3,6 @@
 
 {% block content %}
 <div class="p-4">
-    <!-- Header -->
     <div class="flex items-center justify-between mb-4">
         <div class="flex items-center">
             <a href="{{ url_for('attendance.index') }}" class="mr-3 p-2 -ml-2">
@@ -24,7 +23,6 @@
         </button>
     </div>
     
-    <!-- Already Submitted Warning -->
     {% if already_submitted %}
     <div class="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg">
         <div class="flex items-center gap-2">
@@ -39,20 +37,18 @@
     </div>
     {% endif %}
     
-    <!-- Stats Bar -->
     <div id="stats-container" 
          hx-get="{{ url_for('attendance.get_stats') }}" 
          hx-trigger="load, statsUpdate from:body, every 3s">
         {% include "attendance/partials/stats.html" %}
     </div>
     
-    <!-- Learner List -->
     <div class="space-y-2 mb-24">
         {% for learner in learners %}
-        <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200" data-learner-id="{{ learner.id }}">
+        <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200" data-learner-id="{{ learner.id }}" data-original-status="{{ learner.status }}">
             <div class="flex justify-between items-center mb-2">
                 <div>
-                    <span class="font-medium text-gray-800">{{ learner.surname }}, {{ learner.first_name }}</span>
+                    <span class="font-medium text-gray-800">{{ learner.first_name }} {{ learner.surname }}</span>
                     {% if learner.consecutive_absent_days and learner.consecutive_absent_days > 0 %}
                     <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
                         {{ learner.consecutive_absent_days }} day{% if learner.consecutive_absent_days > 1 %}s{% endif %} absent
@@ -88,7 +84,6 @@
         {% endfor %}
     </div>
     
-    <!-- Submit Button -->
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
         <form action="{{ url_for('attendance.submit_attendance_route') }}" method="POST">
             <button type="submit" id="submit-btn" disabled
@@ -102,7 +97,23 @@
 
 <script>
 const isUpdate = {{ 'true' if already_submitted else 'false' }};
-let hasChanges = false;
+
+function getCurrentStatus(row) {
+    const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-amber-600');
+    return activeBtn ? activeBtn.dataset.status : 'Unmarked';
+}
+
+function hasAnyChanges() {
+    let changed = false;
+    document.querySelectorAll('[data-learner-id]').forEach(row => {
+        const original = row.dataset.originalStatus || 'Unmarked';
+        const current = getCurrentStatus(row);
+        if (original !== current) {
+            changed = true;
+        }
+    });
+    return changed;
+}
 
 function getUnmarkedFromStats() {
     const statsContainer = document.getElementById('stats-container');
@@ -117,10 +128,10 @@ function updateSubmitButton() {
     const unmarked = getUnmarkedFromStats();
     
     let shouldEnable = false;
-    if (unmarked === 0) {
-        shouldEnable = true;
-    } else if (isUpdate && hasChanges) {
-        shouldEnable = true;
+    if (isUpdate) {
+        shouldEnable = hasAnyChanges();
+    } else {
+        shouldEnable = unmarked === 0;
     }
     
     submitBtn.disabled = !shouldEnable;
@@ -168,7 +179,6 @@ function markLearner(learnerId, status, clickedBtn) {
         }
     });
     
-    hasChanges = true;
     updateSubmitButton();
 }
 
