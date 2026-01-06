@@ -104,28 +104,23 @@
 const isUpdate = {{ 'true' if already_submitted else 'false' }};
 let hasChanges = false;
 
-function getSelectedStatus(row) {
-    const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-amber-600');
-    return activeBtn ? activeBtn.dataset.status : null;
-}
-
-function countMarked() {
-    let count = 0;
-    document.querySelectorAll('[data-learner-id]').forEach(row => {
-        if (getSelectedStatus(row)) count++;
-    });
-    return count;
+function getUnmarkedFromStats() {
+    const statsContainer = document.getElementById('stats-container');
+    if (!statsContainer) return -1;
+    const text = statsContainer.textContent || '';
+    const match = text.match(/(\d+)\s*Unmarked/i);
+    return match ? parseInt(match[1]) : -1;
 }
 
 function updateSubmitButton() {
     const submitBtn = document.getElementById('submit-btn');
-    const totalLearners = document.querySelectorAll('[data-learner-id]').length;
+    const unmarked = getUnmarkedFromStats();
     
     let shouldEnable = false;
-    if (isUpdate) {
-        shouldEnable = hasChanges;
-    } else {
-        shouldEnable = countMarked() >= totalLearners;
+    if (unmarked === 0) {
+        shouldEnable = true;
+    } else if (isUpdate && hasChanges) {
+        shouldEnable = true;
     }
     
     submitBtn.disabled = !shouldEnable;
@@ -173,13 +168,17 @@ function markLearner(learnerId, status, clickedBtn) {
         }
     });
     
-    if (isUpdate) {
-        hasChanges = true;
-    }
-    
+    hasChanges = true;
     updateSubmitButton();
 }
 
-document.addEventListener('DOMContentLoaded', updateSubmitButton);
+document.addEventListener('DOMContentLoaded', function() {
+    updateSubmitButton();
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id === 'stats-container') {
+            updateSubmitButton();
+        }
+    });
+});
 </script>
 {% endblock %}
