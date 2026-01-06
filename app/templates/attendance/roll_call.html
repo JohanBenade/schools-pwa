@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Roll Call - {{ group_name }}{% endblock %}
+
+{% block content %}
+<div class="p-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+            <a href="{{ url_for('attendance.index') }}" class="mr-3 p-2 -ml-2">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">Roll Call - {{ group_name }}</h1>
+                <p class="text-gray-600 text-sm">{{ mentor_name or 'No mentor assigned' }}</p>
+            </div>
+        </div>
+        <button onclick="location.reload()" class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Sync
+        </button>
+    </div>
+    
+    <!-- Already Submitted Warning -->
+    {% if already_submitted %}
+    <div class="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <span class="font-medium text-amber-800">Already submitted at {{ submitted_at }}</span>
+                <p class="text-amber-700 text-sm">Changes will update the existing record</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Stats Bar -->
+    <div id="stats-container" 
+         hx-get="{{ url_for('attendance.get_stats') }}" 
+         hx-trigger="load, statsUpdate from:body, every 3s">
+        {% include "attendance/partials/stats.html" %}
+    </div>
+    
+    <!-- Learner List -->
+    <div class="space-y-2 mb-24">
+        {% for learner in learners %}
+        <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200" data-learner-id="{{ learner.id }}">
+            <div class="flex justify-between items-center mb-2">
+                <div>
+                    <span class="font-medium text-gray-800">{{ learner.surname }}, {{ learner.first_name }}</span>
+                    {% if learner.consecutive_absent_days and learner.consecutive_absent_days > 0 %}
+                    <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                        {{ learner.consecutive_absent_days }} day{% if learner.consecutive_absent_days > 1 %}s{% endif %} absent
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button type="button" 
+                        onclick="markLearner('{{ learner.id }}', 'Present', this)"
+                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium 
+                               {% if learner.status == 'Present' %}bg-green-600 text-white{% else %}bg-green-100 text-green-700{% endif %}"
+                        data-status="Present">
+                    Present
+                </button>
+                <button type="button"
+                        onclick="markLearner('{{ learner.id }}', 'Absent', this)"
+                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
+                               {% if learner.status == 'Absent' %}bg-red-600 text-white{% else %}bg-red-100 text-red-700{% endif %}"
+                        data-status="Absent">
+                    Absent
+                </button>
+                <button type="button"
+                        onclick="markLearner('{{ learner.id }}', 'Late', this)"
+                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
+                               {% if learner.status == 'Late' %}bg-amber-600 text-white{% else %}bg-amber-100 text-amber-700{% endif %}"
+                        data-status="Late">
+                    Late
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Submit Button -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+        <form action="{{ url_for('attendance.submit_attendance_route') }}" method="POST">
+            <button type="submit" id="submit-btn" disabled
+                    class="w-full py-3 px-4 rounded-xl font-semibold transition-all
+                           bg-gray-300 text-gray-500 cursor-not-allowed">
+                {% if already_submitted %}Update Attendance{% else %}Submit Attendance{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+const isUpdate = {{ 'true' if already_submitted else 'false' }};
+let hasChanges = false;
+
+function getSelectedStatus(row) {
+    const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-amber-600');
+    return activeBtn ? activeBtn.dataset.status : null;
+}
+
+function countMarked() {
+    let count = 0;
+    document.querySelectorAll('[data-learner-id]').forEach(row => {
+        if (getSelectedStatus(row)) count++;
+    });
+    return count;
+}
+
+function updateSubmitButton() {
+    const submitBtn = document.getElementById('submit-btn');
+    const totalLearners = document.querySelectorAll('[data-learner-id]').length;
+    
+    let shouldEnable = false;
+    if (isUpdate) {
+        shouldEnable = hasChanges;
+    } else {
+        shouldEnable = countMarked() >= totalLearners;
+    }
+    
+    submitBtn.disabled = !shouldEnable;
+    
+    if (shouldEnable) {
+        submitBtn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+        if (isUpdate) {
+            submitBtn.classList.add('bg-amber-600', 'hover:bg-amber-700', 'text-white', 'cursor-pointer');
+        } else {
+            submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white', 'cursor-pointer');
+        }
+    } else {
+        submitBtn.classList.remove('bg-amber-600', 'hover:bg-amber-700', 'bg-blue-600', 'hover:bg-blue-700', 'text-white', 'cursor-pointer');
+        submitBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+    }
+}
+
+function markLearner(learnerId, status, clickedBtn) {
+    fetch('/attendance/mark/' + learnerId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'status=' + status
+    }).then(() => {
+        if (typeof htmx !== 'undefined') {
+            htmx.trigger(document.body, 'statsUpdate');
+        }
+    });
+    
+    const row = clickedBtn.closest('[data-learner-id]');
+    const buttons = row.querySelectorAll('.status-btn');
+    
+    buttons.forEach(btn => {
+        const btnStatus = btn.dataset.status;
+        btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-amber-600', 'text-white');
+        
+        if (btnStatus === 'Present') btn.classList.add('bg-green-100', 'text-green-700');
+        else if (btnStatus === 'Absent') btn.classList.add('bg-red-100', 'text-red-700');
+        else if (btnStatus === 'Late') btn.classList.add('bg-amber-100', 'text-amber-700');
+        
+        if (btnStatus === status) {
+            btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-amber-100', 'text-green-700', 'text-red-700', 'text-amber-700');
+            if (status === 'Present') btn.classList.add('bg-green-600', 'text-white');
+            else if (status === 'Absent') btn.classList.add('bg-red-600', 'text-white');
+            else if (status === 'Late') btn.classList.add('bg-amber-600', 'text-white');
+        }
+    });
+    
+    if (isUpdate) {
+        hasChanges = true;
+    }
+    
+    updateSubmitButton();
+}
+
+document.addEventListener('DOMContentLoaded', updateSubmitButton);
+</script>
+{% endblock %}

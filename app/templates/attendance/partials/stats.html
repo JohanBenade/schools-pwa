@@ -1,0 +1,39 @@
+<!-- Stats bar partial - updated via HTMX -->
+<div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+    <div class="grid grid-cols-4 gap-2 text-center">
+        <div>
+            <p class="text-xl font-bold text-green-600">{{ stats.present }}</p>
+            <p class="text-xs text-gray-500">Present</p>
+        </div>
+        <div>
+            <p class="text-xl font-bold text-red-600">{{ stats.absent }}</p>
+            <p class="text-xs text-gray-500">Absent</p>
+        </div>
+        <div>
+            <p class="text-xl font-bold text-amber-600">{{ stats.late }}</p>
+            <p class="text-xs text-gray-500">Late</p>
+        </div>
+        <div>
+            <p class="text-xl font-bold {% if stats.unmarked > 0 %}text-gray-400{% else %}text-green-600{% endif %}">{{ stats.unmarked }}</p>
+            <p class="text-xs text-gray-500">Unmarked</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update submit button state
+(function() {
+    const btn = document.getElementById('submit-btn');
+    if (btn) {
+        {% if can_submit %}
+        btn.disabled = false;
+        btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        {% else %}
+        btn.disabled = true;
+        btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        btn.classList.add('bg-gray-300', 'cursor-not-allowed');
+        {% endif %}
+    }
+})();
+</script>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Late Arrivals{% endblock %}
+
+{% block content %}
+<div class="p-4">
+    <div class="flex items-center mb-4">
+        <a href="{{ url_for('admin.dashboard') }}" class="mr-3 p-2 -ml-2">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-xl font-bold text-gray-800">Late Arrivals</h1>
+            <p class="text-gray-600 text-sm">{{ today_display }} • {{ late_learners|length }} learners</p>
+        </div>
+    </div>
+    
+    {% if late_learners %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="text-left p-3 font-medium text-gray-700">Learner</th>
+                    <th class="text-left p-3 font-medium text-gray-700">Class</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for l in late_learners %}
+                <tr>
+                    <td class="p-3 text-gray-800">{{ l.surname }}, {{ l.first_name }}</td>
+                    <td class="p-3 text-gray-600">{{ l.group_name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-500">
+        <div class="text-4xl mb-2">⏰</div>
+        <p>No late arrivals recorded yet</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

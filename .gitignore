@@ -1,0 +1,27 @@
+# Environment
+.env
+.env.save
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Database
+*.db
+
+# Mac
+.DS_Store
+
+# Backups
+*.bak
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.zip
+SQLite

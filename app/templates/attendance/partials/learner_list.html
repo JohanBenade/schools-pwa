@@ -1,0 +1,7 @@
+{% for learner in learners %}
+{% include "attendance/partials/learner_row.html" %}
+{% else %}
+<div class="p-8 text-center text-slate-500">
+    <p>No learners found</p>
+</div>
+{% endfor %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}SchoolOps{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        /* iOS-style touch feedback */
+        .touch-btn:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+        /* Status colors */
+        .status-present { background-color: #d1fae5; }
+        .status-absent { background-color: #fee2e2; }
+        .status-late { background-color: #fef3c7; }
+        .status-unmarked { background-color: #f3f4f6; }
+        /* Loading spinner */
+        .htmx-request .spinner { display: inline-block; }
+        .spinner { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-lg mx-auto">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

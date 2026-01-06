@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Absent Learners - SchoolOps{% endblock %}
+
+{% block body %}
+<div class="max-w-5xl mx-auto">
+    <header class="bg-slate-700 text-white p-4 sticky top-0 z-10">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold">Absent Learners</h1>
+                <p class="text-slate-300 text-sm">{{ formatted_date }}</p>
+            </div>
+            <a href="/admin?date={{ target_date }}" 
+               class="bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-lg text-sm font-medium">
+                Back to Dashboard
+            </a>
+        </div>
+    </header>
+    
+    <div class="p-4">
+        <!-- Filters - auto-submit on change -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-4">
+            <form method="get" id="filterForm" class="flex flex-wrap gap-3 items-end">
+                <input type="hidden" name="date" value="{{ target_date }}">
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Grade</label>
+                    <select name="grade" onchange="this.form.submit()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">All Grades</option>
+                        {% for grade in grades %}
+                        <option value="{{ grade }}" {% if grade_filter == grade %}selected{% endif %}>{{ grade }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">ADVTECH Status</label>
+                    <select name="captured" onchange="this.form.submit()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">All</option>
+                        <option value="no" {% if captured_filter == 'no' %}selected{% endif %}>Not Captured</option>
+                        <option value="yes" {% if captured_filter == 'yes' %}selected{% endif %}>Captured</option>
+                    </select>
+                </div>
+                
+                {% if grade_filter or captured_filter %}
+                <a href="/admin/absent?date={{ target_date }}" class="text-slate-500 hover:text-slate-700 text-sm py-2">
+                    Clear filters
+                </a>
+                {% endif %}
+            </form>
+        </div>
+        
+        <!-- Summary -->
+        <div class="mb-4 text-sm text-slate-600">
+            Showing {{ entries|length }} absent learner{% if entries|length != 1 %}s{% endif %}
+        </div>
+        
+        <!-- Absent Learners Table -->
+        {% if entries %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="text-left p-3 font-medium text-slate-600">Surname</th>
+                        <th class="text-left p-3 font-medium text-slate-600">First Name</th>
+                        <th class="text-left p-3 font-medium text-slate-600">Grade</th>
+                        <th class="text-left p-3 font-medium text-slate-600">Class</th>
+                        <th class="text-center p-3 font-medium text-slate-600">Days</th>
+                        <th class="text-center p-3 font-medium text-slate-600">ADVTECH</th>
+                        <th class="text-left p-3 font-medium text-slate-600">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr class="border-b border-slate-100 last:border-0 {% if entry.advtech_captured %}bg-slate-50{% endif %}">
+                        <td class="p-3 font-medium text-slate-800">{{ entry.learner_surname }}</td>
+                        <td class="p-3 text-slate-600">{{ entry.learner_first_name }}</td>
+                        <td class="p-3 text-slate-600">{{ entry.grade }}</td>
+                        <td class="p-3 text-slate-600">{{ entry.mentor_group_name }}</td>
+                        <td class="p-3 text-center">
+                            {% if entry.consecutive_days >= 3 %}
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                {{ entry.consecutive_days }}
+                            </span>
+                            {% elif entry.consecutive_days >= 2 %}
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                {{ entry.consecutive_days }}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center justify-center w-6 h-6 text-slate-600">{{ entry.consecutive_days }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-center">
+                            {% if entry.advtech_captured %}
+                            <span class="inline-flex items-center text-green-600">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </span>
+                            {% else %}
+                            <span class="text-slate-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            {% if not entry.advtech_captured %}
+                            <div class="flex gap-2">
+                                <form method="post" action="/admin/capture/{{ entry.id }}" class="inline">
+                                    <input type="hidden" name="date" value="{{ target_date }}">
+                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
+                                        Capture
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/override/{{ entry.id }}" class="inline">
+                                    <input type="hidden" name="date" value="{{ target_date }}">
+                                    <input type="hidden" name="learner_page_id" value="{{ entry.learner_page_id }}">
+                                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded text-xs font-medium">
+                                        Present
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-400 text-xs">Done</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
+            <p class="text-slate-500">No absent learners found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
