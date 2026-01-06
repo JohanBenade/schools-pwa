@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS attendance (
     submitted_by_id TEXT,                   -- Notion staff page ID (nullable until auth)
     submitted_at TEXT,                      -- ISO datetime
     status TEXT NOT NULL DEFAULT 'Pending', -- Pending, Submitted, Late
+    stasy_captured INTEGER DEFAULT 0,       -- Has been captured to STASY
+    stasy_captured_at TEXT,                 -- When captured
+    stasy_captured_by TEXT,                 -- Who captured
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -31,6 +34,8 @@ CREATE TABLE IF NOT EXISTS attendance_entry (
     learner_id TEXT NOT NULL,               -- Notion learner page ID
     status TEXT NOT NULL DEFAULT 'Unmarked', -- Unmarked, Present, Absent, Late, Left_Early
     notes TEXT,
+    stasy_captured INTEGER DEFAULT 0,       -- Has been captured to STASY
+    stasy_captured_at TEXT,                 -- When captured
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (attendance_id) REFERENCES attendance(id) ON DELETE CASCADE
