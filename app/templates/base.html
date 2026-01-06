@@ -7,22 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
-        /* iOS-style touch feedback */
         .touch-btn:active {
             transform: scale(0.98);
             opacity: 0.9;
         }
-        /* Status colors */
         .status-present { background-color: #d1fae5; }
         .status-absent { background-color: #fee2e2; }
         .status-late { background-color: #fef3c7; }
         .status-unmarked { background-color: #f3f4f6; }
-        /* Loading spinner */
         .htmx-request .spinner { display: inline-block; }
         .spinner { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Fixed Home Button -->
+    <a href="/" class="fixed top-4 right-4 z-50 p-2 bg-white shadow-lg rounded-full hover:bg-gray-100">
+        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+    </a>
+    
     <div class="max-w-lg mx-auto">
         {% block content %}{% endblock %}
     </div>
