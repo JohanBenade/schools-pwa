@@ -12,7 +12,9 @@ from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
 # Database path - configurable via environment
-DB_PATH = Path(__file__).parent.parent / "data" / "schoolops.db"
+import os
+_default_path = Path(__file__).parent.parent / "data" / "schoolops.db"
+DB_PATH = Path(os.environ.get("DATABASE_PATH", _default_path))
 
 
 def get_db_path() -> Path:
