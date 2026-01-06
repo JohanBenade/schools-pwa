@@ -8,7 +8,8 @@ import sqlite3
 import uuid
 from datetime import datetime
 
-DB_PATH = "app/data/schoolops.db"
+import os
+DB_PATH = os.environ.get("DATABASE_PATH", "app/data/schoolops.db")
 TENANT_ID = "MARAGON"
 
 # South African first names
