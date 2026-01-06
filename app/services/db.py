@@ -567,24 +567,27 @@ def get_staff_by_id_sqlite(staff_id: str) -> dict:
 
 def mark_learner_sqlite(mentor_group_id: str, learner_id: str, status: str, marked_by: str = None):
     """Mark a learner's attendance status in SQLite."""
-    from datetime import datetime
+    from datetime import datetime, date as date_module
+    today = date_module.today().isoformat()
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT OR REPLACE INTO pending_attendance
-            (mentor_group_id, learner_id, status, marked_by, marked_at)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (mentor_group_id, learner_id, status, marked_by, datetime.now().isoformat()))
+            (mentor_group_id, learner_id, date, status, marked_by, marked_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (mentor_group_id, learner_id, today, status, marked_by, datetime.now().isoformat()))
         conn.commit()
 
 
 def get_pending_marks_sqlite(mentor_group_id: str) -> dict:
-    """Get all pending marks for a mentor group. Returns {learner_id: status}."""
+    """Get all pending marks for a mentor group for today. Returns {learner_id: status}."""
+    from datetime import date
+    today = date.today().isoformat()
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT learner_id, status FROM pending_attendance WHERE mentor_group_id = ?
-        ''', (mentor_group_id,))
+            SELECT learner_id, status FROM pending_attendance WHERE mentor_group_id = ? AND date = ?
+        ''', (mentor_group_id, today))
         rows = cursor.fetchall()
     return {row['learner_id']: row['status'] for row in rows}
 
@@ -597,11 +600,13 @@ def get_pending_stats_sqlite(mentor_group_id: str) -> dict:
         cursor.execute('SELECT COUNT(*) as total FROM learner WHERE mentor_group_id = ? AND is_active = 1', (mentor_group_id,))
         total = cursor.fetchone()['total']
         
-        # Get counts by status
+        # Get counts by status (today only)
+        from datetime import date
+        today = date.today().isoformat()
         cursor.execute('''
             SELECT status, COUNT(*) as count FROM pending_attendance 
-            WHERE mentor_group_id = ? GROUP BY status
-        ''', (mentor_group_id,))
+            WHERE mentor_group_id = ? AND date = ? GROUP BY status
+        ''', (mentor_group_id, today))
         counts = {row['status']: row['count'] for row in cursor.fetchall()}
     
     present = counts.get('Present', 0)
@@ -613,10 +618,12 @@ def get_pending_stats_sqlite(mentor_group_id: str) -> dict:
 
 
 def clear_pending_attendance_sqlite(mentor_group_id: str):
-    """Clear pending attendance after submission."""
+    """Clear pending attendance for today after submission."""
+    from datetime import date
+    today = date.today().isoformat()
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM pending_attendance WHERE mentor_group_id = ?', (mentor_group_id,))
+        cursor.execute('DELETE FROM pending_attendance WHERE mentor_group_id = ? AND date = ?', (mentor_group_id, today))
         conn.commit()
 
 

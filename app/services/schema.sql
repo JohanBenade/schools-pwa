@@ -210,10 +210,12 @@ CREATE INDEX IF NOT EXISTS idx_staff_tenant ON staff(tenant_id);
 CREATE TABLE IF NOT EXISTS pending_attendance (
     mentor_group_id TEXT NOT NULL,
     learner_id TEXT NOT NULL,
+    date TEXT NOT NULL,
     status TEXT NOT NULL,
     marked_by TEXT,
     marked_at TEXT,
-    PRIMARY KEY (mentor_group_id, learner_id)
+    PRIMARY KEY (mentor_group_id, learner_id, date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_mentor_group ON pending_attendance(mentor_group_id);
+CREATE INDEX IF NOT EXISTS idx_pending_date ON pending_attendance(date);
