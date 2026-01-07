@@ -35,7 +35,7 @@ def create_app():
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
             min-height: 100vh;
             padding: 60px 20px 40px;
         }
