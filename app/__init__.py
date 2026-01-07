@@ -42,7 +42,7 @@ def create_app():
         .header {
             text-align: center;
             margin-bottom: 40px;
-            color: white;
+            color: #1E293B;
         }
         .header h1 {
             font-size: 28px;
@@ -99,7 +99,7 @@ def create_app():
         }
         .app-label {
             font-size: 11px;
-            color: white;
+            color: #1E293B;
             text-align: center;
             max-width: 70px;
             overflow: hidden;
@@ -136,7 +136,7 @@ def create_app():
         .footer {
             text-align: center;
             margin-top: 50px;
-            color: white;
+            color: #1E293B;
             opacity: 0.7;
             font-size: 12px;
         }
@@ -148,7 +148,7 @@ def create_app():
             top: -6px;
             right: -6px;
             background: #ef4444;
-            color: white;
+            color: #1E293B;
             font-size: 12px;
             font-weight: 600;
             min-width: 20px;
