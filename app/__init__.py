@@ -15,9 +15,11 @@ def create_app():
     # Register blueprints
     from app.routes.attendance import attendance_bp
     from app.routes.admin import admin_bp
+    from app.routes.principal import principal_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(principal_bp)
     
     @app.route('/')
     def home():
@@ -118,12 +120,7 @@ def create_app():
         .bg-gray { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
         .bg-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
         .bg-pink { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
-        
-        /* Admin only on tablet/desktop */
-        .desktop-only { display: none; }
-        @media (min-width: 768px) {
-            .desktop-only { display: flex; }
-        }
+        .bg-indigo { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
         
         /* Coming soon - grayed out */
         .coming-soon .icon-box {
@@ -148,7 +145,7 @@ def create_app():
             top: -6px;
             right: -6px;
             background: #ef4444;
-            color: #1E293B;
+            color: white;
             font-size: 12px;
             font-weight: 600;
             min-width: 20px;
@@ -169,14 +166,20 @@ def create_app():
     </div>
     
     <div class="grid">
-        <!-- Roll Call - All devices -->
+        <!-- Roll Call - Primary action -->
         <a href="/attendance/" class="app-icon">
             <div class="icon-box bg-blue">📋</div>
             <span class="app-label">Roll Call</span>
         </a>
         
-        <!-- Admin - Desktop/Tablet only -->
-        <a href="/admin/" class="app-icon desktop-only">
+        <!-- Eagle Eye - Principal Dashboard -->
+        <a href="/principal/" class="app-icon">
+            <div class="icon-box bg-indigo">🦅</div>
+            <span class="app-label">Eagle Eye</span>
+        </a>
+        
+        <!-- Admin -->
+        <a href="/admin/" class="app-icon">
             <div class="icon-box bg-gray">📊</div>
             <span class="app-label">Admin</span>
         </a>
@@ -205,11 +208,6 @@ def create_app():
         <a href="#" class="app-icon coming-soon" onclick="return false;">
             <div class="icon-box bg-red">⚽</div>
             <span class="app-label">Sports</span>
-        </a>
-        
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-pink">🔔</div>
-            <span class="app-label">Alerts</span>
         </a>
     </div>
     
