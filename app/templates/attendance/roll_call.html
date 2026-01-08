@@ -65,21 +65,44 @@
 <script>
 const isUpdate = {{ 'true' if already_submitted else 'false' }};
 
-function getCurrentStatus(row) {
+// Store original statuses on page load - survives HTMX swaps
+const originalStatuses = {};
+let initialized = false;
+
+function captureOriginalStatuses() {
+    if (initialized) return;
+    document.querySelectorAll('[data-learner-id]').forEach(row => {
+        const learnerId = row.dataset.learnerId;
+        const status = row.dataset.originalStatus || 'Unmarked';
+        originalStatuses[learnerId] = status;
+    });
+    initialized = true;
+}
+
+// Track changes made this session (survives HTMX swaps)
+const currentStatuses = {};
+
+function getCurrentStatus(learnerId) {
+    // First check our tracked changes
+    if (currentStatuses[learnerId]) {
+        return currentStatuses[learnerId];
+    }
+    // Fall back to reading from DOM
+    const row = document.querySelector('[data-learner-id="' + learnerId + '"]');
+    if (!row) return 'Unmarked';
     const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-amber-600');
     return activeBtn ? activeBtn.dataset.status : 'Unmarked';
 }
 
 function hasAnyChanges() {
-    let changed = false;
-    document.querySelectorAll('[data-learner-id]').forEach(row => {
-        const original = row.dataset.originalStatus || 'Unmarked';
-        const current = getCurrentStatus(row);
+    for (const learnerId in originalStatuses) {
+        const original = originalStatuses[learnerId];
+        const current = getCurrentStatus(learnerId);
         if (original !== current) {
-            changed = true;
+            return true;
         }
-    });
-    return changed;
+    }
+    return false;
 }
 
 function getUnmarkedFromStats() {
@@ -116,7 +139,36 @@ function updateSubmitButton() {
     }
 }
 
+function syncButtonVisuals() {
+    // After HTMX swap, re-apply our tracked changes to button visuals
+    for (const learnerId in currentStatuses) {
+        const status = currentStatuses[learnerId];
+        const row = document.querySelector('[data-learner-id="' + learnerId + '"]');
+        if (!row) continue;
+        
+        const buttons = row.querySelectorAll('.status-btn');
+        buttons.forEach(btn => {
+            const btnStatus = btn.dataset.status;
+            btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-amber-600', 'text-white');
+            
+            if (btnStatus === 'Present') btn.classList.add('bg-green-100', 'text-green-700');
+            else if (btnStatus === 'Absent') btn.classList.add('bg-red-100', 'text-red-700');
+            else if (btnStatus === 'Late') btn.classList.add('bg-amber-100', 'text-amber-700');
+            
+            if (btnStatus === status) {
+                btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-amber-100', 'text-green-700', 'text-red-700', 'text-amber-700');
+                if (status === 'Present') btn.classList.add('bg-green-600', 'text-white');
+                else if (status === 'Absent') btn.classList.add('bg-red-600', 'text-white');
+                else if (status === 'Late') btn.classList.add('bg-amber-600', 'text-white');
+            }
+        });
+    }
+}
+
 function markLearner(learnerId, status, clickedBtn) {
+    // Track change in JavaScript (survives HTMX swaps)
+    currentStatuses[learnerId] = status;
+    
     fetch('/attendance/mark/' + learnerId, {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -150,8 +202,14 @@ function markLearner(learnerId, status, clickedBtn) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    captureOriginalStatuses();
     updateSubmitButton();
+    
     document.body.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id === 'learners-container') {
+            // Re-apply our tracked changes after HTMX replaces the content
+            syncButtonVisuals();
+        }
         if (e.detail.target.id === 'stats-container' || e.detail.target.id === 'learners-container') {
             updateSubmitButton();
         }
