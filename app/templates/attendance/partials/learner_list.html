@@ -1,7 +1,39 @@
+<!-- Learner list partial - updated via HTMX -->
 {% for learner in learners %}
-{% include "attendance/partials/learner_row.html" %}
-{% else %}
-<div class="p-8 text-center text-slate-500">
-    <p>No learners found</p>
+<div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200" data-learner-id="{{ learner.id }}" data-original-status="{{ learner.status }}">
+    <div class="flex justify-between items-center mb-2">
+        <div>
+            <span class="font-medium text-gray-800">{{ learner.first_name }} {{ learner.surname }}</span>
+            {% if learner.consecutive_absent_days and learner.consecutive_absent_days > 0 %}
+            <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                {{ learner.consecutive_absent_days }} day{% if learner.consecutive_absent_days > 1 %}s{% endif %} absent
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="flex gap-2">
+        <button type="button" 
+                onclick="markLearner('{{ learner.id }}', 'Present', this)"
+                class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium 
+                       {% if learner.status == 'Present' %}bg-green-600 text-white{% else %}bg-green-100 text-green-700{% endif %}"
+                data-status="Present">
+            Present
+        </button>
+        <button type="button"
+                onclick="markLearner('{{ learner.id }}', 'Absent', this)"
+                class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
+                       {% if learner.status == 'Absent' %}bg-red-600 text-white{% else %}bg-red-100 text-red-700{% endif %}"
+                data-status="Absent">
+            Absent
+        </button>
+        <button type="button"
+                onclick="markLearner('{{ learner.id }}', 'Late', this)"
+                class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
+                       {% if learner.status == 'Late' %}bg-amber-600 text-white{% else %}bg-amber-100 text-amber-700{% endif %}"
+                data-status="Late">
+            Late
+        </button>
+    </div>
 </div>
 {% endfor %}

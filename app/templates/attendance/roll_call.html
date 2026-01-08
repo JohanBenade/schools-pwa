@@ -43,45 +43,12 @@
         {% include "attendance/partials/stats.html" %}
     </div>
     
-    <div class="space-y-2 mb-24">
-        {% for learner in learners %}
-        <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200" data-learner-id="{{ learner.id }}" data-original-status="{{ learner.status }}">
-            <div class="flex justify-between items-center mb-2">
-                <div>
-                    <span class="font-medium text-gray-800">{{ learner.first_name }} {{ learner.surname }}</span>
-                    {% if learner.consecutive_absent_days and learner.consecutive_absent_days > 0 %}
-                    <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                        {{ learner.consecutive_absent_days }} day{% if learner.consecutive_absent_days > 1 %}s{% endif %} absent
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div class="flex gap-2">
-                <button type="button" 
-                        onclick="markLearner('{{ learner.id }}', 'Present', this)"
-                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium 
-                               {% if learner.status == 'Present' %}bg-green-600 text-white{% else %}bg-green-100 text-green-700{% endif %}"
-                        data-status="Present">
-                    Present
-                </button>
-                <button type="button"
-                        onclick="markLearner('{{ learner.id }}', 'Absent', this)"
-                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
-                               {% if learner.status == 'Absent' %}bg-red-600 text-white{% else %}bg-red-100 text-red-700{% endif %}"
-                        data-status="Absent">
-                    Absent
-                </button>
-                <button type="button"
-                        onclick="markLearner('{{ learner.id }}', 'Late', this)"
-                        class="status-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium
-                               {% if learner.status == 'Late' %}bg-amber-600 text-white{% else %}bg-amber-100 text-amber-700{% endif %}"
-                        data-status="Late">
-                    Late
-                </button>
-            </div>
-        </div>
-        {% endfor %}
+    <div id="learners-container" 
+         class="space-y-2 mb-24"
+         hx-get="{{ url_for('attendance.get_learners') }}"
+         hx-trigger="every 3s"
+         hx-swap="innerHTML">
+        {% include "attendance/partials/learner_list.html" %}
     </div>
     
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
@@ -185,7 +152,7 @@ function markLearner(learnerId, status, clickedBtn) {
 document.addEventListener('DOMContentLoaded', function() {
     updateSubmitButton();
     document.body.addEventListener('htmx:afterSwap', function(e) {
-        if (e.detail.target.id === 'stats-container') {
+        if (e.detail.target.id === 'stats-container' || e.detail.target.id === 'learners-container') {
             updateSubmitButton();
         }
     });

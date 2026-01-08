@@ -192,3 +192,25 @@ def submit_attendance_route():
                           group_name=group['group_name'] if group else 'Unknown',
                           count=len(marks),
                           is_update=is_update)
+
+
+@attendance_bp.route('/learners')
+def get_learners():
+    """Return learner list partial for HTMX polling"""
+    mentor_group_id = session.get('current_mentor_group_id')
+    existing_attendance_id = session.get('existing_attendance_id')
+    
+    if not mentor_group_id:
+        return '', 204
+    
+    learners = get_learners_by_mentor_group_sqlite(mentor_group_id)
+    
+    if existing_attendance_id:
+        marks = get_attendance_entries(existing_attendance_id)
+    else:
+        marks = get_pending_marks_sqlite(mentor_group_id)
+    
+    for learner in learners:
+        learner['status'] = marks.get(learner['id'], 'Unmarked')
+    
+    return render_template('attendance/partials/learner_list.html', learners=learners)
