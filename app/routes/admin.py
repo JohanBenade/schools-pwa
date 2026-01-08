@@ -2,7 +2,7 @@
 Admin routes - Attendance dashboard for office admin
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from datetime import date, datetime
 from app.services.db import get_connection
 
@@ -284,3 +284,101 @@ def uncapture_entry(entry_id):
     if return_to == 'class' and attendance_id:
         return redirect(url_for('admin.class_detail', attendance_id=attendance_id))
     return redirect(url_for('admin.absentees'))
+
+
+# ============================================
+# SEED DATA ENDPOINT
+# ============================================
+
+@admin_bp.route('/seed-data', methods=['GET', 'POST'])
+def seed_data():
+    """Seed Maragon reference data. GET shows confirmation, POST executes."""
+    if request.method == 'GET':
+        # Show current counts and confirmation
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM staff")
+            staff_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM mentor_group")
+            mg_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM learner")
+            learner_count = cursor.fetchone()[0]
+        
+        return f'''
+        <html>
+        <head><title>Seed Data - SchoolOps Admin</title>
+        <style>
+            body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+            .warning {{ background: #fee; border: 1px solid #c00; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            .current {{ background: #f5f5f5; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            button {{ background: #c00; color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }}
+            button:hover {{ background: #a00; }}
+            a {{ color: #007AFF; }}
+        </style>
+        </head>
+        <body>
+            <h1>Seed Maragon Data</h1>
+            <div class="current">
+                <h3>Current Data</h3>
+                <p>Staff: {staff_count}</p>
+                <p>Mentor Groups: {mg_count}</p>
+                <p>Learners: {learner_count}</p>
+            </div>
+            <div class="warning">
+                <h3>Warning</h3>
+                <p>This will DELETE all existing data and replace with fresh Maragon seed data:</p>
+                <ul>
+                    <li>54 staff members</li>
+                    <li>25 mentor groups</li>
+                    <li>125 test learners</li>
+                </ul>
+                <p><strong>All attendance records will be lost!</strong></p>
+            </div>
+            <form method="POST">
+                <button type="submit">Seed Data Now</button>
+            </form>
+            <p style="margin-top: 2rem;"><a href="/admin/">Back to Dashboard</a></p>
+        </body>
+        </html>
+        '''
+    
+    # POST - Execute seed
+    from app.services.seed_maragon_data import seed_all
+    result = seed_all()
+    
+    return f'''
+    <html>
+    <head><title>Seed Complete - SchoolOps Admin</title>
+    <style>
+        body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+        .success {{ background: #efe; border: 1px solid #0a0; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+        a {{ color: #007AFF; }}
+    </style>
+    </head>
+    <body>
+        <h1>Seed Complete</h1>
+        <div class="success">
+            <h3>Data Imported</h3>
+            <p>Staff: {result['staff']}</p>
+            <p>Mentor Groups: {result['mentor_groups']}</p>
+            <p>Learners: {result['learners']}</p>
+        </div>
+        <p><a href="/admin/">Go to Dashboard</a></p>
+        <p><a href="/attendance/">Go to Attendance</a></p>
+    </body>
+    </html>
+    '''
+
+
+@admin_bp.route('/db-stats')
+def db_stats():
+    """Show database statistics (no modification)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        stats = {}
+        for table in ['staff', 'mentor_group', 'learner', 'grade', 'attendance', 'attendance_entry']:
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            stats[table] = cursor.fetchone()[0]
+    
+    return jsonify(stats)
