@@ -3,379 +3,455 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Eagle Eye - SchoolOps</title>
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#1e40af">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <title>Eagle Eye - SchoolOps</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .card { transition: transform 0.15s; }
-        .card:hover { transform: translateY(-2px); }
-        .loading { opacity: 0.5; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .animate-pulse { animation: pulse 1.5s infinite; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            padding: 20px 16px 24px;
+            position: relative;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-size: 24px;
+            padding: 8px;
+            margin-left: -8px;
+        }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header-date { font-size: 14px; opacity: 0.9; }
+        .response-time {
+            position: absolute;
+            top: 20px;
+            right: 16px;
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+            margin-top: -20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .stat-card.wide { grid-column: span 2; }
+        .stat-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }
+        .stat-value.green { color: #22c55e; }
+        .stat-value.red { color: #ef4444; }
+        .stat-value.orange { color: #f97316; }
+        .stat-value.blue { color: #3b82f6; }
+        .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            margin: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .section-badge {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .section-badge.red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .pending-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pending-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #fef3c7;
+            border-radius: 8px;
+        }
+        .pending-group { font-weight: 600; color: #92400e; }
+        .pending-mentor { font-size: 12px; color: #a16207; }
+        
+        .watchlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #fee2e2;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .watchlist-name { font-weight: 600; color: #991b1b; }
+        .watchlist-detail { font-size: 12px; color: #dc2626; }
+        .watchlist-days {
+            background: #dc2626;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 180px;
+        }
+        
+        .grade-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .grade-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .grade-label {
+            width: 50px;
+            font-size: 12px;
+            color: #64748b;
+            flex-shrink: 0;
+        }
+        .grade-bar-container {
+            flex: 1;
+            height: 24px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .grade-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .grade-bar.low {
+            background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+        }
+        .grade-rate {
+            width: 45px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            text-align: right;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            color: #94a3b8;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .empty-icon { font-size: 32px; margin-bottom: 8px; }
+        
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 10px;
+            padding: 4px 16px;
+        }
+        .nav-item.active { color: #6366f1; }
+        .nav-icon { font-size: 24px; margin-bottom: 2px; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="max-w-7xl mx-auto p-4 md:p-6">
-        <!-- Header -->
-        <div class="mb-6 flex items-center justify-between flex-wrap gap-4">
+<body>
+    <div class="header">
+        <div class="header-top">
+            <a href="/" class="back-btn">&#8592;</a>
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                    <span class="text-3xl">🦅</span> Eagle Eye
-                </h1>
-                <p class="text-gray-500 text-sm" id="dateDisplay">Loading...</p>
+                <h1>Eagle Eye</h1>
+                <div class="header-date">{{ today_display }}</div>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-400" id="lastUpdate">-</span>
-                <button onclick="refreshAll()" class="p-2 bg-white rounded-lg shadow hover:bg-gray-50">
-                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                </button>
-            </div>
+            <div style="width: 40px;"></div>
         </div>
-
-        <!-- Top Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-            <!-- Attendance Rate -->
-            <div class="col-span-2 md:col-span-1 bg-white rounded-2xl shadow-lg p-4 md:p-6 border-l-4 border-blue-600 card">
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-gray-500 text-xs font-medium">Attendance</span>
-                    <span id="statusBadge" class="px-2 py-0.5 rounded-full text-xs font-bold text-white bg-gray-300">-</span>
-                </div>
-                <div class="text-3xl md:text-4xl font-bold text-gray-900" id="rateDisplay">-</div>
-                <div class="text-xs text-gray-500 mt-1">of <span id="totalLearners">-</span> learners</div>
-            </div>
-
-            <!-- Present -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                    <span class="text-gray-500 text-xs font-medium">Present</span>
-                </div>
-                <div class="text-2xl md:text-3xl font-bold text-gray-900" id="presentCount">-</div>
-            </div>
-
-            <!-- Absent -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                    <span class="text-gray-500 text-xs font-medium">Absent</span>
-                </div>
-                <div class="text-2xl md:text-3xl font-bold text-gray-900" id="absentCount">-</div>
-            </div>
-
-            <!-- Late -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                    <span class="text-gray-500 text-xs font-medium">Late</span>
-                </div>
-                <div class="text-2xl md:text-3xl font-bold text-gray-900" id="lateCount">-</div>
-            </div>
-
-            <!-- Registers -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                    <span class="text-gray-500 text-xs font-medium">Registers</span>
-                </div>
-                <div class="text-2xl md:text-3xl font-bold text-gray-900" id="registerCount">-/-</div>
-                <div class="text-xs text-amber-600 font-medium" id="pendingCount">-</div>
-            </div>
+        <div class="response-time" id="responseTime">Loading...</div>
+    </div>
+    
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="stat-label">Attendance Rate</div>
+            <div class="stat-value green" id="attendanceRate">--</div>
+            <div class="stat-sub" id="presentCount">-- present</div>
         </div>
-
-        <!-- Charts Row -->
-        <div class="grid md:grid-cols-3 gap-4 md:gap-6 mb-6">
-            <!-- Trend Chart -->
-            <div class="md:col-span-2 bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <h2 class="text-base font-semibold text-gray-900 mb-3">📈 This Week</h2>
-                <div style="height: 200px;">
-                    <canvas id="trendChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Pending Registers -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-base font-semibold text-gray-900">⏳ Pending</h2>
-                    <span id="pendingBadge" class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">-</span>
-                </div>
-                <div id="pendingList" class="space-y-2 max-h-48 overflow-y-auto">
-                    <div class="text-gray-400 text-sm">Loading...</div>
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-label">Registers</div>
+            <div class="stat-value blue" id="submittedCount">--</div>
+            <div class="stat-sub" id="pendingCount">-- pending</div>
         </div>
-
-        <!-- Grade & Watchlist Row -->
-        <div class="grid md:grid-cols-2 gap-4 md:gap-6 mb-6">
-            <!-- Grade Comparison -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <h2 class="text-base font-semibold text-gray-900 mb-3">📊 By Grade</h2>
-                <div style="height: 200px;">
-                    <canvas id="gradeChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Watchlist -->
-            <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 card">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-base font-semibold text-gray-900">🚨 Welfare Watchlist</h2>
-                    <span id="watchlistBadge" class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">-</span>
-                </div>
-                <p class="text-xs text-gray-500 mb-2">3+ consecutive absences</p>
-                <div id="watchlistItems" class="space-y-2 max-h-40 overflow-y-auto">
-                    <div class="text-gray-400 text-sm">Loading...</div>
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-label">Absent Today</div>
+            <div class="stat-value red" id="absentCount">--</div>
+            <div class="stat-sub">learners</div>
         </div>
-
-        <!-- Chronic Absentees -->
-        <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 card">
-            <div class="flex items-center justify-between mb-3">
-                <div>
-                    <h2 class="text-base font-semibold text-gray-900">📋 Chronic Absenteeism</h2>
-                    <p class="text-xs text-gray-500">Missed 20%+ of school days</p>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-100">
-                            <th class="text-left py-2 px-3 text-xs font-medium text-gray-500">Learner</th>
-                            <th class="text-left py-2 px-3 text-xs font-medium text-gray-500">Class</th>
-                            <th class="text-center py-2 px-3 text-xs font-medium text-gray-500">Days</th>
-                            <th class="text-center py-2 px-3 text-xs font-medium text-gray-500">Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody id="chronicTable">
-                        <tr><td colspan="4" class="py-4 text-center text-gray-400">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg p-4 md:p-6 text-white">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h3 class="font-semibold">Quick Actions</h3>
-                    <p class="text-blue-100 text-xs">Navigate to other views</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <a href="/attendance/" class="px-3 py-2 bg-white text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50">
-                        Roll Call
-                    </a>
-                    <a href="/admin/" class="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-400 border border-blue-400">
-                        Admin View
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="mt-4 text-center text-xs text-gray-400">
-            SchoolOps by Johan Benade | Auto-refresh every 30s
+        <div class="stat-card">
+            <div class="stat-label">Late Today</div>
+            <div class="stat-value orange" id="lateCount">--</div>
+            <div class="stat-sub">learners</div>
         </div>
     </div>
-
+    
+    <div class="section" id="pendingSection">
+        <div class="section-title">
+            Pending Registers
+            <span class="section-badge" id="pendingBadge">0</span>
+        </div>
+        <div id="pendingList" class="pending-list">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Weekly Trend</div>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Grade Comparison (Today)</div>
+        <div id="gradeComparison" class="grade-bars">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+    
+    <div class="section" id="watchlistSection">
+        <div class="section-title">
+            Welfare Watchlist
+            <span class="section-badge red" id="watchlistBadge">0</span>
+        </div>
+        <div id="watchlistContainer">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+    
+    <div class="nav-bar">
+        <a href="/" class="nav-item">
+            <span class="nav-icon">&#127968;</span>
+            Home
+        </a>
+        <a href="/attendance/" class="nav-item">
+            <span class="nav-icon">&#128203;</span>
+            Roll Call
+        </a>
+        <a href="/principal/" class="nav-item active">
+            <span class="nav-icon">&#129413;</span>
+            Eagle Eye
+        </a>
+        <a href="/admin/" class="nav-item">
+            <span class="nav-icon">&#128202;</span>
+            Admin
+        </a>
+    </div>
+    
     <script>
-        // Charts
-        let trendChart, gradeChart;
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            initCharts();
-            refreshAll();
-            // Auto-refresh every 30 seconds
-            setInterval(refreshAll, 30000);
-        });
-
-        function initCharts() {
-            // Trend Chart
-            const trendCtx = document.getElementById('trendChart').getContext('2d');
-            trendChart = new Chart(trendCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Attendance %',
-                        data: [],
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#3B82F6',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { min: 85, max: 100, ticks: { callback: v => v + '%' } }
-                    }
-                }
-            });
-
-            // Grade Chart
-            const gradeCtx = document.getElementById('gradeChart').getContext('2d');
-            gradeChart = new Chart(gradeCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Attendance %',
-                        data: [],
-                        backgroundColor: [],
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { min: 85, max: 100, ticks: { callback: v => v + '%' } }
-                    }
-                }
-            });
-        }
-
-        async function refreshAll() {
-            const start = performance.now();
-            
-            await Promise.all([
-                loadStats(),
-                loadPending(),
-                loadTrend(),
-                loadGrades(),
-                loadWatchlist(),
-                loadChronic()
+        const startTime = performance.now();
+        let trendChart = null;
+        
+        async function loadAllData() {
+            // Parallel fetch all endpoints
+            const [stats, pending, trend, grades, watchlist] = await Promise.all([
+                fetch('/principal/api/stats').then(r => r.json()),
+                fetch('/principal/api/pending').then(r => r.json()),
+                fetch('/principal/api/weekly-trend').then(r => r.json()),
+                fetch('/principal/api/grade-comparison').then(r => r.json()),
+                fetch('/principal/api/welfare-watchlist').then(r => r.json())
             ]);
             
-            const ms = Math.round(performance.now() - start);
-            document.getElementById('lastUpdate').textContent = `${ms}ms`;
-            document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-ZA', { 
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+            // Update response time
+            const elapsed = Math.round(performance.now() - startTime);
+            document.getElementById('responseTime').textContent = elapsed + 'ms';
+            
+            // Update stats
+            document.getElementById('attendanceRate').textContent = stats.attendance_rate + '%';
+            document.getElementById('presentCount').textContent = stats.present + ' present';
+            document.getElementById('submittedCount').textContent = stats.submitted_count + '/' + stats.total_groups;
+            document.getElementById('pendingCount').textContent = stats.pending_count + ' pending';
+            document.getElementById('absentCount').textContent = stats.absent;
+            document.getElementById('lateCount').textContent = stats.late;
+            
+            // Update pending list
+            const pendingList = document.getElementById('pendingList');
+            const pendingBadge = document.getElementById('pendingBadge');
+            pendingBadge.textContent = pending.count;
+            
+            if (pending.pending.length === 0) {
+                pendingList.innerHTML = '<div class="empty-state"><div class="empty-icon">&#10003;</div>All registers submitted!</div>';
+            } else {
+                pendingList.innerHTML = pending.pending.slice(0, 5).map(p => `
+                    <div class="pending-item">
+                        <div>
+                            <div class="pending-group">${p.group_name}</div>
+                            <div class="pending-mentor">${p.mentor_name || 'No mentor'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Update trend chart
+            renderTrendChart(trend.trend);
+            
+            // Update grade comparison
+            renderGradeComparison(grades.grades);
+            
+            // Update watchlist
+            const watchlistContainer = document.getElementById('watchlistContainer');
+            const watchlistBadge = document.getElementById('watchlistBadge');
+            watchlistBadge.textContent = watchlist.count;
+            
+            if (watchlist.watchlist.length === 0) {
+                watchlistContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128522;</div>No welfare concerns</div>';
+            } else {
+                watchlistContainer.innerHTML = watchlist.watchlist.map(w => `
+                    <div class="watchlist-item">
+                        <div>
+                            <div class="watchlist-name">${w.first_name} ${w.surname}</div>
+                            <div class="watchlist-detail">${w.group_name} - ${w.grade_name || ''}</div>
+                        </div>
+                        <div class="watchlist-days">${w.consecutive_absent_days} days</div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        function renderTrendChart(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChart) {
+                trendChart.destroy();
+            }
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.day),
+                    datasets: [{
+                        label: 'Attendance %',
+                        data: data.map(d => d.rate),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#22c55e'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            min: 80,
+                            max: 100,
+                            ticks: { callback: v => v + '%' }
+                        }
+                    }
+                }
             });
         }
-
-        async function loadStats() {
-            const res = await fetch('/principal/api/stats');
-            const data = await res.json();
+        
+        function renderGradeComparison(grades) {
+            const container = document.getElementById('gradeComparison');
             
-            document.getElementById('rateDisplay').textContent = data.rate + '%';
-            document.getElementById('totalLearners').textContent = data.total_learners;
-            document.getElementById('presentCount').textContent = data.present;
-            document.getElementById('absentCount').textContent = data.absent;
-            document.getElementById('lateCount').textContent = data.late;
-            document.getElementById('registerCount').textContent = `${data.submitted_groups}/${data.total_groups}`;
-            document.getElementById('pendingCount').textContent = data.pending_groups > 0 ? `${data.pending_groups} pending` : 'All done!';
+            if (grades.length === 0) {
+                container.innerHTML = '<div class="empty-state">No data yet</div>';
+                return;
+            }
             
-            const badge = document.getElementById('statusBadge');
-            badge.textContent = data.status === 'excellent' ? 'Excellent' : data.status === 'good' ? 'Good' : 'Attention';
-            badge.className = `px-2 py-0.5 rounded-full text-xs font-bold text-white ${
-                data.status === 'excellent' ? 'bg-green-500' : data.status === 'good' ? 'bg-amber-500' : 'bg-red-500'
-            }`;
-        }
-
-        async function loadPending() {
-            const res = await fetch('/principal/api/pending');
-            const data = await res.json();
-            
-            document.getElementById('pendingBadge').textContent = data.length;
-            
-            const list = document.getElementById('pendingList');
-            if (data.length === 0) {
-                list.innerHTML = '<div class="text-center py-4"><div class="text-2xl mb-1">✅</div><div class="text-gray-500 text-sm">All submitted!</div></div>';
-            } else {
-                list.innerHTML = data.map(p => `
-                    <div class="flex items-center justify-between p-2 bg-amber-50 rounded-lg">
-                        <div>
-                            <div class="font-medium text-gray-900 text-sm">${p.group}</div>
-                            <div class="text-xs text-gray-500">${p.mentor}</div>
+            container.innerHTML = grades.map(g => {
+                const isLow = g.rate < 90;
+                return `
+                    <div class="grade-bar-row">
+                        <div class="grade-label">${g.grade_name.replace('Grade ', 'Gr ')}</div>
+                        <div class="grade-bar-container">
+                            <div class="grade-bar ${isLow ? 'low' : ''}" style="width: ${g.rate}%"></div>
                         </div>
+                        <div class="grade-rate">${g.rate}%</div>
                     </div>
-                `).join('');
-            }
+                `;
+            }).join('');
         }
-
-        async function loadTrend() {
-            const res = await fetch('/principal/api/trend');
-            const data = await res.json();
-            
-            trendChart.data.labels = data.map(d => d.day);
-            trendChart.data.datasets[0].data = data.map(d => d.rate || null);
-            trendChart.update('none');
-        }
-
-        async function loadGrades() {
-            const res = await fetch('/principal/api/grades');
-            const data = await res.json();
-            
-            gradeChart.data.labels = data.map(g => g.grade);
-            gradeChart.data.datasets[0].data = data.map(g => g.rate);
-            gradeChart.data.datasets[0].backgroundColor = data.map(g => 
-                g.rate >= 95 ? '#10B981' : g.rate >= 90 ? '#3B82F6' : '#F59E0B'
-            );
-            gradeChart.update('none');
-        }
-
-        async function loadWatchlist() {
-            const res = await fetch('/principal/api/watchlist');
-            const data = await res.json();
-            
-            document.getElementById('watchlistBadge').textContent = data.length + ' alerts';
-            
-            const list = document.getElementById('watchlistItems');
-            if (data.length === 0) {
-                list.innerHTML = '<div class="text-gray-400 text-sm py-2">No alerts</div>';
-            } else {
-                list.innerHTML = data.map(w => `
-                    <div class="flex items-center justify-between p-2 ${w.consecutive >= 4 ? 'bg-red-50' : 'bg-amber-50'} rounded-lg">
-                        <div>
-                            <div class="font-medium text-gray-900 text-sm">${w.name}</div>
-                            <div class="text-xs text-gray-500">${w.group}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="${w.consecutive >= 4 ? 'text-red-600' : 'text-amber-600'} font-bold text-sm">${w.consecutive} days</div>
-                            <div class="text-xs text-gray-500">${w.action}</div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        async function loadChronic() {
-            const res = await fetch('/principal/api/chronic');
-            const data = await res.json();
-            
-            const table = document.getElementById('chronicTable');
-            if (data.length === 0) {
-                table.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-400">No chronic absentees</td></tr>';
-            } else {
-                table.innerHTML = data.map(c => `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50">
-                        <td class="py-2 px-3 font-medium text-gray-900">${c.name}</td>
-                        <td class="py-2 px-3 text-gray-600">${c.group}</td>
-                        <td class="py-2 px-3 text-center">${c.days_absent}</td>
-                        <td class="py-2 px-3 text-center">
-                            <span class="px-2 py-0.5 ${c.percentage >= 30 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} rounded-full text-xs font-bold">${c.percentage}%</span>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        }
+        
+        // Initial load
+        loadAllData();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadAllData, 30000);
     </script>
 </body>
 </html>

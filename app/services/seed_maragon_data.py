@@ -1,311 +1,371 @@
 """
-Seed Maragon staff, learners, and attendance history.
-Generates realistic demo data for Principal Dashboard.
-
-Run via: python -c "from app.services.seed_maragon_data import seed_all; seed_all()"
-Or via admin endpoint: /admin/seed-data
+Seed Maragon Reference Data
+Creates realistic test data for pilot demonstration.
+625 learners (25 per class x 25 classes) with 10 days of historical attendance.
 """
 
-import random
+import uuid
 from datetime import date, datetime, timedelta
+import random
 from app.services.db import get_connection
 
 
-# South African names for realistic test data
-FIRST_NAMES = [
-    'Thabo', 'Lerato', 'Sipho', 'Naledi', 'Kagiso', 'Mpho', 'Tshegofatso', 'Lebo',
-    'Keitumetse', 'Bokang', 'Palesa', 'Tebogo', 'Kgomotso', 'Neo', 'Dineo',
-    'Kamogelo', 'Boitumelo', 'Lesedi', 'Refilwe', 'Tumelo', 'Amogelang', 'Motheo',
-    'Omphile', 'Rethabile', 'Karabo', 'Oratile', 'Tshiamo', 'Katlego', 'Bontle',
-    'Ofentse', 'Tshepiso', 'Goitseone', 'Phenyo', 'Realeboga', 'Masego',
-    'Letlotlo', 'Rorisang', 'Kutlwano', 'Lethabo', 'Mohau', 'Tlotlo', 'Onkarabile',
-    'Bohlale', 'Itumeleng', 'Thato', 'Kopano', 'Boipelo', 'Keketso', 'Refentse',
-    'Warona', 'Lorato', 'Kabelo', 'Malebogo', 'Setlhabi', 'Koketso', 'Mosidi',
-    'Tshepo', 'Mmathabo', 'Bokamoso', 'Kelebogile', 'Gopolang', 'Reitumetse',
-    'Moagi', 'Paballo', 'Olebogeng', 'Tumisang', 'Kefilwe', 'Oratilwe', 'Lefentse',
-    'Khumo', 'Motlalepule', 'Thapelo', 'Nthabiseng', 'Boingotlo', 'Goitsemang',
-    'Keneilwe', 'Ratanang', 'Resego', 'Lebogang', 'Katleho', 'Omphe', 'Relebohile',
-    'Mogomotsi', 'Omolemo', 'Tshwanelo', 'Motswedi', 'Botshelo', 'Lesego',
-    'Reabetswe', 'Kgothatso', 'Tlhompho', 'Seipati', 'Mothusi', 'Otlotleng',
+TENANT_ID = "MARAGON"
+
+# South African first names (diverse mix)
+FIRST_NAMES_MALE = [
+    "Thabo", "Sipho", "Johan", "Pieter", "Liam", "Ethan", "Kagiso", "Tshepo",
+    "Jabulani", "Mandla", "Ryan", "Dylan", "Mpho", "Lesego", "Bongani", "Siyabonga",
+    "Michael", "David", "Neo", "Thabiso", "Keagan", "Jason", "Tumelo", "Motheo",
+    "William", "James", "Brandon", "Lerato", "Karabo", "Aiden", "Joshua", "Daniel",
+    "Themba", "Sibusiso", "Connor", "Tyler", "Lwazi", "Andile", "Matthew", "Luke"
+]
+
+FIRST_NAMES_FEMALE = [
+    "Lerato", "Naledi", "Emma", "Mia", "Palesa", "Keitumetse", "Amogelang",
+    "Jessica", "Caitlin", "Thandiwe", "Nomvula", "Zanele", "Olivia", "Sophia",
+    "Isabella", "Grace", "Precious", "Lindiwe", "Amy", "Hannah", "Nicole", "Refilwe",
+    "Tshegofatso", "Katlego", "Sarah", "Emily", "Boitumelo", "Nthabi", "Zoe", "Madison",
+    "Dineo", "Kgomotso", "Ava", "Lily", "Nomzamo", "Busisiwe", "Rachel", "Abigail"
 ]
 
 SURNAMES = [
-    'Molefe', 'Nkosi', 'Dlamini', 'Mokoena', 'Mahlangu', 'Khumalo', 'Mabaso',
-    'Sithole', 'Ndaba', 'Zwane', 'Maseko', 'Ngcobo', 'Radebe', 'Mthembu', 'Zulu',
-    'Cele', 'Shabangu', 'Moloi', 'Phiri', 'Motaung', 'Tshabalala', 'Baloyi',
-    'Mkhize', 'Sibiya', 'Moyo', 'Buthelezi', 'Nxumalo', 'Mhlongo', 'Chauke',
-    'Gumede', 'Khoza', 'Majola', 'Ndlovu', 'Mnguni', 'Hlongwane', 'Mokwena',
-    'Vilakazi', 'Mahomed', 'Pillay', 'Govender', 'Naicker', 'Naidoo', 'Singh',
-    'Botha', 'van der Merwe', 'Pretorius', 'Jacobs', 'Williams', 'Olivier', 'Nel',
-    'Venter', 'Coetzee', 'Steyn', 'Fourie', 'Meyer', 'Marais', 'Joubert',
+    "van der Merwe", "Nkosi", "Smith", "Molefe", "du Plessis", "Mokoena", "Williams",
+    "Botha", "Dlamini", "Pretorius", "Mthembu", "Coetzee", "Sithole", "Joubert",
+    "Mahlangu", "Nel", "Khumalo", "Venter", "Ndlovu", "Meyer", "Mashaba", "le Roux",
+    "Zulu", "Steyn", "Zwane", "Visser", "Radebe", "Swanepoel", "Ngcobo", "Fourie",
+    "Mhlongo", "van Wyk", "Mabena", "du Toit", "Chauke", "Jacobs", "Mokgosi", "Jansen",
+    "Motaung", "Swart", "Sibiya", "Kruger", "Maluleke", "Olivier", "Tau", "Erasmus"
 ]
+
+# Staff from Interhouse document (real names)
+STAFF_DATA = [
+    # Management
+    {"title": "Mr", "first_name": "Pierre", "surname": "Unknown", "display_name": "Mr Pierre", "staff_type": "Management"},
+    {"title": "Mrs", "first_name": "Delene", "surname": "Unknown", "display_name": "Mrs Delene", "staff_type": "HOD"},
+    
+    # Teachers from Officials list
+    {"title": "Mrs", "first_name": "Nonhlanhla", "surname": "Unknown", "display_name": "Mrs Nonhlanhla", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Muvo", "surname": "Unknown", "display_name": "Mr Muvo", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Carla", "surname": "Unknown", "display_name": "Mrs Carla", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Shilo", "surname": "Unknown", "display_name": "Mrs Shilo", "staff_type": "Coach"},
+    {"title": "Mr", "first_name": "Gavin", "surname": "Unknown", "display_name": "Mr Gavin", "staff_type": "Coach"},
+    {"title": "Mr", "first_name": "AJ", "surname": "Unknown", "display_name": "Mr AJ", "staff_type": "Coach"},
+    {"title": "Mrs", "first_name": "Zaudi", "surname": "Unknown", "display_name": "Mrs Zaudi", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Anike", "surname": "Unknown", "display_name": "Mrs Anike", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Nadia", "surname": "Stoltz", "display_name": "Mrs Stoltz", "staff_type": "HOD"},
+    {"title": "Mrs", "first_name": "Rochelle", "surname": "Unknown", "display_name": "Mrs Rochelle", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Krisna", "surname": "Unknown", "display_name": "Mrs Krisna", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Alecia", "surname": "Unknown", "display_name": "Mrs Alecia", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Matti", "surname": "Unknown", "display_name": "Mr Matti", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Nathi", "surname": "Unknown", "display_name": "Mr Nathi", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Anel", "surname": "Unknown", "display_name": "Mrs Anel", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Jacqueline", "surname": "Unknown", "display_name": "Mrs Jacqueline", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Victor", "surname": "Unknown", "display_name": "Mr Victor", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Carina", "surname": "Unknown", "display_name": "Mrs Carina", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Caroline", "surname": "Unknown", "display_name": "Mrs Caroline", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Bongi", "surname": "Unknown", "display_name": "Mrs Bongi", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Teal", "surname": "Unknown", "display_name": "Mrs Teal", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Eugenie", "surname": "Unknown", "display_name": "Mrs Eugenie", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Christo", "surname": "Unknown", "display_name": "Mr Christo", "staff_type": "Coach"},
+    {"title": "Mrs", "first_name": "Mamello", "surname": "Unknown", "display_name": "Mrs Mamello", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Ditokelo", "surname": "Unknown", "display_name": "Mr Ditokelo", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Gift", "surname": "Unknown", "display_name": "Mr Gift", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Rowena", "surname": "Unknown", "display_name": "Mrs Rowena", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Beatrix", "surname": "Unknown", "display_name": "Mrs Beatrix", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Godfrey", "surname": "Unknown", "display_name": "Mr Godfrey", "staff_type": "Coach"},
+    {"title": "Mrs", "first_name": "Shirene", "surname": "Unknown", "display_name": "Mrs Shirene", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Chelsea", "surname": "Unknown", "display_name": "Mrs Chelsea", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Dart", "surname": "Unknown", "display_name": "Mr Dart", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Evan", "surname": "Unknown", "display_name": "Mr Evan", "staff_type": "Coach"},
+    {"title": "Mr", "first_name": "Ntando", "surname": "Unknown", "display_name": "Mr Ntando", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Athenathi", "surname": "Unknown", "display_name": "Mrs Athenathi", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Thycha", "surname": "Unknown", "display_name": "Mrs Thycha", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Dominique", "surname": "Unknown", "display_name": "Mrs Dominique", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Sinqobile", "surname": "Unknown", "display_name": "Mrs Sinqobile", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Caelynne", "surname": "Unknown", "display_name": "Mrs Caelynne", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Smangaliso", "surname": "Unknown", "display_name": "Mrs Smangaliso", "staff_type": "Teacher"},
+    {"title": "Mrs", "first_name": "Mbali", "surname": "Unknown", "display_name": "Mrs Mbali", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Daleen", "surname": "Unknown", "display_name": "Mrs Daleen", "staff_type": "Admin"},
+    {"title": "Mrs", "first_name": "Robin", "surname": "Unknown", "display_name": "Mrs Robin", "staff_type": "Admin"},
+    {"title": "Mrs", "first_name": "Mariska", "surname": "Unknown", "display_name": "Mrs Mariska", "staff_type": "Admin"},
+    {"title": "Mrs", "first_name": "Rika", "surname": "Unknown", "display_name": "Mrs Rika", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Tyla", "surname": "Unknown", "display_name": "Mrs Tyla", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Claire", "surname": "Unknown", "display_name": "Mrs Claire", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Rianette", "surname": "Unknown", "display_name": "Mrs Rianette", "staff_type": "Teacher"},
+    {"title": "Mr", "first_name": "Charles", "surname": "Unknown", "display_name": "Mr Charles", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Marie-Louise", "surname": "Unknown", "display_name": "Mrs Marie-Louise", "staff_type": "Support"},
+    {"title": "Mrs", "first_name": "Kea", "surname": "Unknown", "display_name": "Mrs Kea", "staff_type": "Support"},
+    {"title": "Mr", "first_name": "Njabulo", "surname": "Unknown", "display_name": "Mr Njabulo", "staff_type": "Teacher"},
+]
+
+# Grades 8-12 with 5 mentor groups each = 25 total
+GRADES = [
+    {"grade_name": "Grade 8", "grade_code": "Gr8", "grade_number": 8},
+    {"grade_name": "Grade 9", "grade_code": "Gr9", "grade_number": 9},
+    {"grade_name": "Grade 10", "grade_code": "Gr10", "grade_number": 10},
+    {"grade_name": "Grade 11", "grade_code": "Gr11", "grade_number": 11},
+    {"grade_name": "Grade 12", "grade_code": "Gr12", "grade_number": 12},
+]
+
+# Mentor group suffixes - 5 per grade
+MENTOR_SUFFIXES = ["A", "B", "C", "D", "E"]
+
+
+def generate_id():
+    """Generate UUID for new records."""
+    return str(uuid.uuid4())
+
+
+def seed_grades(cursor):
+    """Seed grade data."""
+    grade_ids = {}
+    for i, grade in enumerate(GRADES):
+        grade_id = generate_id()
+        cursor.execute("""
+            INSERT INTO grade (id, tenant_id, grade_name, grade_code, grade_number, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (grade_id, TENANT_ID, grade["grade_name"], grade["grade_code"], 
+              grade["grade_number"], i + 1))
+        grade_ids[grade["grade_number"]] = grade_id
+    return grade_ids
+
+
+def seed_staff(cursor):
+    """Seed staff data."""
+    staff_ids = []
+    teacher_ids = []
+    
+    for staff in STAFF_DATA:
+        staff_id = generate_id()
+        is_teacher = staff["staff_type"] in ("Teacher", "HOD", "Coach")
+        
+        cursor.execute("""
+            INSERT INTO staff (id, tenant_id, title, first_name, surname, display_name, 
+                             email, staff_type, can_substitute, can_do_duty, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        """, (staff_id, TENANT_ID, staff["title"], staff["first_name"], staff["surname"],
+              staff["display_name"], None, staff["staff_type"],
+              1 if is_teacher else 0, 1 if is_teacher else 0))
+        
+        staff_ids.append(staff_id)
+        if is_teacher:
+            teacher_ids.append(staff_id)
+    
+    return staff_ids, teacher_ids
+
+
+def seed_mentor_groups(cursor, grade_ids, teacher_ids):
+    """Seed mentor groups - 5 per grade = 25 total."""
+    mentor_group_ids = []
+    teacher_index = 0
+    
+    for grade_num, grade_id in grade_ids.items():
+        for suffix in MENTOR_SUFFIXES:
+            group_id = generate_id()
+            group_name = f"{grade_num}{suffix}"
+            
+            # Assign mentor (cycle through teachers)
+            mentor_id = teacher_ids[teacher_index % len(teacher_ids)]
+            teacher_index += 1
+            
+            cursor.execute("""
+                INSERT INTO mentor_group (id, tenant_id, group_name, mentor_id, grade_id)
+                VALUES (?, ?, ?, ?, ?)
+            """, (group_id, TENANT_ID, group_name, mentor_id, grade_id))
+            
+            mentor_group_ids.append({
+                "id": group_id,
+                "name": group_name,
+                "grade_id": grade_id,
+                "grade_num": grade_num
+            })
+    
+    return mentor_group_ids
+
+
+def seed_learners(cursor, mentor_groups, grade_ids):
+    """Seed learners - 25 per mentor group = 625 total."""
+    learner_ids = []
+    all_names = FIRST_NAMES_MALE + FIRST_NAMES_FEMALE
+    
+    for group in mentor_groups:
+        for i in range(25):
+            learner_id = generate_id()
+            first_name = random.choice(all_names)
+            surname = random.choice(SURNAMES)
+            
+            cursor.execute("""
+                INSERT INTO learner (id, tenant_id, first_name, surname, grade_id, 
+                                   mentor_group_id, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (learner_id, TENANT_ID, first_name, surname, 
+                  group["grade_id"], group["id"]))
+            
+            learner_ids.append({
+                "id": learner_id,
+                "mentor_group_id": group["id"],
+                "grade_num": group["grade_num"]
+            })
+    
+    return learner_ids
+
+
+def seed_historical_attendance(cursor, mentor_groups, learner_ids):
+    """Generate 10 days of historical attendance with realistic patterns."""
+    today = date.today()
+    
+    # Map learners to their mentor groups
+    learners_by_group = {}
+    for learner in learner_ids:
+        gid = learner["mentor_group_id"]
+        if gid not in learners_by_group:
+            learners_by_group[gid] = []
+        learners_by_group[gid].append(learner)
+    
+    # Select chronic absentees (4 learners with >20% absence rate)
+    chronic_absentees = set()
+    chronic_candidates = random.sample(learner_ids, min(4, len(learner_ids)))
+    for l in chronic_candidates:
+        chronic_absentees.add(l["id"])
+    
+    # Select welfare watchlist (3 learners with consecutive absences)
+    welfare_watchlist = set()
+    welfare_candidates = [l for l in learner_ids if l["id"] not in chronic_absentees]
+    welfare_selected = random.sample(welfare_candidates, min(3, len(welfare_candidates)))
+    for l in welfare_selected:
+        welfare_watchlist.add(l["id"])
+    
+    # Generate 10 school days of attendance (skip weekends)
+    school_days = []
+    check_date = today - timedelta(days=1)
+    while len(school_days) < 10:
+        if check_date.weekday() < 5:  # Monday=0 to Friday=4
+            school_days.append(check_date)
+        check_date -= timedelta(days=1)
+    
+    school_days.reverse()  # Oldest first
+    
+    for day_index, att_date in enumerate(school_days):
+        att_date_str = att_date.isoformat()
+        is_monday = att_date.weekday() == 0
+        
+        for group in mentor_groups:
+            # Skip 3 groups on most recent day (for "pending registers" demo)
+            if day_index == len(school_days) - 1:  # Most recent day
+                if group["name"] in ["9B", "11D", "8A"]:
+                    continue
+            
+            attendance_id = generate_id()
+            submitted_time = datetime.combine(att_date, datetime.min.time()) + timedelta(hours=7, minutes=random.randint(30, 55))
+            
+            cursor.execute("""
+                INSERT INTO attendance (id, tenant_id, date, mentor_group_id, 
+                                       submitted_at, status)
+                VALUES (?, ?, ?, ?, ?, 'Submitted')
+            """, (attendance_id, TENANT_ID, att_date_str, group["id"],
+                  submitted_time.isoformat()))
+            
+            group_learners = learners_by_group.get(group["id"], [])
+            
+            for learner in group_learners:
+                # Determine status with realistic patterns
+                status = "Present"
+                
+                # Chronic absentees: 25-35% absent
+                if learner["id"] in chronic_absentees:
+                    if random.random() < 0.30:
+                        status = "Absent"
+                
+                # Welfare watchlist: absent for last 3-5 days
+                elif learner["id"] in welfare_watchlist:
+                    # Make them absent for the last 3-5 consecutive days
+                    if day_index >= len(school_days) - 4:
+                        status = "Absent"
+                
+                # Grade 9 slightly higher absence (realistic pattern)
+                elif group["grade_num"] == 9:
+                    if random.random() < 0.08:
+                        status = "Absent"
+                    elif random.random() < 0.03:
+                        status = "Late"
+                
+                # Monday effect (slightly higher absence)
+                elif is_monday:
+                    if random.random() < 0.06:
+                        status = "Absent"
+                    elif random.random() < 0.02:
+                        status = "Late"
+                
+                # Normal days
+                else:
+                    if random.random() < 0.04:
+                        status = "Absent"
+                    elif random.random() < 0.015:
+                        status = "Late"
+                
+                entry_id = generate_id()
+                cursor.execute("""
+                    INSERT INTO attendance_entry (id, attendance_id, learner_id, status)
+                    VALUES (?, ?, ?, ?)
+                """, (entry_id, attendance_id, learner["id"], status))
+    
+    # Update tracking table for welfare watchlist
+    for learner in learner_ids:
+        if learner["id"] in welfare_watchlist:
+            consecutive = random.randint(3, 5)
+            cursor.execute("""
+                INSERT OR REPLACE INTO learner_absent_tracking 
+                (learner_id, tenant_id, consecutive_absent_days, last_status, 
+                 last_attendance_date, updated_at)
+                VALUES (?, ?, ?, 'Absent', ?, ?)
+            """, (learner["id"], TENANT_ID, consecutive, 
+                  school_days[-1].isoformat(), datetime.now().isoformat()))
+
+
+def clear_all_data(cursor):
+    """Clear all existing data."""
+    tables = [
+        "attendance_entry",
+        "attendance", 
+        "learner_absent_tracking",
+        "pending_attendance",
+        "learner",
+        "mentor_group",
+        "staff",
+        "grade"
+    ]
+    
+    for table in tables:
+        cursor.execute(f"DELETE FROM {table}")
 
 
 def seed_all():
-    """Seed all Maragon reference data with attendance history."""
-    print("=" * 60)
-    print("SEEDING MARAGON DATA")
-    print("=" * 60)
-    
+    """Main seed function. Returns counts of seeded data."""
     with get_connection() as conn:
         cursor = conn.cursor()
         
         # Clear existing data
-        print("\n[1/6] Clearing existing data...")
-        for table in ['pending_attendance', 'attendance_entry', 'attendance', 
-                      'learner_absent_tracking', 'learner', 'mentor_group', 'staff', 'grade']:
-            cursor.execute(f"DELETE FROM {table}")
+        clear_all_data(cursor)
         
-        # Insert grades
-        print("[2/6] Inserting grades...")
-        grades = [
-            ('grade_8', 'MARAGON', 'Grade 8', 'Gr8', 8, 1),
-            ('grade_9', 'MARAGON', 'Grade 9', 'Gr9', 9, 2),
-            ('grade_10', 'MARAGON', 'Grade 10', 'Gr10', 10, 3),
-            ('grade_11', 'MARAGON', 'Grade 11', 'Gr11', 11, 4),
-            ('grade_12', 'MARAGON', 'Grade 12', 'Gr12', 12, 5),
-        ]
-        cursor.executemany("""
-            INSERT INTO grade (id, tenant_id, grade_name, grade_code, grade_number, sort_order, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-        """, grades)
-        
-        # Insert staff (abbreviated - same as before)
-        print("[3/6] Inserting 54 staff members...")
-        staff = [
-            ('staff_001', 'MARAGON', 'Mr', 'Pierre', 'Labuschagne', 'Mr P. Labuschagne', 'Management', 0, 0),
-            ('staff_002', 'MARAGON', 'Mrs', 'Marie-Louise', 'Korb', 'Mrs M. Korb', 'Management', 0, 1),
-            ('staff_003', 'MARAGON', 'Ms', 'Kea', 'Mogapi', 'Ms K. Mogapi', 'Management', 0, 1),
-            ('staff_004', 'MARAGON', 'Ms', 'Rianette', 'van Vollenstee', 'Ms R. van Vollenstee', 'Teacher', 1, 1),
-            ('staff_005', 'MARAGON', 'Mrs', 'Rika', 'Badenhorst', 'Mrs R. Badenhorst', 'Teacher', 1, 1),
-            ('staff_006', 'MARAGON', 'Mr', 'Athanathi', 'Maweni', 'Mr A. Maweni', 'Teacher', 1, 1),
-            ('staff_007', 'MARAGON', 'Mr', 'Victor', 'Nyoni', 'Mr V. Nyoni', 'Teacher', 1, 1),
-            ('staff_008', 'MARAGON', 'Mrs', 'Bongi', 'Mochabe', 'Mrs B. Mochabe', 'Teacher', 1, 1),
-            ('staff_009', 'MARAGON', 'Mrs', 'Nadia', 'Stoltz', 'Mrs N. Stoltz', 'Teacher', 1, 1),
-            ('staff_010', 'MARAGON', 'Ms', 'Anel', 'Meiring', 'Ms A. Meiring', 'Teacher', 1, 1),
-            ('staff_011', 'MARAGON', 'Ms', 'Anike', 'Conradie', 'Ms A. Conradie', 'Teacher', 1, 1),
-            ('staff_012', 'MARAGON', 'Ms', 'Robin', 'Harle', 'Ms R. Harle', 'Teacher', 1, 1),
-            ('staff_013', 'MARAGON', 'Ms', 'Matti', 'van Wyk', 'Ms M. van Wyk', 'Teacher', 1, 1),
-            ('staff_014', 'MARAGON', 'Ms', 'Carla', 'van der Walt', 'Ms C. van der Walt', 'Teacher', 1, 1),
-            ('staff_015', 'MARAGON', 'Ms', 'Delene', 'Hibbert', 'Ms D. Hibbert', 'Coordinator', 0, 1),
-            ('staff_016', 'MARAGON', 'Ms', 'Zaudi', 'Pretorius', 'Ms Z. Pretorius', 'Teacher', 1, 1),
-            ('staff_017', 'MARAGON', 'Mr', 'Smangaliso', 'Mdluli', 'Mr S. Mdluli', 'Teacher', 1, 1),
-            ('staff_018', 'MARAGON', 'Mr', 'Ntando', 'Mkunjulwa', 'Mr N. Mkunjulwa', 'Teacher', 1, 1),
-            ('staff_019', 'MARAGON', 'Ms', 'Nathi', 'Qwelane', 'Ms N. Qwelane', 'Teacher', 1, 1),
-            ('staff_020', 'MARAGON', 'Ms', 'Mamello', 'Makgalemele', 'Ms M. Makgalemele', 'Teacher', 1, 1),
-            ('staff_021', 'MARAGON', 'Ms', 'Caelynne', 'Prinsloo', 'Ms C. Prinsloo', 'Teacher', 1, 1),
-            ('staff_022', 'MARAGON', 'Ms', 'Claire', 'Patrick', 'Ms C. Patrick', 'Teacher', 1, 1),
-            ('staff_023', 'MARAGON', 'Ms', 'Eugeni', 'Piek', 'Ms E. Piek', 'Teacher', 1, 1),
-            ('staff_024', 'MARAGON', 'Ms', 'Sinqobile', 'Mchunu', 'Ms S. Mchunu', 'Teacher', 1, 1),
-            ('staff_025', 'MARAGON', 'Mr', 'Muvo', 'Hlongwana', 'Mr M. Hlongwana', 'Teacher', 1, 1),
-            ('staff_026', 'MARAGON', 'Ms', 'Dominique', 'Viljoen', 'Ms D. Viljoen', 'Teacher', 1, 1),
-            ('staff_027', 'MARAGON', 'Ms', 'Caroline', 'Shiell', 'Ms C. Shiell', 'Teacher', 1, 1),
-            ('staff_028', 'MARAGON', 'Ms', 'Alecia', 'Green', 'Ms A. Green', 'Teacher', 1, 1),
-            ('staff_029', 'MARAGON', 'Ms', 'Rochelle', 'Maass', 'Ms R. Maass', 'Teacher', 1, 1),
-            ('staff_030', 'MARAGON', 'Ms', 'Tyla', 'Polayya', 'Ms T. Polayya', 'Teacher', 1, 1),
-            ('staff_031', 'MARAGON', 'Ms', 'Teal', 'Alves', 'Ms T. Alves', 'Teacher', 1, 1),
-            ('staff_032', 'MARAGON', 'Ms', 'Shirene', 'van den Heever', 'Ms S. van den Heever', 'Teacher', 1, 1),
-            ('staff_033', 'MARAGON', 'Ms', 'Mariska', 'du Plessis', 'Ms M. du Plessis', 'Teacher', 1, 1),
-            ('staff_034', 'MARAGON', 'Ms', 'Thycha', 'Aucamp', 'Ms T. Aucamp', 'Teacher', 1, 1),
-            ('staff_035', 'MARAGON', 'Ms', 'Daleen', 'Coetzee', 'Ms D. Coetzee', 'Teacher', 1, 1),
-            ('staff_036', 'MARAGON', 'Ms', 'Krisna', 'Els', 'Ms K. Els', 'Teacher', 1, 1),
-            ('staff_037', 'MARAGON', 'Ms', 'Jacqueline', 'Sekhula', 'Ms J. Sekhula', 'Teacher', 1, 1),
-            ('staff_038', 'MARAGON', 'Ms', 'Beatrix', 'du Toit', 'Ms B. du Toit', 'Teacher', 1, 1),
-            ('staff_039', 'MARAGON', 'Ms', 'Tsholofelo', 'Ramphomane', 'Ms T. Ramphomane', 'Teacher', 1, 1),
-            ('staff_040', 'MARAGON', 'Ms', 'Carina', 'Engelbrecht', 'Ms C. Engelbrecht', 'Teacher', 1, 1),
-            ('staff_041', 'MARAGON', 'Ms', 'Rowena', 'Kraamwinkel', 'Ms R. Kraamwinkel', 'Teacher', 1, 1),
-            ('staff_042', 'MARAGON', 'Ms', 'Nonhlanhla', 'Maswanganyi', 'Ms N. Maswanganyi', 'Teacher', 1, 1),
-            ('staff_043', 'MARAGON', 'Ms', 'Chelsea', 'Abrahams', 'Ms C. Abrahams', 'Teacher', 1, 1),
-            ('staff_tbc', 'MARAGON', None, 'TBC', 'TBC', 'TBC', 'Teacher', 0, 0),
-            ('staff_044', 'MARAGON', 'Ms', 'Rebecca', 'Munyai', 'Ms R. Munyai', 'Admin', 0, 0),
-            ('staff_045', 'MARAGON', 'Ms', 'Annette', 'Croeser', 'Ms A. Croeser', 'Admin', 0, 0),
-            ('staff_046', 'MARAGON', 'Ms', 'Janine', 'Willemse', 'Ms J. Willemse', 'Admin', 0, 0),
-            ('staff_047', 'MARAGON', 'Mr', 'Junior', 'Letsoalo', 'Mr J. Letsoalo', 'Admin', 0, 0),
-            ('staff_048', 'MARAGON', 'Mr', 'Njabulo', 'Ndimande', 'Mr N. Ndimande', 'IT', 0, 0),
-            ('staff_049', 'MARAGON', 'Ms', 'Tamika', 'Hibbard', 'Ms T. Hibbard', 'Psychologist', 0, 0),
-            ('staff_050', 'MARAGON', 'Ms', 'Andiswa', 'Tsewana', 'Ms A. Tsewana', 'LabAssistant', 0, 0),
-            ('staff_051', 'MARAGON', 'Mr', 'Johnson', 'Makamu', 'Mr J. Makamu', 'Support', 0, 0),
-            ('staff_052', 'MARAGON', 'Mr', 'Gift', 'Tladi', 'Mr G. Tladi', 'Support', 0, 0),
-            ('staff_053', 'MARAGON', 'Mr', 'Kabelo', 'Motubatse', 'Mr K. Motubatse', 'Support', 0, 0),
-        ]
-        cursor.executemany("""
-            INSERT INTO staff (id, tenant_id, title, first_name, surname, display_name, staff_type, can_substitute, can_do_duty, is_active, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
-        """, staff)
-        
-        # Insert mentor groups
-        print("[4/6] Inserting 25 mentor groups...")
-        mentor_groups = [
-            ('mg_8_zp', 'MARAGON', '8 ZP', 'staff_016', 'grade_8', 'A007'),
-            ('mg_8_sm', 'MARAGON', '8 SM', 'staff_017', 'grade_8', 'A109'),
-            ('mg_8_nm', 'MARAGON', '8 NM', 'staff_018', 'grade_8', None),
-            ('mg_8_nq', 'MARAGON', '8 NQ', 'staff_019', 'grade_8', 'A102'),
-            ('mg_8_mm', 'MARAGON', '8 MM', 'staff_020', 'grade_8', 'A105'),
-            ('mg_9_cpr', 'MARAGON', '9 CPR', 'staff_021', 'grade_9', 'A003'),
-            ('mg_9_cp', 'MARAGON', '9 CP', 'staff_022', 'grade_9', 'A008'),
-            ('mg_9_ep', 'MARAGON', '9 EP', 'staff_023', 'grade_9', 'A005'),
-            ('mg_9_tbc', 'MARAGON', '9 TBC', 'staff_tbc', 'grade_9', 'B102'),
-            ('mg_9_sm', 'MARAGON', '9 SM', 'staff_024', 'grade_9', None),
-            ('mg_10_mh', 'MARAGON', '10 MH', 'staff_025', 'grade_10', 'C002'),
-            ('mg_10_dv', 'MARAGON', '10 DV', 'staff_026', 'grade_10', 'A010'),
-            ('mg_10_cs', 'MARAGON', '10 CS', 'staff_027', 'grade_10', 'A121'),
-            ('mg_10_ag', 'MARAGON', '10 AG', 'staff_028', 'grade_10', 'D001'),
-            ('mg_10_rm', 'MARAGON', '10 RM', 'staff_029', 'grade_10', 'B003'),
-            ('mg_11_tp', 'MARAGON', '11 TP', 'staff_030', 'grade_11', 'B101'),
-            ('mg_11_tm', 'MARAGON', '11 TM', 'staff_031', 'grade_11', 'A103'),
-            ('mg_11_svh', 'MARAGON', '11 SVH', 'staff_032', 'grade_11', 'A006'),
-            ('mg_11_md', 'MARAGON', '11 MD', 'staff_033', 'grade_11', 'A119'),
-            ('mg_11_tau', 'MARAGON', '11 TAU', 'staff_034', 'grade_11', 'A004'),
-            ('mg_12_dc', 'MARAGON', '12 DC', 'staff_035', 'grade_12', 'A113'),
-            ('mg_12_ke', 'MARAGON', '12 KE', 'staff_036', 'grade_12', 'A106'),
-            ('mg_12_js', 'MARAGON', '12 JS', 'staff_037', 'grade_12', 'B002'),
-            ('mg_12_bd', 'MARAGON', '12 BD', 'staff_038', 'grade_12', 'B001'),
-            ('mg_12_tr', 'MARAGON', '12 TR', 'staff_039', 'grade_12', 'A111'),
-        ]
-        cursor.executemany("""
-            INSERT INTO mentor_group (id, tenant_id, group_name, mentor_id, grade_id, venue_id, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-        """, mentor_groups)
-        
-        # Insert learners (25 per class = 625 total)
-        print("[5/6] Inserting 625 learners (25 per class)...")
-        
-        random.seed(42)
-        learner_id = 1
-        learner_ids_by_group = {}
-        
-        for mg_id, _, group_name, _, grade_id, _ in mentor_groups:
-            learner_ids_by_group[mg_id] = []
-            
-            for i in range(25):
-                lid = f'learner_{learner_id:03d}'
-                fname = random.choice(FIRST_NAMES)
-                sname = random.choice(SURNAMES)
-                
-                cursor.execute("""
-                    INSERT INTO learner (id, tenant_id, first_name, surname, grade_id, mentor_group_id, is_active, synced_at)
-                    VALUES (?, 'MARAGON', ?, ?, ?, ?, 1, datetime('now'))
-                """, (lid, fname, sname, grade_id, mg_id))
-                
-                learner_ids_by_group[mg_id].append(lid)
-                learner_id += 1
-        
-        # Generate 10 days of attendance history
-        print("[6/6] Generating 10 days of attendance history...")
-        
-        today = date.today()
-        
-        # Find last 10 weekdays
-        school_days = []
-        check_date = today
-        while len(school_days) < 10:
-            if check_date.weekday() < 5:
-                school_days.append(check_date)
-            check_date -= timedelta(days=1)
-        school_days.reverse()
-        
-        # Welfare watchlist learners (consecutive absences)
-        welfare_watchlist = {
-            'learner_012': 5,  # 5 consecutive days
-            'learner_078': 4,  # 4 consecutive days  
-            'learner_134': 3,  # 3 consecutive days
-        }
-        
-        # Chronic absentees (~35% absence rate)
-        chronic_absentees = ['learner_047', 'learner_089', 'learner_156', 'learner_201']
-        
-        attendance_id = 1
-        entry_id = 1
-        
-        for day_idx, school_date in enumerate(school_days):
-            date_str = school_date.isoformat()
-            is_monday = school_date.weekday() == 0
-            is_today = school_date == today
-            days_from_end = len(school_days) - day_idx - 1
-            
-            for mg_id, _, group_name, mentor_id, grade_id, _ in mentor_groups:
-                # Skip some registers for today (demo pending)
-                if is_today and mg_id in ['mg_9_tbc', 'mg_11_md', 'mg_8_nm']:
-                    continue
-                
-                att_id = f'att_{attendance_id:04d}'
-                
-                if is_today:
-                    submit_hour = random.randint(7, 8)
-                    submit_min = random.randint(30, 59) if submit_hour == 7 else random.randint(0, 15)
-                    submitted_at = f"{date_str}T{submit_hour:02d}:{submit_min:02d}:00"
-                else:
-                    submitted_at = f"{date_str}T07:{random.randint(35, 55):02d}:00"
-                
-                cursor.execute("""
-                    INSERT INTO attendance (id, tenant_id, mentor_group_id, date, submitted_at, submitted_by)
-                    VALUES (?, 'MARAGON', ?, ?, ?, ?)
-                """, (att_id, mg_id, date_str, submitted_at, mentor_id))
-                
-                for lid in learner_ids_by_group[mg_id]:
-                    ent_id = f'entry_{entry_id:05d}'
-                    status = 'Present'
-                    
-                    # Welfare watchlist - consecutive absences at end
-                    if lid in welfare_watchlist and days_from_end < welfare_watchlist[lid]:
-                        status = 'Absent'
-                    # Chronic absentees
-                    elif lid in chronic_absentees and random.random() < 0.35:
-                        status = 'Absent'
-                    # Grade 9 slightly worse
-                    elif grade_id == 'grade_9' and random.random() < 0.07:
-                        status = 'Absent'
-                    # Mondays worse
-                    elif is_monday and random.random() < 0.05:
-                        status = 'Absent'
-                    # General absence
-                    elif random.random() < 0.025:
-                        status = 'Absent'
-                    # Late arrivals
-                    elif random.random() < 0.012:
-                        status = 'Late'
-                    
-                    cursor.execute("""
-                        INSERT INTO attendance_entry (id, attendance_id, learner_id, status, stasy_captured)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (ent_id, att_id, lid, status, 1 if not is_today else 0))
-                    
-                    entry_id += 1
-                
-                attendance_id += 1
+        # Seed in dependency order
+        grade_ids = seed_grades(cursor)
+        staff_ids, teacher_ids = seed_staff(cursor)
+        mentor_groups = seed_mentor_groups(cursor, grade_ids, teacher_ids)
+        learner_ids = seed_learners(cursor, mentor_groups, grade_ids)
+        seed_historical_attendance(cursor, mentor_groups, learner_ids)
         
         conn.commit()
         
-        # Verify
-        cursor.execute("SELECT COUNT(*) FROM staff")
-        staff_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM mentor_group")
-        mg_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM learner")
-        learner_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM attendance")
-        att_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM attendance_entry")
-        entry_count = cursor.fetchone()[0]
-        
-        print("\n" + "=" * 60)
-        print("SEED COMPLETE")
-        print("=" * 60)
-        print(f"Staff:              {staff_count}")
-        print(f"Mentor Groups:      {mg_count}")
-        print(f"Learners:           {learner_count}")
-        print(f"Attendance Records: {att_count}")
-        print(f"Attendance Entries: {entry_count}")
-        print("=" * 60)
-        
+        # Return counts
         return {
-            'staff': staff_count,
-            'mentor_groups': mg_count,
-            'learners': learner_count,
-            'attendance_records': att_count,
-            'attendance_entries': entry_count
+            "staff": len(staff_ids),
+            "mentor_groups": len(mentor_groups),
+            "learners": len(learner_ids),
+            "grades": len(grade_ids)
         }
 
 
-if __name__ == '__main__':
-    seed_all()
+if __name__ == "__main__":
+    result = seed_all()
+    print(f"Seeded: {result}")
