@@ -1,0 +1,35 @@
+{% if alert %}
+<a href="{{ url_for('emergency.index') }}" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    z-index: 9999;
+    animation: banner-pulse 1.5s infinite;
+">
+    <style>
+        @keyframes banner-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+    </style>
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 20px;">🚨</span>
+        <div>
+            <div style="font-weight: 600;">{{ alert.alert_type }} - {{ alert.location_display }}</div>
+            <div style="font-size: 12px; opacity: 0.9;">
+                <span class="elapsed-time">{{ elapsed }}</span> | 
+                {{ response_count }} responding
+            </div>
+        </div>
+    </div>
+    <div style="font-size: 24px;">&rarr;</div>
+</a>
+{% endif %}

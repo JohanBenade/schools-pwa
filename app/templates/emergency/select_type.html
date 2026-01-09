@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Select Emergency Type - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-size: 24px;
+            margin-right: 16px;
+        }
+        h1 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+        .types-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .type-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.1s;
+        }
+        .type-btn:active {
+            transform: scale(0.95);
+        }
+        .type-btn span {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .type-btn strong {
+            font-size: 16px;
+            color: white;
+        }
+        .medical { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
+        .security { background: linear-gradient(135deg, #f97316 0%, #c2410c 100%); }
+        .fire { background: linear-gradient(135deg, #eab308 0%, #a16207 100%); }
+        .general { background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); }
+        
+        .cancel-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{{ url_for('emergency.index') }}" class="back-btn">&larr;</a>
+        <h1>What type of emergency?</h1>
+    </div>
+    
+    <div class="types-grid">
+        <form action="{{ url_for('emergency.trigger') }}" method="POST" style="display: contents;">
+            <button type="submit" name="alert_type" value="Medical" class="type-btn medical">
+                <span>🏥</span>
+                <strong>Medical</strong>
+            </button>
+            <button type="submit" name="alert_type" value="Security" class="type-btn security">
+                <span>🔒</span>
+                <strong>Security</strong>
+            </button>
+            <button type="submit" name="alert_type" value="Fire" class="type-btn fire">
+                <span>🔥</span>
+                <strong>Fire</strong>
+            </button>
+            <button type="submit" name="alert_type" value="General" class="type-btn general">
+                <span>⚠️</span>
+                <strong>General</strong>
+            </button>
+        </form>
+    </div>
+    
+    <a href="{{ url_for('emergency.index') }}" class="cancel-link">Cancel</a>
+</body>
+</html>

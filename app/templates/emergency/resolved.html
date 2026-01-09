@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Emergency Resolved - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #14532d 0%, #052e16 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        .resolution-type {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        .resolved-by {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        .home-btn {
+            display: inline-block;
+            padding: 16px 40px;
+            background: white;
+            color: #14532d;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+        .home-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="success-icon">&#10003;</div>
+    <h1>Emergency Resolved</h1>
+    
+    {% if alert %}
+    <div class="resolution-type">{{ alert.resolution_type or 'All Clear' }}</div>
+    <p class="resolved-by">
+        {{ alert.alert_type }} at {{ alert.location_display }}<br>
+        Resolved by {{ alert.resolved_by_name or 'Leadership' }}
+    </p>
+    {% else %}
+    <p class="resolved-by">The emergency has been resolved.</p>
+    {% endif %}
+    
+    <a href="/" class="home-btn">Back to Home</a>
+</body>
+</html>

@@ -382,3 +382,93 @@ def db_stats():
             stats[table] = cursor.fetchone()[0]
     
     return jsonify(stats)
+"""
+Add this route to admin.py after the existing seed-data route
+"""
+
+@admin_bp.route('/seed-emergency', methods=['GET', 'POST'])
+def seed_emergency():
+    """Seed emergency-related data: venues, staff-venues, user sessions."""
+    if request.method == 'GET':
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM venue WHERE tenant_id = 'MARAGON'")
+            venue_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM user_session WHERE tenant_id = 'MARAGON'")
+            session_count = cursor.fetchone()[0]
+        
+        return f'''
+        <html>
+        <head><title>Seed Emergency Data - SchoolOps Admin</title>
+        <style>
+            body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+            .info {{ background: #e0f2fe; border: 1px solid #0284c7; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            .current {{ background: #f5f5f5; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            button {{ background: #3b82f6; color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }}
+            button:hover {{ background: #2563eb; }}
+            a {{ color: #007AFF; }}
+            .magic-links {{ background: #f0fdf4; border: 1px solid #22c55e; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            .magic-links code {{ background: #dcfce7; padding: 2px 6px; border-radius: 4px; }}
+        </style>
+        </head>
+        <body>
+            <h1>Seed Emergency Data</h1>
+            <div class="current">
+                <h3>Current Data</h3>
+                <p>Venues: {venue_count}</p>
+                <p>User Sessions: {session_count}</p>
+            </div>
+            <div class="info">
+                <h3>This will create:</h3>
+                <ul>
+                    <li>~55 venues (classrooms, offices, terrain areas)</li>
+                    <li>Staff-to-venue assignments</li>
+                    <li>Magic link user sessions for demo</li>
+                </ul>
+            </div>
+            <form method="POST">
+                <button type="submit">Seed Emergency Data</button>
+            </form>
+            <p style="margin-top: 2rem;"><a href="/admin/">Back to Dashboard</a></p>
+        </body>
+        </html>
+        '''
+    
+    # POST - Execute seed
+    from app.services.seed_emergency_data import seed_all_emergency
+    result = seed_all_emergency()
+    
+    return f'''
+    <html>
+    <head><title>Seed Complete - SchoolOps Admin</title>
+    <style>
+        body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+        .success {{ background: #dcfce7; border: 1px solid #22c55e; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+        a {{ color: #007AFF; }}
+        .magic-links {{ background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+        .magic-links h3 {{ margin-top: 0; }}
+        .link {{ display: block; margin: 8px 0; padding: 8px; background: white; border-radius: 4px; word-break: break-all; }}
+    </style>
+    </head>
+    <body>
+        <h1>Emergency Data Seeded</h1>
+        <div class="success">
+            <h3>Data Created</h3>
+            <p>Venues: {result['venues']}</p>
+            <p>Staff-Venue Assignments: {result['staff_venues']}</p>
+            <p>User Sessions: {result['user_sessions']}</p>
+        </div>
+        
+        <div class="magic-links">
+            <h3>Magic Links for Demo</h3>
+            <p>Send these via WhatsApp:</p>
+            <div class="link"><strong>Nadia:</strong> https://schoolops.co.za/?u=nadia</div>
+            <div class="link"><strong>Principal:</strong> https://schoolops.co.za/?u=pierre</div>
+            <div class="link"><strong>Admin:</strong> https://schoolops.co.za/?u=admin</div>
+        </div>
+        
+        <p><a href="/">Go to Home</a></p>
+        <p><a href="/emergency/">Test Emergency</a></p>
+    </body>
+    </html>
+    '''

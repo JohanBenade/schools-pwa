@@ -219,3 +219,109 @@ CREATE TABLE IF NOT EXISTS pending_attendance (
 
 CREATE INDEX IF NOT EXISTS idx_pending_mentor_group ON pending_attendance(mentor_group_id);
 CREATE INDEX IF NOT EXISTS idx_pending_date ON pending_attendance(date);
+-- ============================================
+-- VENUE MODULE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS venue (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    venue_code TEXT NOT NULL,
+    venue_name TEXT,
+    venue_type TEXT,            -- classroom, office, terrain, facility
+    block TEXT,                 -- A_Ground, A_First, A_Admin, B, C, D, Outdoor
+    sort_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_venue_tenant ON venue(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_venue_block ON venue(block);
+
+-- Staff to venue assignment (home classroom)
+CREATE TABLE IF NOT EXISTS staff_venue (
+    staff_id TEXT PRIMARY KEY,
+    venue_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (venue_id) REFERENCES venue(id)
+);
+
+-- ============================================
+-- EMERGENCY MODULE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS emergency_alert (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    alert_type TEXT NOT NULL,       -- Medical, Security, Fire, General
+    venue_id TEXT,
+    location_display TEXT,          -- Human readable: "A104 - Ms Nadia"
+    triggered_by_id TEXT NOT NULL,
+    triggered_at TEXT NOT NULL,
+    status TEXT DEFAULT 'Active',   -- Active, Resolved
+    resolved_at TEXT,
+    resolved_by_id TEXT,
+    resolution_type TEXT,           -- AllClear, FalseAlarm, Escalated
+    resolution_notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_tenant ON emergency_alert(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_alert_status ON emergency_alert(status);
+CREATE INDEX IF NOT EXISTS idx_alert_triggered ON emergency_alert(triggered_at DESC);
+
+CREATE TABLE IF NOT EXISTS emergency_response (
+    id TEXT PRIMARY KEY,
+    alert_id TEXT NOT NULL,
+    responder_id TEXT NOT NULL,
+    responded_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (alert_id) REFERENCES emergency_alert(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_response_alert ON emergency_response(alert_id);
+
+-- ============================================
+-- USER SESSION MODULE (Magic Links)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS user_session (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,
+    magic_code TEXT UNIQUE NOT NULL,    -- Short code for URL: nadia, pierre, admin
+    display_name TEXT,
+    role TEXT DEFAULT 'teacher',        -- teacher, principal, deputy, grade_head, admin
+    can_resolve INTEGER DEFAULT 0,      -- Can resolve emergency alerts
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_magic ON user_session(magic_code);
+CREATE INDEX IF NOT EXISTS idx_session_staff ON user_session(staff_id);
+
+-- ============================================
+-- PUSH SUBSCRIPTION MODULE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS push_subscription (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    staff_id TEXT,                      -- Nullable until linked to user
+    endpoint TEXT NOT NULL UNIQUE,      -- Push endpoint URL
+    p256dh TEXT NOT NULL,               -- Public key
+    auth TEXT NOT NULL,                 -- Auth secret
+    user_agent TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_used_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_tenant ON push_subscription(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_push_staff ON push_subscription(staff_id);
+
+-- ============================================
+-- UPDATE SCHEMA VERSION
+-- ============================================
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (2, 'Emergency alerts, venues, user sessions, push subscriptions');

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>EMERGENCY ACTIVE - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        .alert-header {
+            text-align: center;
+            padding: 20px 0;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .alert-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        .alert-type {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .alert-location {
+            font-size: 24px;
+            font-weight: 500;
+            background: rgba(255,255,255,0.2);
+            padding: 12px 24px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        
+        .alert-meta {
+            text-align: center;
+            margin: 24px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .elapsed {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .response-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .response-count {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .responders-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .responder {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .responder-check {
+            color: #22c55e;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        
+        .action-buttons {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, #450a0a 0%, transparent 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .respond-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .respond-btn.primary {
+            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+            color: white;
+        }
+        .respond-btn.responded {
+            background: rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            border: 2px solid #22c55e;
+        }
+        .respond-btn.resolve {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+        }
+        .respond-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .back-link {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        /* Space for fixed buttons */
+        .content {
+            padding-bottom: 180px;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="alert-header">
+            <div class="alert-icon">🚨</div>
+            <div class="alert-type">{{ alert.alert_type }}</div>
+            <div class="alert-location">{{ alert.location_display }}</div>
+        </div>
+        
+        <div class="alert-meta">
+            <p>Triggered by {{ alert.triggered_by_name or 'Unknown' }}</p>
+            <p class="elapsed" hx-get="{{ url_for('emergency.banner') }}" hx-trigger="every 5s" hx-select=".elapsed-time" hx-swap="innerHTML">{{ elapsed }}</p>
+        </div>
+        
+        <div class="response-section">
+            <div class="response-header">
+                <span>Responding</span>
+                <span class="response-count" id="response-count">{{ response_count }}</span>
+            </div>
+            <div class="responders-list" 
+                 id="responders"
+                 hx-get="{{ url_for('emergency.responders_partial', alert_id=alert.id) }}"
+                 hx-trigger="every 3s"
+                 hx-swap="innerHTML">
+                {% for r in responders %}
+                <div class="responder">
+                    <span class="responder-check">✓</span>
+                    {{ r.responder_name or 'Staff member' }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="action-buttons">
+        {% if not user_responded %}
+        <form action="{{ url_for('emergency.respond') }}" method="POST">
+            <button type="submit" class="respond-btn primary">
+                I'm Responding
+            </button>
+        </form>
+        {% else %}
+        <button class="respond-btn responded" disabled>
+            ✓ You're Responding
+        </button>
+        {% endif %}
+        
+        {% if user.can_resolve %}
+        <a href="{{ url_for('emergency.resolve') }}" class="respond-btn resolve">
+            Resolve Emergency
+        </a>
+        {% endif %}
+        
+        <a href="/" class="back-link">Back to Home</a>
+    </div>
+</body>
+</html>

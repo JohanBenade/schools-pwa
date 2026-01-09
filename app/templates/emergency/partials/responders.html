@@ -1,0 +1,11 @@
+{% for r in responders %}
+<div class="responder">
+    <span class="responder-check">&#10003;</span>
+    {{ r.responder_name or 'Staff member' }}
+</div>
+{% endfor %}
+{% if not responders %}
+<div style="opacity: 0.7; text-align: center; padding: 20px;">
+    No responses yet
+</div>
+{% endif %}
