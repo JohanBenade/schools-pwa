@@ -410,3 +410,77 @@ def check_alert(alert_id):
         return '<script>window.location.href="/emergency/resolved";</script>'
     
     return ''
+
+
+@emergency_bp.route('/history')
+def history():
+    """View alert history with date filtering."""
+    user = get_current_user()
+    if not user['staff_id']:
+        return redirect('/?error=not_logged_in')
+    
+    # Get date filters from query params
+    from datetime import date, timedelta
+    
+    today = date.today().isoformat()
+    date_from = request.args.get('from', today)
+    date_to = request.args.get('to', today)
+    
+    # Query alerts in date range
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get all alerts in range (both active and resolved)
+        cursor.execute("""
+            SELECT 
+                ea.*,
+                triggered.display_name as triggered_by_name,
+                resolved.display_name as resolved_by_name
+            FROM emergency_alert ea
+            LEFT JOIN staff triggered ON ea.triggered_by_id = triggered.id
+            LEFT JOIN staff resolved ON ea.resolved_by_id = resolved.id
+            WHERE ea.tenant_id = ?
+              AND date(ea.triggered_at) >= ?
+              AND date(ea.triggered_at) <= ?
+            ORDER BY ea.triggered_at DESC
+        """, (TENANT_ID, date_from, date_to))
+        
+        alerts = []
+        for row in cursor.fetchall():
+            alert = dict(row)
+            
+            # Get responder count and names
+            cursor.execute("""
+                SELECT s.display_name 
+                FROM emergency_response er
+                JOIN staff s ON er.responder_id = s.id
+                WHERE er.alert_id = ?
+                ORDER BY er.responded_at ASC
+            """, (alert['id'],))
+            responders = [r['display_name'] for r in cursor.fetchall()]
+            alert['responder_count'] = len(responders)
+            alert['responder_names'] = ', '.join(responders) if responders else 'None'
+            
+            # Calculate duration if resolved
+            if alert['resolved_at'] and alert['triggered_at']:
+                triggered = datetime.fromisoformat(alert['triggered_at'])
+                resolved = datetime.fromisoformat(alert['resolved_at'])
+                duration = resolved - triggered
+                minutes = int(duration.total_seconds() // 60)
+                seconds = int(duration.total_seconds() % 60)
+                alert['duration'] = f"{minutes}m {seconds}s"
+            else:
+                alert['duration'] = 'Active' if alert['status'] == 'Active' else 'Unknown'
+            
+            # Format triggered time for display
+            triggered_dt = datetime.fromisoformat(alert['triggered_at'])
+            alert['triggered_time'] = triggered_dt.strftime('%H:%M')
+            alert['triggered_date'] = triggered_dt.strftime('%d %b')
+            
+            alerts.append(alert)
+    
+    return render_template('emergency/history.html',
+                         user=user,
+                         alerts=alerts,
+                         date_from=date_from,
+                         date_to=date_to)

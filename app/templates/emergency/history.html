@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alert History - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            color: white;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .filters {
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .filter-form {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-group label {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .filter-group input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .filter-btn:hover {
+            background: #2563eb;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .alert-count {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 16px;
+        }
+        
+        .alerts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .alert-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #ef4444;
+        }
+        .alert-card.resolved {
+            border-left-color: #22c55e;
+        }
+        
+        .alert-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .alert-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(239, 68, 68, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fca5a5;
+        }
+        .alert-card.resolved .alert-type-badge {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+        .alert-time {
+            text-align: right;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .alert-time strong {
+            display: block;
+            color: white;
+            font-size: 15px;
+        }
+        
+        .alert-location {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .alert-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            font-size: 13px;
+        }
+        .alert-detail {
+            display: flex;
+            flex-direction: column;
+        }
+        .alert-detail-label {
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .alert-detail-value {
+            color: #e2e8f0;
+        }
+        
+        .alert-responders {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+        .alert-responders-label {
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-badge.active {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .status-badge.resolved {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 Alert History</h1>
+        <a href="/emergency/">← Back</a>
+    </div>
+    
+    <div class="filters">
+        <form class="filter-form" method="GET" action="/emergency/history">
+            <div class="filter-group">
+                <label>From:</label>
+                <input type="date" name="from" value="{{ date_from }}">
+            </div>
+            <div class="filter-group">
+                <label>To:</label>
+                <input type="date" name="to" value="{{ date_to }}">
+            </div>
+            <button type="submit" class="filter-btn">Filter</button>
+        </form>
+    </div>
+    
+    <div class="content">
+        <div class="alert-count">
+            {{ alerts|length }} alert{% if alerts|length != 1 %}s{% endif %} found
+        </div>
+        
+        {% if alerts %}
+        <div class="alerts-list">
+            {% for alert in alerts %}
+            <div class="alert-card {% if alert.status == 'Resolved' %}resolved{% endif %}">
+                <div class="alert-top">
+                    <span class="alert-type-badge">
+                        {% if alert.alert_type == 'Medical' %}🏥{% elif alert.alert_type == 'Security' %}🔒{% elif alert.alert_type == 'Fire' %}🔥{% else %}⚠️{% endif %}
+                        {{ alert.alert_type }}
+                    </span>
+                    <div class="alert-time">
+                        <strong>{{ alert.triggered_time }}</strong>
+                        {{ alert.triggered_date }}
+                    </div>
+                </div>
+                
+                <div class="alert-location">📍 {{ alert.location_display }}</div>
+                
+                <div class="alert-details">
+                    <div class="alert-detail">
+                        <span class="alert-detail-label">Triggered by</span>
+                        <span class="alert-detail-value">{{ alert.triggered_by_name or 'Unknown' }}</span>
+                    </div>
+                    <div class="alert-detail">
+                        <span class="alert-detail-label">Duration</span>
+                        <span class="alert-detail-value">{{ alert.duration }}</span>
+                    </div>
+                    <div class="alert-detail">
+                        <span class="alert-detail-label">Status</span>
+                        <span class="status-badge {% if alert.status == 'Active' %}active{% else %}resolved{% endif %}">
+                            {{ alert.status }}
+                        </span>
+                    </div>
+                    <div class="alert-detail">
+                        <span class="alert-detail-label">Resolved by</span>
+                        <span class="alert-detail-value">{{ alert.resolved_by_name or '—' }}</span>
+                    </div>
+                </div>
+                
+                <div class="alert-responders">
+                    <div class="alert-responders-label">Responders ({{ alert.responder_count }})</div>
+                    {{ alert.responder_names }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <p>No alerts found for this date range</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
