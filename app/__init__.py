@@ -274,7 +274,7 @@ def create_app():
     <div class="grid">
         <!-- Emergency - Primary for demo -->
         <a href="/emergency/" class="app-icon">
-            <div class="icon-box bg-red {'emergency-pulse' if {active_alert} else ''}">&#128680;</div>
+            <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
             <span class="app-label">Emergency</span>
         </a>
         
