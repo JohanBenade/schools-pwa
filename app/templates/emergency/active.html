@@ -186,7 +186,7 @@
         </button>
         {% endif %}
         
-        {% if user.can_resolve %}
+        {% if user_can_resolve %}
         <a href="{{ url_for('emergency.resolve') }}" class="respond-btn resolve">
             Resolve Emergency
         </a>

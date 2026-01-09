@@ -73,6 +73,19 @@ def has_responded(alert_id, staff_id):
         return cursor.fetchone() is not None
 
 
+def can_user_resolve(user, alert):
+    """Check if user can resolve this alert - leadership OR the person who triggered it."""
+    if not user.get('staff_id') or not alert:
+        return False
+    # Leadership can always resolve
+    if user.get('can_resolve'):
+        return True
+    # Person who triggered can resolve their own alert
+    if user.get('staff_id') == alert.get('triggered_by_id'):
+        return True
+    return False
+
+
 @emergency_bp.route('/')
 def index():
     """Emergency home - show trigger button or active alert."""
@@ -92,12 +105,16 @@ def index():
         elapsed = datetime.now() - triggered_dt
         elapsed_str = f"{int(elapsed.total_seconds() // 60)}m {int(elapsed.total_seconds() % 60)}s"
         
+        # Check if user can resolve (leadership OR triggering user)
+        user_can_resolve = can_user_resolve(user, active_alert)
+        
         return render_template('emergency/active.html',
                              user=user,
                              alert=active_alert,
                              responders=responders,
                              response_count=len(responders),
                              user_responded=user_responded,
+                             user_can_resolve=user_can_resolve,
                              elapsed=elapsed_str)
     
     # Show trigger button
@@ -153,7 +170,41 @@ def select_location():
                          user=user,
                          alert_type=alert_type,
                          zones=zones,
-                         default_venue_id=user.get('default_venue_id'))
+                         default_venue_id=user.get('default_venue_id'),
+                         default_venue_name=user.get('default_venue_name'))
+
+
+@emergency_bp.route('/send-default', methods=['POST'])
+def send_default():
+    """Quick-send alert using user's default location."""
+    user = get_current_user()
+    alert_type = session.get('pending_alert_type')
+    
+    if not alert_type or not user['staff_id']:
+        return redirect(url_for('emergency.index'))
+    
+    default_venue_id = user.get('default_venue_id')
+    default_venue_name = user.get('default_venue_name')
+    
+    if not default_venue_id:
+        # No default - fall back to normal flow
+        return redirect(url_for('emergency.select_location'))
+    
+    # Create alert with default location
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        alert_id = generate_id()
+        cursor.execute("""
+            INSERT INTO emergency_alert 
+            (id, tenant_id, alert_type, venue_id, location_display, triggered_by_id, triggered_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Active')
+        """, (alert_id, TENANT_ID, alert_type, default_venue_id, default_venue_name, user['staff_id'], now_iso()))
+        conn.commit()
+    
+    # Clear pending
+    session.pop('pending_alert_type', None)
+    
+    return redirect(url_for('emergency.index'))
 
 
 @emergency_bp.route('/venues/<block>')
@@ -236,14 +287,15 @@ def respond():
 
 @emergency_bp.route('/resolve', methods=['GET', 'POST'])
 def resolve():
-    """Resolve the active alert - leadership only."""
+    """Resolve the active alert - leadership OR triggering user."""
     user = get_current_user()
     active_alert = get_active_alert()
     
     if not active_alert:
         return redirect(url_for('emergency.index'))
     
-    if not user.get('can_resolve'):
+    # Check permission: leadership OR person who triggered
+    if not can_user_resolve(user, active_alert):
         return redirect(url_for('emergency.index'))
     
     if request.method == 'GET':

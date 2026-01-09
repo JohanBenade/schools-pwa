@@ -3,214 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Select Location - SchoolOps</title>
+    <title>Select Location - Emergency</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #1a1a2e;
             min-height: 100vh;
-            padding: 20px;
             color: white;
         }
         .header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.1);
         }
-        .back-btn {
-            color: white;
+        .header a {
+            color: #93c5fd;
             text-decoration: none;
-            font-size: 24px;
-            margin-right: 16px;
+            font-size: 14px;
         }
-        h1 {
-            font-size: 20px;
-            font-weight: 500;
+        .content {
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
         }
         .alert-type-badge {
             display: inline-block;
-            padding: 6px 16px;
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 20px;
-        }
-        .Medical { background: #ef4444; }
-        .Security { background: #f97316; }
-        .Fire { background: #eab308; }
-        .General { background: #6366f1; }
-        
-        .section-title {
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.7;
-            margin-bottom: 12px;
-        }
-        .zones-list, .venues-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
             margin-bottom: 24px;
         }
-        .zone-btn {
+        
+        /* Default Location Quick-Tap */
+        .default-location {
+            margin-bottom: 32px;
+        }
+        .default-location-label {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .default-location-btn {
             display: block;
             width: 100%;
-            padding: 16px 20px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 16px;
-            text-align: left;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .zone-btn:hover, .zone-btn.active {
-            background: rgba(255,255,255,0.2);
-        }
-        .zone-btn.active {
-            border: 2px solid #60a5fa;
-        }
-        
-        #venue-container {
-            margin-top: 20px;
-        }
-        
-        .venue-btn {
-            display: block;
-            width: 100%;
-            padding: 14px 20px;
-            background: rgba(96, 165, 250, 0.2);
-            border: 2px solid transparent;
-            border-radius: 12px;
-            color: white;
-            font-size: 15px;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .venue-btn:hover {
-            background: rgba(96, 165, 250, 0.3);
-        }
-        .venue-btn.selected {
-            border-color: #60a5fa;
-            background: rgba(96, 165, 250, 0.4);
-        }
-        .venue-btn.default {
-            border-color: #22c55e;
-        }
-        .venue-btn .default-badge {
-            font-size: 11px;
-            background: #22c55e;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-left: 8px;
-        }
-        
-        .send-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-            background: linear-gradient(to top, #1a1a2e 0%, transparent 100%);
-        }
-        .send-btn {
-            display: block;
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 18px;
-            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             border: none;
             border-radius: 12px;
             color: white;
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
         }
-        .send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .send-btn:not(:disabled):active {
+        .default-location-btn:active {
             transform: scale(0.98);
         }
-        
-        .cancel-link {
+        .default-location-btn span {
             display: block;
-            text-align: center;
-            margin-top: 12px;
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            font-size: 14px;
+            font-size: 13px;
+            font-weight: 400;
+            opacity: 0.9;
+            margin-top: 4px;
         }
         
-        /* Add padding at bottom for fixed send button */
-        .content {
-            padding-bottom: 120px;
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #334155;
+        }
+        .divider span {
+            padding: 0 16px;
+        }
+        
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #e2e8f0;
+        }
+        .zones {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .zone-btn {
+            display: block;
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .zone-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .zone-btn.selected {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+        
+        /* Venue list (loaded via HTMX) */
+        #venue-list {
+            margin-top: 20px;
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="{{ url_for('emergency.trigger') }}" class="back-btn">&larr;</a>
-        <h1>Select Location</h1>
+        <span>{{ user.display_name }}</span>
+        <a href="/emergency/">Cancel</a>
     </div>
     
-    <div class="alert-type-badge {{ alert_type }}">{{ alert_type }} Emergency</div>
-    
     <div class="content">
-        <p class="section-title">Select Zone</p>
-        <div class="zones-list">
-            {% for block, label in zones %}
-            <button type="button" 
-                    class="zone-btn" 
-                    hx-get="{{ url_for('emergency.get_venues_by_block', block=block) }}"
-                    hx-target="#venue-container"
+        <div class="alert-type-badge">🚨 {{ alert_type }}</div>
+        
+        {% if default_venue_id and default_venue_name %}
+        <!-- Quick-tap default location -->
+        <div class="default-location">
+            <div class="default-location-label">Your default location</div>
+            <form action="/emergency/send-default" method="POST">
+                <button type="submit" class="default-location-btn">
+                    📍 {{ default_venue_name }}
+                    <span>Tap to send alert from here</span>
+                </button>
+            </form>
+        </div>
+        
+        <div class="divider"><span>or select different location</span></div>
+        {% endif %}
+        
+        <h2>SELECT ZONE</h2>
+        <div class="zones">
+            {% for zone_code, zone_name in zones %}
+            <button class="zone-btn" 
+                    hx-get="/emergency/venues/{{ zone_code }}"
+                    hx-target="#venue-list"
                     hx-swap="innerHTML"
-                    onclick="selectZone(this)">
-                {{ label }}
+                    onclick="document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('selected')); this.classList.add('selected');">
+                {{ zone_name }}
             </button>
             {% endfor %}
         </div>
         
-        <div id="venue-container">
-            <!-- Venues loaded here via HTMX -->
+        <div id="venue-list">
+            <!-- Venues load here when zone is selected -->
         </div>
-    </div>
-    
-    <div class="send-container">
-        <form action="{{ url_for('emergency.send_alert') }}" method="POST" id="send-form">
-            <input type="hidden" name="venue_id" id="selected-venue-id" value="">
-            <button type="submit" class="send-btn" id="send-btn" disabled>
-                Select a location
-            </button>
-        </form>
-        <a href="{{ url_for('emergency.index') }}" class="cancel-link">Cancel</a>
-    </div>
-    
-    <script>
-        function selectZone(btn) {
-            document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('selected-venue-id').value = '';
-            document.getElementById('send-btn').disabled = true;
-            document.getElementById('send-btn').textContent = 'Select a venue';
-        }
         
-        function selectVenue(btn, venueId, venueName) {
-            document.querySelectorAll('.venue-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            document.getElementById('selected-venue-id').value = venueId;
-            document.getElementById('send-btn').disabled = false;
-            document.getElementById('send-btn').textContent = 'Send Alert: ' + venueName;
-        }
-    </script>
+        <a href="/emergency/trigger" class="back-link">← Back to alert type</a>
+    </div>
 </body>
 </html>
