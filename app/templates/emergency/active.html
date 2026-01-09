@@ -140,6 +140,7 @@
     </style>
 </head>
 <body>
+    <div id="redirect-check" hx-get="/emergency/check/{{ alert.id }}" hx-trigger="every 3s"></div>
     <div class="content">
         <div class="alert-header">
             <div class="alert-icon">🚨</div>

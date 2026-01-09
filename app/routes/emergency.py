@@ -344,3 +344,17 @@ def status():
         'triggered_by': active_alert.get('triggered_by_name', 'Unknown'),
         'response_count': get_response_count(active_alert['id']),
     })
+
+
+@emergency_bp.route('/check/<alert_id>')
+def check_alert(alert_id):
+    """Check if specific alert is still active - returns redirect script if resolved."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT status FROM emergency_alert WHERE id = ?', (alert_id,))
+        alert = cursor.fetchone()
+    
+    if not alert or alert['status'] != 'Active':
+        return '<script>window.location.href="/emergency/resolved";</script>'
+    
+    return ''
