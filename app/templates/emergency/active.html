@@ -74,6 +74,8 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
         }
         .responder {
             display: flex;
@@ -94,7 +96,8 @@
             left: 0;
             right: 0;
             padding: 20px;
-            background: linear-gradient(to top, #450a0a 0%, transparent 100%);
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            background: linear-gradient(to top, #450a0a 0%, #450a0a 80%, transparent 100%);
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -133,9 +136,9 @@
             font-size: 14px;
         }
         
-        /* Space for fixed buttons */
+        /* Space for fixed buttons - increased for safety */
         .content {
-            padding-bottom: 180px;
+            padding-bottom: 220px;
         }
     </style>
 </head>

@@ -196,6 +196,19 @@
             background: #f0fdf4;
             color: #16a34a;
         }
+        
+        .alert-notes {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+        .alert-notes-label {
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
@@ -270,6 +283,13 @@
                     <div class="alert-responders-label">Responders ({{ alert.responder_count }})</div>
                     {{ alert.responder_names }}
                 </div>
+                
+                {% if alert.resolution_notes %}
+                <div class="alert-notes">
+                    <div class="alert-notes-label">Notes</div>
+                    {{ alert.resolution_notes }}
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
