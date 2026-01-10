@@ -20,12 +20,14 @@ def create_app():
     from app.routes.principal import principal_bp
     from app.routes.emergency import emergency_bp
     from app.routes.push import push_bp
+    from app.routes.substitute import substitute_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(principal_bp)
     app.register_blueprint(emergency_bp)
     app.register_blueprint(push_bp)
+    app.register_blueprint(substitute_bp)
     
     @app.before_request
     def handle_magic_link():
