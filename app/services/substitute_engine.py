@@ -75,7 +75,7 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
         
         # Get all teachers who CAN substitute
         cursor.execute("""
-            SELECT id, surname, display_name 
+            SELECT id, surname, display_name, first_name 
             FROM staff 
             WHERE tenant_id = ? AND is_active = 1 AND can_substitute = 1
             ORDER BY first_name
