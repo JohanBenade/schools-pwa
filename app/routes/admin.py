@@ -653,3 +653,50 @@ def debug_substitute():
         results['traceback'] = traceback.format_exc()
     
     return jsonify(results)
+
+
+@admin_bp.route('/debug-substitute-seed')
+def debug_substitute_seed():
+    """Try seeding step by step."""
+    import traceback
+    
+    results = {}
+    
+    # Step 1: Init tables
+    try:
+        from app.services.seed_substitute_data import init_substitute_tables
+        init_substitute_tables()
+        results['step1_init_tables'] = 'OK'
+    except Exception as e:
+        results['step1_init_tables'] = traceback.format_exc()
+        return jsonify(results)
+    
+    # Step 2: Seed periods
+    try:
+        from app.services.seed_substitute_data import seed_periods
+        count = seed_periods()
+        results['step2_periods'] = f'OK - {count} periods'
+    except Exception as e:
+        results['step2_periods'] = traceback.format_exc()
+        return jsonify(results)
+    
+    # Step 3: Seed config
+    try:
+        from app.services.seed_substitute_data import seed_substitute_config
+        count = seed_substitute_config()
+        results['step3_config'] = f'OK - {count}'
+    except Exception as e:
+        results['step3_config'] = traceback.format_exc()
+        return jsonify(results)
+    
+    # Step 4: Seed timetable
+    try:
+        from app.services.seed_substitute_data import seed_demo_timetable
+        count = seed_demo_timetable()
+        results['step4_timetable'] = f'OK - {count} slots'
+    except Exception as e:
+        results['step4_timetable'] = traceback.format_exc()
+        return jsonify(results)
+    
+    results['status'] = 'ALL COMPLETE'
+    return jsonify(results)
