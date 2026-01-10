@@ -130,9 +130,8 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     
     # Wrap around - pick first in list
     teacher = free_teachers[0]
-    # Extract name after title (Ms X or Mr X)
-            name_part = teacher['display_name'].split(' ')[-1] if teacher['display_name'] else 'A'
-            next_pointer = name_part[0].upper()
+    name_part = teacher["display_name"].split(" ")[-1] if teacher["display_name"] else "A"
+    next_pointer = name_part[0].upper()
     if next_pointer < 'Z':
         next_pointer = chr(ord(next_pointer) + 1)
     else:
