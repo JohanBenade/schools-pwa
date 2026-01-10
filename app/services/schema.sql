@@ -325,3 +325,94 @@ CREATE INDEX IF NOT EXISTS idx_push_staff ON push_subscription(staff_id);
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (2, 'Emergency alerts, venues, user sessions, push subscriptions');
+
+-- ============================================
+-- SUBSTITUTE ALLOCATION MODULE (v3)
+-- ============================================
+
+-- Period definitions (Period 1-8 + breaks)
+CREATE TABLE IF NOT EXISTS period (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    period_number INTEGER NOT NULL,         -- 1, 2, 3... 8 (0 for breaks)
+    period_name TEXT NOT NULL,              -- "Period 1", "Break 1"
+    start_time TEXT NOT NULL,               -- "07:30"
+    end_time TEXT NOT NULL,                 -- "08:15"
+    is_teaching INTEGER NOT NULL DEFAULT 1, -- 1=teaching period, 0=break
+    sort_order INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_period_tenant ON period(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_period_sort ON period(tenant_id, sort_order);
+
+-- Timetable slots: who teaches what, when, where
+CREATE TABLE IF NOT EXISTS timetable_slot (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,                 -- FK to staff
+    cycle_day INTEGER NOT NULL,             -- 1-7 (7-day cycle)
+    period_id TEXT NOT NULL,                -- FK to period
+    class_name TEXT,                        -- "Grade 10A", "11 Eng HL"
+    subject TEXT,                           -- "English", "Mathematics"
+    venue_id TEXT,                          -- FK to venue
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (staff_id) REFERENCES staff(id),
+    FOREIGN KEY (period_id) REFERENCES period(id),
+    FOREIGN KEY (venue_id) REFERENCES venue(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_timetable_staff ON timetable_slot(staff_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_day_period ON timetable_slot(tenant_id, cycle_day, period_id);
+CREATE INDEX IF NOT EXISTS idx_timetable_tenant ON timetable_slot(tenant_id);
+
+-- Substitute configuration per tenant
+CREATE TABLE IF NOT EXISTS substitute_config (
+    tenant_id TEXT PRIMARY KEY,
+    pointer_surname TEXT DEFAULT 'A',       -- Current position in A-Z rotation
+    pointer_updated_at TEXT,                -- When pointer last moved
+    cycle_start_date TEXT,                  -- First day of cycle: "2026-01-15"
+    cycle_length INTEGER DEFAULT 7,         -- 7-day cycle
+    quiet_hours_start TEXT DEFAULT '21:00', -- Don't send push after this
+    quiet_hours_end TEXT DEFAULT '06:00',   -- Resume push after this
+    decline_cutoff_minutes INTEGER DEFAULT 15, -- Can't decline within X min of period
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Substitute audit log (for Mission Control timeline)
+CREATE TABLE IF NOT EXISTS substitute_log (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    absence_id TEXT NOT NULL,               -- FK to absence
+    substitute_request_id TEXT,             -- FK to substitute_request (nullable)
+    event_type TEXT NOT NULL,               -- See event types below
+    staff_id TEXT,                          -- Who this event concerns (if applicable)
+    details TEXT,                           -- JSON with additional context
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (absence_id) REFERENCES absence(id) ON DELETE CASCADE
+);
+
+-- Event types:
+-- 'absence_reported'    - Sick note received
+-- 'processing_started'  - System began allocation
+-- 'allocated'           - Sub assigned to period
+-- 'push_sent'           - Notification sent
+-- 'push_queued'         - Notification queued (quiet hours)
+-- 'no_cover'            - No substitute available
+-- 'declined'            - Sub declined assignment
+-- 'reassigned'          - New sub assigned after decline
+-- 'confirmed'           - Sub confirmed assignment
+-- 'processing_complete' - All periods processed
+-- 'absence_cancelled'   - Sick note cancelled
+-- 'cover_cancelled'     - Coverage cancelled due to absence cancellation
+
+CREATE INDEX IF NOT EXISTS idx_sublog_absence ON substitute_log(absence_id);
+CREATE INDEX IF NOT EXISTS idx_sublog_tenant_time ON substitute_log(tenant_id, created_at DESC);
+
+-- ============================================
+-- UPDATE SCHEMA VERSION
+-- ============================================
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (3, 'Substitute allocation - periods, timetable, config, audit log');
