@@ -77,18 +77,22 @@ CREATE TABLE IF NOT EXISTS substitute_request (
     id TEXT PRIMARY KEY,                    -- UUID
     tenant_id TEXT NOT NULL,
     absence_id TEXT NOT NULL,               -- FK to absence
-    period_id TEXT NOT NULL,                -- Notion period page ID
+    period_id TEXT,                         -- Notion period page ID (NULL for mentor duty)
     class_group_id TEXT,                    -- Notion class_group page ID
     venue_id TEXT,                          -- Notion venue page ID
     substitute_id TEXT,                     -- Notion staff page ID (assigned sub)
     status TEXT NOT NULL DEFAULT 'Pending', -- Pending, Assigned, Confirmed, Declined, Escalated
     assigned_at TEXT,                       -- ISO datetime
     confirmed_at TEXT,                      -- ISO datetime
+    is_mentor_duty INTEGER DEFAULT 0,       -- 1 if this is mentor roll call coverage
+    mentor_group_id TEXT,                   -- FK to mentor_group (for mentor duty)
+    subject TEXT,                           -- Subject name for display
+    class_name TEXT,                        -- Class name for display
+    venue_name TEXT,                        -- Venue name for display
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (absence_id) REFERENCES absence(id) ON DELETE CASCADE
 );
-
 CREATE INDEX IF NOT EXISTS idx_subreq_absence ON substitute_request(absence_id);
 CREATE INDEX IF NOT EXISTS idx_subreq_substitute ON substitute_request(substitute_id);
 CREATE INDEX IF NOT EXISTS idx_subreq_status ON substitute_request(status);
