@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Alert History - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -217,9 +218,14 @@
         </form>
     </div>
     
-    <div class="content">
+    <div class="content"
+         hx-get="/emergency/history?from={{ date_from }}&to={{ date_to }}"
+         hx-trigger="every 10s"
+         hx-select=".content"
+         hx-swap="outerHTML">
         <div class="alert-count">
             {{ alerts|length }} alert{% if alerts|length != 1 %}s{% endif %} found
+            <span style="font-size: 11px; color: #64748b; margin-left: 8px;">Auto-refreshes every 10s</span>
         </div>
         
         {% if alerts %}
