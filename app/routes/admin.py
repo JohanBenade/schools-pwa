@@ -1180,7 +1180,7 @@ def fix_substitute_roles():
             SELECT s.id, s.display_name, us.role 
             FROM staff s
             JOIN user_session us ON s.id = us.staff_id
-            WHERE us.role IN ('principal', 'deputy', 'admin', 'grade_head')
+            WHERE us.role IN ('principal', 'deputy', 'admin')
             AND us.tenant_id = 'MARAGON'
         """)
         non_teachers = cursor.fetchall()
