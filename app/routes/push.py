@@ -1,57 +1,259 @@
 """
-Push Notification routes - Register tokens and send notifications
+Push notification routes using Firebase Cloud Messaging V1 API
+Uses service account authentication (modern approach)
 """
-
-from flask import Blueprint, request, session, jsonify
-import requests
-import json
+from flask import Blueprint, request, jsonify, session
 from app.services.db import get_connection, generate_id, now_iso
+import os
+import json
+import time
+import requests
 
 push_bp = Blueprint('push', __name__, url_prefix='/push')
 
 TENANT_ID = "MARAGON"
 
-# Firebase Cloud Messaging API endpoint
-FCM_URL = "https://fcm.googleapis.com/v1/projects/schoolops-d8bdd/messages:send"
+# Firebase project ID
+FIREBASE_PROJECT_ID = "schoolops-d8bdd"
 
-# Note: For production, you'll need a service account key file
-# For now, we'll use the legacy HTTP API which is simpler
-FCM_LEGACY_URL = "https://fcm.googleapis.com/fcm/send"
-FCM_SERVER_KEY = None  # Will be set from environment or config
+# Cache for access token
+_token_cache = {
+    'token': None,
+    'expires_at': 0
+}
+
+
+def get_service_account_info():
+    """Get service account info from environment variable"""
+    sa_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+    if not sa_json:
+        return None
+    try:
+        return json.loads(sa_json)
+    except json.JSONDecodeError:
+        print("ERROR: Invalid FIREBASE_SERVICE_ACCOUNT JSON")
+        return None
+
+
+def get_access_token():
+    """
+    Get OAuth2 access token for Firebase API using service account.
+    Uses JWT to request access token from Google.
+    """
+    import jwt  # PyJWT library
+    
+    # Check cache first
+    if _token_cache['token'] and time.time() < _token_cache['expires_at'] - 60:
+        return _token_cache['token']
+    
+    sa_info = get_service_account_info()
+    if not sa_info:
+        return None
+    
+    # Create JWT
+    now = int(time.time())
+    payload = {
+        'iss': sa_info['client_email'],
+        'sub': sa_info['client_email'],
+        'aud': 'https://oauth2.googleapis.com/token',
+        'iat': now,
+        'exp': now + 3600,
+        'scope': 'https://www.googleapis.com/auth/firebase.messaging'
+    }
+    
+    # Sign with private key
+    signed_jwt = jwt.encode(
+        payload,
+        sa_info['private_key'],
+        algorithm='RS256'
+    )
+    
+    # Exchange JWT for access token
+    response = requests.post(
+        'https://oauth2.googleapis.com/token',
+        data={
+            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion': signed_jwt
+        }
+    )
+    
+    if response.status_code == 200:
+        data = response.json()
+        _token_cache['token'] = data['access_token']
+        _token_cache['expires_at'] = now + data.get('expires_in', 3600)
+        return data['access_token']
+    else:
+        print(f"ERROR getting access token: {response.status_code} {response.text}")
+        return None
+
+
+def send_push_notification(token, title, body, data=None, badge_url=None):
+    """
+    Send push notification to a single device using FCM V1 API
+    
+    Args:
+        token: FCM device token
+        title: Notification title
+        body: Notification body
+        data: Optional dict of custom data
+        badge_url: Optional URL for notification icon
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    access_token = get_access_token()
+    if not access_token:
+        print("WARNING: No Firebase access token available - push disabled")
+        return False
+    
+    url = f"https://fcm.googleapis.com/v1/projects/{FIREBASE_PROJECT_ID}/messages:send"
+    
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Build message payload
+    message = {
+        'message': {
+            'token': token,
+            'notification': {
+                'title': title,
+                'body': body
+            },
+            'webpush': {
+                'notification': {
+                    'icon': badge_url or '/static/icon-192.png',
+                    'badge': '/static/icon-192.png',
+                    'vibrate': [200, 100, 200, 100, 200],
+                    'requireInteraction': True
+                },
+                'fcm_options': {
+                    'link': '/emergency/'
+                }
+            }
+        }
+    }
+    
+    # Add custom data if provided
+    if data:
+        message['message']['data'] = {k: str(v) for k, v in data.items()}
+    
+    try:
+        response = requests.post(url, headers=headers, json=message, timeout=10)
+        
+        if response.status_code == 200:
+            return True
+        elif response.status_code == 404 or 'NOT_FOUND' in response.text:
+            # Token is invalid/expired - should be removed from database
+            print(f"Invalid token (will be cleaned): {token[:20]}...")
+            return False
+        else:
+            print(f"FCM error: {response.status_code} {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"FCM request failed: {e}")
+        return False
+
+
+def send_emergency_alert_push(alert_type, location, triggered_by):
+    """
+    Send emergency alert to all registered devices for the tenant.
+    Called when an emergency is triggered.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        print("WARNING: Push notifications not configured - skipping")
+        return 0
+    
+    # Get all tokens for this tenant
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, token FROM push_token 
+            WHERE tenant_id = ?
+        ''', (TENANT_ID,))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        print("No push tokens registered")
+        return 0
+    
+    # Emoji for alert type
+    type_emoji = {
+        'Medical': '🏥',
+        'Security': '🔒',
+        'Fire': '🔥',
+        'General': '⚠️'
+    }.get(alert_type, '🚨')
+    
+    title = f"{type_emoji} EMERGENCY: {alert_type}"
+    body = f"Location: {location}\nTriggered by: {triggered_by}"
+    
+    success_count = 0
+    invalid_tokens = []
+    
+    for token_row in tokens:
+        token_id, token = token_row['id'], token_row['token']
+        if send_push_notification(token, title, body, data={'type': 'emergency', 'alert_type': alert_type}):
+            success_count += 1
+            # Update last_used_at
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE push_token SET last_used_at = ? WHERE id = ?
+                ''', (now_iso(), token_id))
+                conn.commit()
+        else:
+            # Check if we should remove this token
+            invalid_tokens.append(token_id)
+    
+    # Clean up invalid tokens
+    if invalid_tokens:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            for token_id in invalid_tokens:
+                cursor.execute('DELETE FROM push_token WHERE id = ?', (token_id,))
+            conn.commit()
+        print(f"Cleaned {len(invalid_tokens)} invalid tokens")
+    
+    print(f"Push sent to {success_count}/{len(tokens)} devices")
+    return success_count
 
 
 @push_bp.route('/register', methods=['POST'])
 def register_token():
-    """Register a device token for push notifications."""
+    """Register a device token for push notifications"""
     data = request.get_json()
     token = data.get('token')
     
     if not token:
-        return jsonify({'error': 'No token provided'}), 400
+        return jsonify({'error': 'Token required'}), 400
     
     staff_id = session.get('staff_id')
+    device_info = data.get('device_info', request.headers.get('User-Agent', '')[:200])
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
         # Check if token already exists
-        cursor.execute('SELECT id, staff_id FROM push_token WHERE token = ?', (token,))
+        cursor.execute('SELECT id FROM push_token WHERE token = ?', (token,))
         existing = cursor.fetchone()
         
         if existing:
-            # Update existing token with current staff_id
+            # Update existing token
             cursor.execute('''
                 UPDATE push_token 
-                SET staff_id = ?, last_used_at = ?, tenant_id = ?
+                SET staff_id = ?, device_info = ?, last_used_at = ?
                 WHERE token = ?
-            ''', (staff_id, now_iso(), TENANT_ID, token))
+            ''', (staff_id, device_info, now_iso(), token))
         else:
             # Insert new token
-            token_id = generate_id()
             cursor.execute('''
-                INSERT INTO push_token (id, tenant_id, staff_id, token, created_at, last_used_at)
+                INSERT INTO push_token (id, tenant_id, staff_id, token, device_info, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (token_id, TENANT_ID, staff_id, token, now_iso(), now_iso()))
+            ''', (generate_id(), TENANT_ID, staff_id, token, device_info, now_iso()))
         
         conn.commit()
     
@@ -60,12 +262,12 @@ def register_token():
 
 @push_bp.route('/unregister', methods=['POST'])
 def unregister_token():
-    """Remove a device token."""
+    """Remove a device token"""
     data = request.get_json()
     token = data.get('token')
     
     if not token:
-        return jsonify({'error': 'No token provided'}), 400
+        return jsonify({'error': 'Token required'}), 400
     
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -77,169 +279,58 @@ def unregister_token():
 
 @push_bp.route('/test', methods=['POST'])
 def test_push():
-    """Send a test push notification to current user."""
+    """Send a test notification to the current user's devices"""
     staff_id = session.get('staff_id')
     
     if not staff_id:
         return jsonify({'error': 'Not logged in'}), 401
     
-    # Get user's tokens
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute('SELECT token FROM push_token WHERE staff_id = ?', (staff_id,))
-        tokens = [row['token'] for row in cursor.fetchall()]
+    # Check if push is configured
+    if not get_service_account_info():
+        return jsonify({'error': 'Push notifications not configured'}), 503
     
-    if not tokens:
-        return jsonify({'error': 'No push tokens registered for this user'}), 400
-    
-    # Send test notification
-    results = send_push_to_tokens(
-        tokens,
-        title='SchoolOps Test',
-        body='Push notifications are working!',
-        data={'url': '/'}
-    )
-    
-    return jsonify({'success': True, 'sent_to': len(tokens), 'results': results})
-
-
-def get_all_tenant_tokens(tenant_id=TENANT_ID):
-    """Get all push tokens for a tenant."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT token FROM push_token WHERE tenant_id = ?
-        ''', (tenant_id,))
-        return [row['token'] for row in cursor.fetchall()]
-
-
-def send_push_to_tokens(tokens, title, body, data=None):
-    """
-    Send push notification to multiple FCM tokens.
-    Uses Firebase HTTP v1 API via service account.
-    """
-    if not tokens:
-        return {'sent': 0, 'failed': 0}
-    
-    # For each token, send a message
-    sent = 0
-    failed = 0
-    failed_tokens = []
-    
-    for token in tokens:
-        try:
-            success = send_single_push(token, title, body, data)
-            if success:
-                sent += 1
-            else:
-                failed += 1
-                failed_tokens.append(token)
-        except Exception as e:
-            print(f"Error sending push to {token[:20]}...: {e}")
-            failed += 1
-            failed_tokens.append(token)
-    
-    # Clean up invalid tokens
-    if failed_tokens:
-        cleanup_invalid_tokens(failed_tokens)
-    
-    return {'sent': sent, 'failed': failed}
-
-
-def send_single_push(token, title, body, data=None):
-    """
-    Send push notification to a single FCM token.
-    Uses the legacy HTTP API for simplicity.
-    """
-    import os
-    
-    server_key = os.environ.get('FCM_SERVER_KEY')
-    
-    if not server_key:
-        # Log but don't fail - push is optional during development
-        print("FCM_SERVER_KEY not set - push notification skipped")
-        return False
-    
-    headers = {
-        'Authorization': f'key={server_key}',
-        'Content-Type': 'application/json'
-    }
-    
-    payload = {
-        'to': token,
-        'notification': {
-            'title': title,
-            'body': body,
-            'icon': '/static/icon-192.png',
-            'click_action': data.get('url', '/emergency/') if data else '/emergency/'
-        },
-        'data': data or {},
-        'priority': 'high',
-        'time_to_live': 60  # Message expires after 60 seconds
-    }
-    
-    try:
-        response = requests.post(
-            FCM_LEGACY_URL,
-            headers=headers,
-            json=payload,
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result.get('success', 0) > 0
-        else:
-            print(f"FCM error: {response.status_code} - {response.text}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"FCM request error: {e}")
-        return False
-
-
-def cleanup_invalid_tokens(tokens):
-    """Remove invalid tokens from database."""
-    if not tokens:
-        return
-    
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        placeholders = ','.join(['?' for _ in tokens])
-        cursor.execute(f'DELETE FROM push_token WHERE token IN ({placeholders})', tokens)
-        conn.commit()
-        print(f"Cleaned up {cursor.rowcount} invalid tokens")
-
-
-def send_emergency_alert_push(alert_type, location, triggered_by):
-    """
-    Send emergency alert push to all staff.
-    Called from emergency.send_alert route.
-    """
-    tokens = get_all_tenant_tokens()
+            SELECT token FROM push_token 
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, staff_id))
+        tokens = cursor.fetchall()
     
     if not tokens:
-        print("No push tokens registered - skipping push notification")
-        return {'sent': 0, 'failed': 0}
+        return jsonify({'error': 'No devices registered'}), 404
     
-    # Emoji for alert type
-    emoji = {
-        'Medical': '🏥',
-        'Security': '🔒', 
-        'Fire': '🔥',
-        'General': '⚠️'
-    }.get(alert_type, '🚨')
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'],
+            '🔔 Test Notification',
+            'Push notifications are working!',
+            data={'type': 'test'}
+        ):
+            success_count += 1
     
-    title = f'{emoji} EMERGENCY: {alert_type}'
-    body = f'Location: {location}\nTriggered by: {triggered_by}'
+    return jsonify({
+        'success': True,
+        'message': f'Sent to {success_count}/{len(tokens)} devices'
+    })
+
+
+@push_bp.route('/status', methods=['GET'])
+def push_status():
+    """Check if push notifications are configured"""
+    configured = get_service_account_info() is not None
     
-    return send_push_to_tokens(
-        tokens,
-        title=title,
-        body=body,
-        data={
-            'url': '/emergency/',
-            'type': 'emergency',
-            'alert_type': alert_type
-        }
-    )
+    # Count registered tokens
+    token_count = 0
+    if configured:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) as count FROM push_token WHERE tenant_id = ?', (TENANT_ID,))
+            result = cursor.fetchone()
+            token_count = result['count'] if result else 0
+    
+    return jsonify({
+        'configured': configured,
+        'registered_devices': token_count
+    })
