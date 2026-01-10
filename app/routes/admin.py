@@ -1217,8 +1217,8 @@ def reset_substitute_test():
         
         # Clear existing substitute data
         cursor.execute("DELETE FROM substitute_request WHERE tenant_id = 'MARAGON'")
-        cursor.execute("DELETE FROM substitute_absence WHERE tenant_id = 'MARAGON'")
-        cursor.execute("DELETE FROM substitute_event_log WHERE tenant_id = 'MARAGON'")
+        cursor.execute("DELETE FROM absence WHERE tenant_id = 'MARAGON'")
+        cursor.execute("DELETE FROM substitute_log WHERE tenant_id = 'MARAGON'")
         
         # Reset pointer to 'A'
         cursor.execute("""
