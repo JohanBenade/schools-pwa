@@ -495,3 +495,33 @@ def seed_emergency():
     </body>
     </html>
     '''
+
+
+@admin_bp.route('/init-push')
+def init_push():
+    """Create push_token table if it doesn't exist. Safe to run multiple times."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS push_token (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                staff_id TEXT,
+                token TEXT NOT NULL UNIQUE,
+                device_info TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                last_used_at TEXT
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_push_token_tenant ON push_token(tenant_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_push_token_staff ON push_token(staff_id)')
+        conn.commit()
+        
+        cursor.execute("SELECT COUNT(*) FROM push_token")
+        token_count = cursor.fetchone()[0]
+    
+    return jsonify({
+        'success': True,
+        'message': 'push_token table ready',
+        'registered_tokens': token_count
+    })
