@@ -1073,3 +1073,85 @@ def fix_timetable_all_days():
         'new_slots_created': count,
         'slots_by_day': by_day
     })
+
+
+@admin_bp.route('/fix-substitute-request-nullable')
+def fix_substitute_request_nullable():
+    """Fix substitute_request table to allow NULL period_id for mentor duties."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+        # First, backup existing data
+        cursor.execute("SELECT * FROM substitute_request")
+        existing = cursor.fetchall()
+        
+        # Drop and recreate with nullable period_id
+        cursor.execute("DROP TABLE IF EXISTS substitute_request_backup")
+        cursor.execute("ALTER TABLE substitute_request RENAME TO substitute_request_backup")
+        
+        cursor.execute("""
+            CREATE TABLE substitute_request (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                absence_id TEXT NOT NULL,
+                period_id TEXT,
+                class_group_id TEXT,
+                venue_id TEXT,
+                substitute_id TEXT,
+                status TEXT DEFAULT 'Pending',
+                assigned_at TEXT,
+                confirmed_at TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT,
+                is_mentor_duty INTEGER DEFAULT 0,
+                mentor_group_id TEXT,
+                subject TEXT,
+                class_name TEXT,
+                venue_name TEXT,
+                declined_at TEXT,
+                declined_by_id TEXT,
+                decline_reason TEXT,
+                push_sent_at TEXT,
+                push_queued_until TEXT,
+                original_substitute_id TEXT,
+                FOREIGN KEY (absence_id) REFERENCES absence(id)
+            )
+        """)
+        
+        # Restore data
+        for row in existing:
+            cursor.execute("""
+                INSERT INTO substitute_request 
+                (id, tenant_id, absence_id, period_id, class_group_id, venue_id, 
+                 substitute_id, status, assigned_at, confirmed_at, created_at, updated_at,
+                 is_mentor_duty, mentor_group_id, subject, class_name, venue_name,
+                 declined_at, declined_by_id, decline_reason, push_sent_at, 
+                 push_queued_until, original_substitute_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                row['id'], row['tenant_id'], row['absence_id'], row['period_id'],
+                row['class_group_id'], row['venue_id'], row['substitute_id'],
+                row['status'], row['assigned_at'], row['confirmed_at'],
+                row['created_at'], row['updated_at'], row['is_mentor_duty'],
+                row['mentor_group_id'], row['subject'], row['class_name'],
+                row['venue_name'], row['declined_at'], row['declined_by_id'],
+                row['decline_reason'], row['push_sent_at'], row['push_queued_until'],
+                row['original_substitute_id']
+            ))
+        
+        # Drop backup
+        cursor.execute("DROP TABLE substitute_request_backup")
+        
+        conn.commit()
+        
+        # Verify
+        cursor.execute("PRAGMA table_info(substitute_request)")
+        cols = [{'name': row['name'], 'notnull': row['notnull']} for row in cursor.fetchall()]
+        
+    return jsonify({
+        'success': True,
+        'rows_migrated': len(existing),
+        'columns': cols
+    })
