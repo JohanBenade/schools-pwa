@@ -841,3 +841,59 @@ def setup_substitute_demo():
         results['all_sessions'] = [dict(row) for row in cursor.fetchall()]
         
     return jsonify(results)
+
+
+@admin_bp.route('/debug-substitute-pages')
+def debug_substitute_pages():
+    """Debug substitute page errors."""
+    import traceback
+    from flask import session
+    
+    results = {}
+    
+    # Test 1: Check session
+    results['session'] = {
+        'staff_id': session.get('staff_id'),
+        'display_name': session.get('display_name'),
+        'role': session.get('role')
+    }
+    
+    # Test 2: Try importing substitute blueprint
+    try:
+        from app.routes.substitute import substitute_bp
+        results['import_blueprint'] = 'OK'
+    except Exception as e:
+        results['import_blueprint'] = traceback.format_exc()
+        return jsonify(results)
+    
+    # Test 3: Try importing engine
+    try:
+        from app.services.substitute_engine import get_cycle_day, get_current_pointer
+        results['import_engine'] = 'OK'
+        results['cycle_day'] = get_cycle_day()
+        results['pointer'] = get_current_pointer()
+    except Exception as e:
+        results['import_engine'] = traceback.format_exc()
+        return jsonify(results)
+    
+    # Test 4: Check templates exist
+    import os
+    template_dir = 'app/templates/substitute'
+    if os.path.exists(template_dir):
+        results['templates'] = os.listdir(template_dir)
+    else:
+        results['templates'] = 'DIRECTORY NOT FOUND'
+    
+    # Test 5: Try a simple query
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM period WHERE tenant_id = 'MARAGON'")
+            results['period_count'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM timetable_slot WHERE tenant_id = 'MARAGON'")
+            results['timetable_count'] = cursor.fetchone()[0]
+    except Exception as e:
+        results['db_query'] = traceback.format_exc()
+    
+    return jsonify(results)
