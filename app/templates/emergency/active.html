@@ -12,12 +12,14 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 12px;
+            padding-bottom: 200px;
             color: white;
+            overflow-y: auto;
         }
         .alert-header {
             text-align: center;
-            padding: 20px 0;
+            padding: 10px 0;
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
@@ -25,69 +27,71 @@
             50% { opacity: 0.7; }
         }
         .alert-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-        }
-        .alert-type {
-            font-size: 32px;
-            font-weight: 700;
-            text-transform: uppercase;
+            font-size: 40px;
             margin-bottom: 8px;
         }
-        .alert-location {
+        .alert-type {
             font-size: 24px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .alert-location {
+            font-size: 18px;
             font-weight: 500;
             background: rgba(255,255,255,0.2);
-            padding: 12px 24px;
-            border-radius: 12px;
+            padding: 8px 16px;
+            border-radius: 10px;
             display: inline-block;
         }
         
         .alert-meta {
             text-align: center;
-            margin: 24px 0;
-            font-size: 14px;
+            margin: 12px 0;
+            font-size: 13px;
             opacity: 0.9;
         }
         .elapsed {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
         }
         
         .response-section {
             background: rgba(0,0,0,0.3);
-            border-radius: 16px;
-            padding: 20px;
-            margin: 20px 0;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 12px 0;
         }
         .response-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
+            font-size: 14px;
         }
         .response-count {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
         }
         .responders-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            max-height: 200px;
+            gap: 6px;
+            max-height: 150px;
             overflow-y: auto;
         }
         .responder {
             display: flex;
             align-items: center;
-            padding: 10px 16px;
+            padding: 8px 12px;
             background: rgba(255,255,255,0.1);
             border-radius: 8px;
+            font-size: 14px;
         }
         .responder-check {
             color: #22c55e;
-            margin-right: 12px;
-            font-size: 18px;
+            margin-right: 10px;
+            font-size: 16px;
         }
         
         .action-buttons {
@@ -95,22 +99,26 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 20px;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
-            background: linear-gradient(to top, #450a0a 0%, #450a0a 80%, transparent 100%);
+            padding: 12px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            background: #450a0a;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
         }
         .respond-btn {
             width: 100%;
-            padding: 18px;
+            padding: 14px;
             border: none;
-            border-radius: 12px;
-            font-size: 18px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.1s;
+            text-decoration: none;
+            text-align: center;
+            display: block;
         }
         .respond-btn.primary {
             background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
@@ -133,12 +141,23 @@
             text-align: center;
             color: rgba(255,255,255,0.7);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 13px;
+            display: block;
+            padding: 4px;
         }
         
-        /* Space for fixed buttons - increased for safety */
-        .content {
-            padding-bottom: 220px;
+        /* Desktop - larger elements */
+        @media (min-width: 768px) {
+            body { padding: 20px; padding-bottom: 220px; }
+            .alert-icon { font-size: 64px; margin-bottom: 16px; }
+            .alert-type { font-size: 32px; }
+            .alert-location { font-size: 24px; padding: 12px 24px; }
+            .alert-meta { margin: 24px 0; font-size: 14px; }
+            .elapsed { font-size: 20px; }
+            .response-section { padding: 20px; margin: 20px 0; }
+            .responders-list { max-height: 250px; }
+            .respond-btn { padding: 18px; font-size: 18px; }
+            .action-buttons { padding: 20px; gap: 12px; }
         }
     </style>
 </head>
