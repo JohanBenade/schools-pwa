@@ -138,7 +138,7 @@
             <p>{{ absence.absence_type }} - {{ absence.absence_date }}</p>
         </div>
         
-        {% set covered = requests|selectattr('status', 'eq', 'Assigned')|list|length %}
+        {% set covered = requests|rejectattr('is_mentor_duty')|selectattr('status', 'eq', 'Assigned')|list|length %}
         {% set total = requests|rejectattr('is_mentor_duty')|list|length %}
         
         <div class="summary-box {% if absence.status == 'Partial' %}partial{% elif absence.status == 'Escalated' %}escalated{% endif %}">
