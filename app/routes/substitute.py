@@ -157,7 +157,8 @@ def mission_control():
         cursor.execute("""
             SELECT * FROM substitute_config WHERE tenant_id = ?
         """, (TENANT_ID,))
-        config = dict(cursor.fetchone()) if cursor.fetchone() else {}
+        row = cursor.fetchone()
+        config = dict(row) if row else {}
         cursor.execute("SELECT * FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
         row = cursor.fetchone()
         config = dict(row) if row else {}
