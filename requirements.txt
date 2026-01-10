@@ -4,3 +4,4 @@ notion-client==2.2.1
 gunicorn==21.2.0
 requests
 PyJWT
+cryptography
