@@ -1,7 +1,7 @@
 // SchoolOps Push Notification Registration
 // Include this script on pages where push should be enabled
 
-const VAPID_KEY = 'BMdMtLurIzu3UpjvHibI_dGMjuLjDr-ffD4ytFYI7wVI36f4BuAmfeiQl8_sSQWDQ79G6yNN1eyQP5ztBdD0mU';
+const VAPID_KEY = 'BEbEm9F2pbxVU0cDQKsN03gxV7QnR9yBUiZ7dKdEmNXFicbeSDXKKHl665vLnw14OjxI2ULnG_VwWke8FSWEwo8';
 
 // Firebase configuration
 const firebaseConfig = {
