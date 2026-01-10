@@ -1019,3 +1019,57 @@ def fix_substitute_table():
         results['error'] = traceback.format_exc()
     
     return jsonify(results)
+
+
+@admin_bp.route('/fix-timetable-all-days')
+def fix_timetable_all_days():
+    """Copy Day 3 timetable to all cycle days (1-7) so demo works any day."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get all Day 3 slots
+        cursor.execute("""
+            SELECT staff_id, period_id, class_name, subject, venue_id
+            FROM timetable_slot
+            WHERE tenant_id = 'MARAGON' AND cycle_day = 3
+        """)
+        day3_slots = cursor.fetchall()
+        
+        if not day3_slots:
+            return jsonify({'error': 'No Day 3 slots found'})
+        
+        # Delete existing slots for other days
+        cursor.execute("""
+            DELETE FROM timetable_slot 
+            WHERE tenant_id = 'MARAGON' AND cycle_day != 3
+        """)
+        
+        # Copy Day 3 to Days 1, 2, 4, 5, 6, 7
+        import uuid
+        count = 0
+        for day in [1, 2, 4, 5, 6, 7]:
+            for slot in day3_slots:
+                cursor.execute("""
+                    INSERT INTO timetable_slot 
+                    (id, tenant_id, staff_id, cycle_day, period_id, class_name, subject, venue_id)
+                    VALUES (?, 'MARAGON', ?, ?, ?, ?, ?, ?)
+                """, (str(uuid.uuid4()), slot['staff_id'], day, slot['period_id'], 
+                      slot['class_name'], slot['subject'], slot['venue_id']))
+                count += 1
+        
+        conn.commit()
+        
+        # Verify
+        cursor.execute("""
+            SELECT cycle_day, COUNT(*) as slots
+            FROM timetable_slot WHERE tenant_id = 'MARAGON'
+            GROUP BY cycle_day ORDER BY cycle_day
+        """)
+        by_day = [dict(row) for row in cursor.fetchall()]
+        
+    return jsonify({
+        'day3_slots_copied': len(day3_slots),
+        'new_slots_created': count,
+        'slots_by_day': by_day
+    })
