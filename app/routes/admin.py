@@ -525,3 +525,88 @@ def init_push():
         'message': 'push_token table ready',
         'registered_tokens': token_count
     })
+
+
+@admin_bp.route('/seed-substitute', methods=['GET', 'POST'])
+def seed_substitute():
+    """Seed substitute allocation data: periods, config, demo timetable."""
+    if request.method == 'GET':
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM period WHERE tenant_id = 'MARAGON'")
+            period_count = cursor.fetchone()[0]
+            
+            # Check if timetable_slot table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='timetable_slot'")
+            timetable_exists = cursor.fetchone() is not None
+            
+            slot_count = 0
+            if timetable_exists:
+                cursor.execute("SELECT COUNT(*) FROM timetable_slot WHERE tenant_id = 'MARAGON'")
+                slot_count = cursor.fetchone()[0]
+        
+        return f'''
+        <html>
+        <head><title>Seed Substitute Data - SchoolOps Admin</title>
+        <style>
+            body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+            .info {{ background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            .current {{ background: #f5f5f5; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+            button {{ background: #f97316; color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }}
+            button:hover {{ background: #ea580c; }}
+            a {{ color: #007AFF; }}
+        </style>
+        </head>
+        <body>
+            <h1>🔄 Seed Substitute Data</h1>
+            <div class="current">
+                <h3>Current Data</h3>
+                <p>Periods: {period_count}</p>
+                <p>Timetable Slots: {slot_count}</p>
+            </div>
+            <div class="info">
+                <h3>This will create:</h3>
+                <ul>
+                    <li>9 periods (7 teaching + 2 breaks)</li>
+                    <li>Substitute config (A-Z pointer, quiet hours)</li>
+                    <li>Demo timetable for Day 3:</li>
+                    <ul>
+                        <li>Ms Beatrix: 5 teaching periods (demo sick teacher)</li>
+                        <li>Ms Jacqueline: Adjacent classroom B002 (roll call)</li>
+                        <li>All other teachers: ~70% load</li>
+                    </ul>
+                </ul>
+            </div>
+            <form method="POST">
+                <button type="submit">Seed Substitute Data</button>
+            </form>
+            <p style="margin-top: 2rem;"><a href="/admin/">Back to Dashboard</a></p>
+        </body>
+        </html>
+        '''
+    
+    # POST - Execute seed
+    from app.services.seed_substitute_data import seed_all_substitute
+    result = seed_all_substitute()
+    
+    return f'''
+    <html>
+    <head><title>Seed Complete - SchoolOps Admin</title>
+    <style>
+        body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+        .success {{ background: #dcfce7; border: 1px solid #22c55e; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+        a {{ color: #007AFF; }}
+    </style>
+    </head>
+    <body>
+        <h1>✅ Substitute Data Seeded</h1>
+        <div class="success">
+            <h3>Data Created</h3>
+            <p>Periods: {result['periods']}</p>
+            <p>Config: {result['config']}</p>
+            <p>Timetable Slots: {result['timetable_slots']}</p>
+        </div>
+        <p><a href="/admin/">Back to Dashboard</a></p>
+    </body>
+    </html>
+    '''
