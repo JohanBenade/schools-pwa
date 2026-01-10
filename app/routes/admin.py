@@ -897,3 +897,125 @@ def debug_substitute_pages():
         results['db_query'] = traceback.format_exc()
     
     return jsonify(results)
+
+
+@admin_bp.route('/debug-substitute-render')
+def debug_substitute_render():
+    """Test rendering each substitute page."""
+    import traceback
+    from flask import session
+    
+    results = {}
+    
+    # Set a test session if needed
+    if 'staff_id' not in session:
+        results['warning'] = 'No session - some tests may fail'
+    
+    # Test 1: Index page
+    try:
+        from app.routes.substitute import substitute_bp
+        from flask import render_template
+        html = render_template('substitute/index.html',
+                              staff_id=session.get('staff_id'),
+                              display_name=session.get('display_name', 'Test'))
+        results['index'] = f'OK - {len(html)} chars'
+    except Exception as e:
+        results['index'] = traceback.format_exc()
+    
+    # Test 2: Report page
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, period_number, period_name, start_time, end_time
+                FROM period 
+                WHERE tenant_id = 'MARAGON' AND is_teaching = 1
+                ORDER BY sort_order
+            """)
+            periods = [dict(row) for row in cursor.fetchall()]
+        
+        from datetime import date
+        html = render_template('substitute/report.html',
+                              periods=periods,
+                              today=date.today().isoformat())
+        results['report'] = f'OK - {len(html)} chars'
+    except Exception as e:
+        results['report'] = traceback.format_exc()
+    
+    # Test 3: My assignments page
+    try:
+        from app.services.substitute_engine import get_cycle_day
+        html = render_template('substitute/my_assignments.html',
+                              schedule=[],
+                              mentor_duty=None,
+                              today=date.today().isoformat(),
+                              cycle_day=get_cycle_day(),
+                              sub_count=0)
+        results['my_assignments'] = f'OK - {len(html)} chars'
+    except Exception as e:
+        results['my_assignments'] = traceback.format_exc()
+    
+    # Test 4: Mission control
+    try:
+        html = render_template('substitute/mission_control.html',
+                              absences=[],
+                              config={'pointer_surname': 'A'},
+                              cycle_day=3,
+                              today='2026-01-10',
+                              stats={'total': 0, 'covered': 0, 'partial': 0, 'escalated': 0})
+        results['mission_control'] = f'OK - {len(html)} chars'
+    except Exception as e:
+        results['mission_control'] = traceback.format_exc()
+    
+    return jsonify(results)
+
+
+@admin_bp.route('/fix-substitute-table')
+def fix_substitute_table():
+    """Add missing columns to substitute_request table."""
+    import traceback
+    
+    results = {'fixes_applied': []}
+    
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check current columns
+            cursor.execute("PRAGMA table_info(substitute_request)")
+            existing_cols = {row['name'] for row in cursor.fetchall()}
+            results['existing_columns'] = list(existing_cols)
+            
+            # Add missing columns one by one
+            columns_to_add = [
+                ('is_mentor_duty', 'INTEGER DEFAULT 0'),
+                ('mentor_group_id', 'TEXT'),
+                ('subject', 'TEXT'),
+                ('class_name', 'TEXT'),
+                ('venue_name', 'TEXT'),
+                ('declined_at', 'TEXT'),
+                ('declined_by_id', 'TEXT'),
+                ('decline_reason', 'TEXT'),
+                ('push_sent_at', 'TEXT'),
+                ('push_queued_until', 'TEXT'),
+                ('original_substitute_id', 'TEXT'),
+            ]
+            
+            for col_name, col_type in columns_to_add:
+                if col_name not in existing_cols:
+                    try:
+                        cursor.execute(f"ALTER TABLE substitute_request ADD COLUMN {col_name} {col_type}")
+                        results['fixes_applied'].append(f"Added {col_name}")
+                    except Exception as e:
+                        results['fixes_applied'].append(f"Failed {col_name}: {str(e)}")
+            
+            conn.commit()
+            
+            # Verify
+            cursor.execute("PRAGMA table_info(substitute_request)")
+            results['final_columns'] = [row['name'] for row in cursor.fetchall()]
+            
+    except Exception as e:
+        results['error'] = traceback.format_exc()
+    
+    return jsonify(results)
