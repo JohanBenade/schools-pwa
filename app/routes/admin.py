@@ -610,3 +610,46 @@ def seed_substitute():
     </body>
     </html>
     '''
+
+
+@admin_bp.route('/debug-substitute')
+def debug_substitute():
+    """Debug substitute setup."""
+    import traceback
+    
+    results = {}
+    
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check staff table
+            cursor.execute("SELECT COUNT(*) FROM staff WHERE tenant_id = 'MARAGON'")
+            results['staff_count'] = cursor.fetchone()[0]
+            
+            # Check for Beatrix
+            cursor.execute("SELECT id, surname FROM staff WHERE surname LIKE '%Toit%' AND tenant_id = 'MARAGON'")
+            row = cursor.fetchone()
+            results['beatrix'] = dict(row) if row else 'NOT FOUND'
+            
+            # Check venues
+            cursor.execute("SELECT COUNT(*) FROM venue WHERE tenant_id = 'MARAGON'")
+            results['venue_count'] = cursor.fetchone()[0]
+            
+            # Check B001
+            cursor.execute("SELECT id, venue_code FROM venue WHERE venue_code = 'B001' AND tenant_id = 'MARAGON'")
+            row = cursor.fetchone()
+            results['b001'] = dict(row) if row else 'NOT FOUND'
+            
+            # Try importing the seed module
+            try:
+                from app.services.seed_substitute_data import init_substitute_tables
+                results['import'] = 'OK'
+            except Exception as e:
+                results['import'] = str(e)
+            
+    except Exception as e:
+        results['error'] = str(e)
+        results['traceback'] = traceback.format_exc()
+    
+    return jsonify(results)
