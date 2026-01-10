@@ -382,9 +382,7 @@ def db_stats():
             stats[table] = cursor.fetchone()[0]
     
     return jsonify(stats)
-"""
-Add this route to admin.py after the existing seed-data route
-"""
+
 
 @admin_bp.route('/seed-emergency', methods=['GET', 'POST'])
 def seed_emergency():
@@ -396,6 +394,10 @@ def seed_emergency():
             venue_count = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM user_session WHERE tenant_id = 'MARAGON'")
             session_count = cursor.fetchone()[0]
+            
+            # Check if push_token table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='push_token'")
+            push_table_exists = cursor.fetchone() is not None
         
         return f'''
         <html>
@@ -417,6 +419,7 @@ def seed_emergency():
                 <h3>Current Data</h3>
                 <p>Venues: {venue_count}</p>
                 <p>User Sessions: {session_count}</p>
+                <p>Push Token Table: {'✅ Exists' if push_table_exists else '❌ Missing (will be created)'}</p>
             </div>
             <div class="info">
                 <h3>This will create:</h3>
@@ -424,6 +427,7 @@ def seed_emergency():
                     <li>~55 venues (classrooms, offices, terrain areas)</li>
                     <li>Staff-to-venue assignments</li>
                     <li>Magic link user sessions for demo</li>
+                    <li>Push notification token table (if missing)</li>
                 </ul>
             </div>
             <form method="POST">
@@ -435,6 +439,24 @@ def seed_emergency():
         '''
     
     # POST - Execute seed
+    # First ensure push_token table exists
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS push_token (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                staff_id TEXT,
+                token TEXT NOT NULL UNIQUE,
+                device_info TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                last_used_at TEXT
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_push_token_tenant ON push_token(tenant_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_push_token_staff ON push_token(staff_id)')
+        conn.commit()
+    
     from app.services.seed_emergency_data import seed_all_emergency
     result = seed_all_emergency()
     
@@ -457,6 +479,7 @@ def seed_emergency():
             <p>Venues: {result['venues']}</p>
             <p>Staff-Venue Assignments: {result['staff_venues']}</p>
             <p>User Sessions: {result['user_sessions']}</p>
+            <p>Push Token Table: ✅ Ready</p>
         </div>
         
         <div class="magic-links">

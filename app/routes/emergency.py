@@ -204,6 +204,13 @@ def send_default():
     # Clear pending
     session.pop('pending_alert_type', None)
     
+    # Send push notifications to all staff
+    try:
+        from app.routes.push import send_emergency_alert_push
+        send_emergency_alert_push(alert_type, default_venue_name, user['display_name'])
+    except Exception as e:
+        print(f"Push notification error: {e}")
+    
     return redirect(url_for('emergency.index'))
 
 
@@ -254,8 +261,12 @@ def send_alert():
     # Clear pending
     session.pop('pending_alert_type', None)
     
-    # TODO: Send push notifications to all staff
-    # This will be implemented when Firebase config is provided
+    # Send push notifications to all staff
+    try:
+        from app.routes.push import send_emergency_alert_push
+        send_emergency_alert_push(alert_type, location_display, user['display_name'])
+    except Exception as e:
+        print(f"Push notification error: {e}")
     
     return redirect(url_for('emergency.index'))
 

@@ -19,11 +19,13 @@ def create_app():
     from app.routes.admin import admin_bp
     from app.routes.principal import principal_bp
     from app.routes.emergency import emergency_bp
+    from app.routes.push import push_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(principal_bp)
     app.register_blueprint(emergency_bp)
+    app.register_blueprint(push_bp)
     
     @app.before_request
     def handle_magic_link():
@@ -98,8 +100,12 @@ def create_app():
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SchoolOps</title>
+    <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
@@ -251,6 +257,47 @@ def create_app():
             0%, 100% {{ box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }}
             50% {{ box-shadow: 0 4px 20px rgba(239, 68, 68, 0.8); }}
         }}
+        
+        /* Push notification prompt */
+        .push-prompt {{
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #1e293b;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }}
+        .push-prompt.show {{
+            display: flex;
+        }}
+        .push-prompt-text {{
+            flex: 1;
+            font-size: 14px;
+        }}
+        .push-prompt-btn {{
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }}
+        .push-prompt-btn.allow {{
+            background: #22c55e;
+            color: white;
+        }}
+        .push-prompt-btn.dismiss {{
+            background: transparent;
+            color: #94a3b8;
+        }}
     </style>
 </head>
 <body>
@@ -319,6 +366,45 @@ def create_app():
     </div>
     
     <div class="footer">Term 1 2026 Pilot</div>
+    
+    <!-- Push notification prompt -->
+    <div class="push-prompt" id="pushPrompt">
+        <span class="push-prompt-text">🔔 Enable notifications to receive emergency alerts</span>
+        <button class="push-prompt-btn dismiss" onclick="dismissPushPrompt()">Later</button>
+        <button class="push-prompt-btn allow" onclick="enablePushNotifications()">Enable</button>
+    </div>
+    
+    <script src="/static/push.js"></script>
+    <script>
+        // Check if we should show push prompt
+        function checkPushPrompt() {{
+            if (!('Notification' in window)) return;
+            if (!('serviceWorker' in navigator)) return;
+            if (Notification.permission !== 'default') return;
+            if (localStorage.getItem('push_prompt_dismissed')) return;
+            
+            // Show prompt after 2 seconds
+            setTimeout(() => {{
+                document.getElementById('pushPrompt').classList.add('show');
+            }}, 2000);
+        }}
+        
+        async function enablePushNotifications() {{
+            document.getElementById('pushPrompt').classList.remove('show');
+            const granted = await requestNotificationPermission();
+            if (granted) {{
+                console.log('Push notifications enabled!');
+            }}
+        }}
+        
+        function dismissPushPrompt() {{
+            document.getElementById('pushPrompt').classList.remove('show');
+            localStorage.setItem('push_prompt_dismissed', 'true');
+        }}
+        
+        // Check on load
+        {'checkPushPrompt();' if user_logged_in else ''}
+    </script>
 </body>
 </html>
 '''
