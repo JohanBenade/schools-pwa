@@ -371,3 +371,14 @@ def push_status():
         'configured': configured,
         'registered_devices': token_count
     })
+
+
+@push_bp.route('/test-allclear', methods=['POST'])
+def test_all_clear():
+    """Test All Clear push notification"""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    count = send_all_clear_push('Medical', 'Test Location', 'Test User')
+    return jsonify({'success': True, 'sent_to': count})
