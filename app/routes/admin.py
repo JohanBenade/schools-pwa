@@ -1206,3 +1206,30 @@ def fix_substitute_roles():
         'staff_status': all_staff[:15],
         'note': 'Showing first 15 staff members'
     })
+
+
+@admin_bp.route('/reset-substitute-test')
+def reset_substitute_test():
+    """Clear substitute data and reset pointer for fresh testing."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Clear existing substitute data
+        cursor.execute("DELETE FROM substitute_request WHERE tenant_id = 'MARAGON'")
+        cursor.execute("DELETE FROM substitute_absence WHERE tenant_id = 'MARAGON'")
+        cursor.execute("DELETE FROM substitute_event_log WHERE tenant_id = 'MARAGON'")
+        
+        # Reset pointer to 'A'
+        cursor.execute("""
+            UPDATE substitute_config 
+            SET pointer_surname = 'A', pointer_updated_at = datetime('now')
+            WHERE tenant_id = 'MARAGON'
+        """)
+        
+        conn.commit()
+        
+    return jsonify({
+        'success': True,
+        'message': 'Substitute test data cleared, pointer reset to A'
+    })
