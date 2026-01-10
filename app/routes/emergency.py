@@ -330,6 +330,13 @@ def resolve():
         """, (now_iso(), user['staff_id'], resolution_type, resolution_notes, active_alert['id']))
         conn.commit()
     
+    # Send "All Clear" push to all staff
+    try:
+        from app.routes.push import send_all_clear_push
+        send_all_clear_push(active_alert['alert_type'], active_alert['location_display'], user['display_name'])
+    except Exception as e:
+        print(f"All Clear push error: {e}")
+    
     return redirect(url_for('emergency.resolved'))
 
 

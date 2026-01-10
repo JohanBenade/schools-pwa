@@ -222,6 +222,43 @@ def send_emergency_alert_push(alert_type, location, triggered_by):
     return success_count
 
 
+
+
+def send_all_clear_push(alert_type, location, resolved_by):
+    """
+    Send 'All Clear' notification to all registered devices.
+    Called when an emergency is resolved.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        print("WARNING: Push notifications not configured - skipping")
+        return 0
+    
+    # Get all tokens for this tenant
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, token FROM push_token 
+            WHERE tenant_id = ?
+        ''', (TENANT_ID,))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        print("No push tokens registered")
+        return 0
+    
+    title = "✅ ALL CLEAR"
+    body = f"{alert_type} emergency at {location} has been resolved by {resolved_by}"
+    
+    success_count = 0
+    for token_row in tokens:
+        token_id, token = token_row['id'], token_row['token']
+        if send_push_notification(token, title, body, data={'type': 'resolved', 'alert_type': alert_type}):
+            success_count += 1
+    
+    print(f"All Clear push sent to {success_count}/{len(tokens)} devices")
+    return success_count
+
 @push_bp.route('/register', methods=['POST'])
 def register_token():
     """Register a device token for push notifications"""
