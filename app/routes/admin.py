@@ -1155,3 +1155,54 @@ def fix_substitute_request_nullable():
         'rows_migrated': len(existing),
         'columns': cols
     })
+
+
+@admin_bp.route('/fix-substitute-roles')
+def fix_substitute_roles():
+    """Set can_substitute=0 for principals, deputies, and admin staff."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # First check if can_substitute column exists
+        cursor.execute("PRAGMA table_info(staff)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        
+        if 'can_substitute' not in columns:
+            cursor.execute("ALTER TABLE staff ADD COLUMN can_substitute INTEGER DEFAULT 1")
+            conn.commit()
+        
+        # Set everyone to can_substitute = 1 first
+        cursor.execute("UPDATE staff SET can_substitute = 1 WHERE tenant_id = 'MARAGON'")
+        
+        # Get staff IDs for non-teachers (principal, deputy, admin roles)
+        cursor.execute("""
+            SELECT s.id, s.display_name, us.role 
+            FROM staff s
+            JOIN user_session us ON s.id = us.staff_id
+            WHERE us.role IN ('principal', 'deputy', 'admin', 'grade_head')
+            AND us.tenant_id = 'MARAGON'
+        """)
+        non_teachers = cursor.fetchall()
+        
+        excluded = []
+        for row in non_teachers:
+            cursor.execute("UPDATE staff SET can_substitute = 0 WHERE id = ?", (row['id'],))
+            excluded.append({'name': row['display_name'], 'role': row['role']})
+        
+        conn.commit()
+        
+        # Verify
+        cursor.execute("""
+            SELECT display_name, can_substitute 
+            FROM staff 
+            WHERE tenant_id = 'MARAGON' 
+            ORDER BY can_substitute, display_name
+        """)
+        all_staff = [dict(row) for row in cursor.fetchall()]
+        
+    return jsonify({
+        'excluded_from_substituting': excluded,
+        'staff_status': all_staff[:15],
+        'note': 'Showing first 15 staff members'
+    })
