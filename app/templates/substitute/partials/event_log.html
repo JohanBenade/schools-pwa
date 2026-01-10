@@ -1,0 +1,26 @@
+{% for event in events %}
+<div class="event {% if event.event_type in ['allocated', 'processing_complete'] %}success{% elif event.event_type in ['no_cover', 'declined'] %}error{% endif %}">
+    <div class="event-time">{{ event.created_at[11:19] }}</div>
+    <div class="event-text">
+        {% if event.event_type == 'absence_reported' %}
+            📥 Absence reported
+        {% elif event.event_type == 'processing_started' %}
+            ⚙️ Finding substitutes...
+        {% elif event.event_type == 'allocated' %}
+            ✅ {{ event.details }}
+        {% elif event.event_type == 'no_cover' %}
+            🚨 {{ event.details }}
+        {% elif event.event_type == 'processing_complete' %}
+            ✓ {{ event.details }}
+        {% elif event.event_type == 'push_sent' %}
+            📱 Push notification sent
+        {% elif event.event_type == 'declined' %}
+            ❌ {{ event.staff_name }} declined: {{ event.details }}
+        {% elif event.event_type == 'reassigned' %}
+            🔄 {{ event.details }}
+        {% else %}
+            {{ event.event_type }}: {{ event.details }}
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

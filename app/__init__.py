@@ -346,7 +346,7 @@ def create_app():
         </a>
         
         <!-- Coming Soon -->
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
+        <a href="/substitute/" class="app-icon">
             <div class="icon-box bg-orange">&#128260;</div>
             <span class="app-label">Substitutes</span>
         </a>

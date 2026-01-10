@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Absence - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        .header h1 { font-size: 24px; color: #1e293b; margin-bottom: 4px; }
+        .header p { color: #64748b; font-size: 14px; }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        .form-group select, .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #ef4444;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .radio-group { display: flex; gap: 12px; }
+        .radio-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .radio-option:has(input:checked) {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+        .radio-option input { display: none; }
+        .radio-option span { font-size: 14px; color: #374151; }
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        .back-link {
+            display: block;
+            text-align: center;
+            color: #64748b;
+            text-decoration: none;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤒 Report Absence</h1>
+            <p>We'll automatically find cover for your classes</p>
+        </div>
+        
+        <div class="card">
+            <div class="info-box">
+                ⚡ Substitutes will be assigned automatically and notified via push notification.
+            </div>
+            
+            <form method="POST" action="{{ url_for('substitute.report_absence') }}">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" name="absence_date" value="{{ today }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Reason</label>
+                    <select name="absence_type" required>
+                        <option value="Sick">Sick</option>
+                        <option value="Personal">Personal</option>
+                        <option value="School_Duty">School Duty</option>
+                        <option value="Training">Training</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Duration</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="is_full_day" value="1" checked>
+                            <span>Full Day</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="is_full_day" value="0">
+                            <span>Partial Day</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Additional Notes (optional)</label>
+                    <textarea name="reason" placeholder="Any special instructions for substitutes..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">
+                    🚀 Report & Find Substitutes
+                </button>
+            </form>
+        </div>
+        
+        <a href="{{ url_for('substitute.index') }}" class="back-link">← Cancel</a>
+    </div>
+</body>
+</html>

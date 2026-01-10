@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absence Status - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-top: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .status-badge.covered { background: #dcfce7; color: #166534; }
+        .status-badge.partial { background: #fef3c7; color: #92400e; }
+        .status-badge.escalated { background: #fee2e2; color: #991b1b; }
+        .status-badge.reported { background: #dbeafe; color: #1e40af; }
+        .header h1 { font-size: 24px; color: #1e293b; margin-bottom: 4px; }
+        .header p { color: #64748b; font-size: 14px; }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .assignment {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .assignment:last-child { border-bottom: none; }
+        .assignment-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+        .assignment-icon.mentor { background: #dbeafe; }
+        .assignment-icon.period { background: #f1f5f9; }
+        .assignment-icon.no-cover { background: #fee2e2; }
+        .assignment-info { flex: 1; }
+        .assignment-info h3 { font-size: 15px; color: #1e293b; margin-bottom: 2px; }
+        .assignment-info p { font-size: 13px; color: #64748b; }
+        .assignment-status {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .assignment-status.assigned { background: #dcfce7; color: #166534; }
+        .assignment-status.no-cover { background: #fee2e2; color: #991b1b; }
+        .timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e5e7eb;
+        }
+        .event {
+            position: relative;
+            padding-bottom: 16px;
+        }
+        .event::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+        .event.success::before { background: #22c55e; }
+        .event.error::before { background: #ef4444; }
+        .event-time { font-size: 12px; color: #94a3b8; }
+        .event-text { font-size: 14px; color: #374151; }
+        .summary-box {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .summary-box.partial { background: #fef3c7; border-color: #f59e0b; }
+        .summary-box.escalated { background: #fee2e2; border-color: #ef4444; }
+        .summary-box h3 { font-size: 32px; margin-bottom: 4px; }
+        .summary-box p { color: #64748b; }
+        .back-link {
+            display: block;
+            text-align: center;
+            color: #3b82f6;
+            text-decoration: none;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="status-badge {{ absence.status|lower }}">{{ absence.status }}</span>
+            <h1>{{ absence.teacher_name }}</h1>
+            <p>{{ absence.absence_type }} - {{ absence.absence_date }}</p>
+        </div>
+        
+        {% set covered = requests|selectattr('status', 'eq', 'Assigned')|list|length %}
+        {% set total = requests|rejectattr('is_mentor_duty')|list|length %}
+        
+        <div class="summary-box {% if absence.status == 'Partial' %}partial{% elif absence.status == 'Escalated' %}escalated{% endif %}">
+            <h3>{{ covered }}/{{ total }}</h3>
+            <p>periods covered</p>
+        </div>
+        
+        <div class="card">
+            <h2>Coverage Assignments</h2>
+            
+            {% for req in requests %}
+            <div class="assignment">
+                <div class="assignment-icon {% if req.is_mentor_duty %}mentor{% elif req.status == 'Assigned' %}period{% else %}no-cover{% endif %}">
+                    {% if req.is_mentor_duty %}📋{% elif req.status == 'Assigned' %}✓{% else %}⚠️{% endif %}
+                </div>
+                <div class="assignment-info">
+                    {% if req.is_mentor_duty %}
+                    <h3>Mentor Roll Call: {{ req.class_name }}</h3>
+                    <p>{{ req.venue_name }} • {{ req.substitute_name or 'Unassigned' }}</p>
+                    {% else %}
+                    <h3>{{ req.period_name }}: {{ req.class_name }}</h3>
+                    <p>{{ req.subject }} • {{ req.venue_name }} • {{ req.substitute_name or 'No cover' }}</p>
+                    {% endif %}
+                </div>
+                <span class="assignment-status {% if req.status == 'Assigned' %}assigned{% else %}no-cover{% endif %}">
+                    {% if req.status == 'Assigned' %}Covered{% else %}No Cover{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="card">
+            <h2>Event Log</h2>
+            <div class="timeline" hx-get="{{ url_for('substitute.absence_log', absence_id=absence.id) }}" hx-trigger="every 5s">
+                {% for event in events %}
+                <div class="event {% if event.event_type in ['allocated', 'processing_complete'] %}success{% elif event.event_type in ['no_cover', 'declined'] %}error{% endif %}">
+                    <div class="event-time">{{ event.created_at[11:19] }}</div>
+                    <div class="event-text">
+                        {% if event.event_type == 'absence_reported' %}
+                            📥 Absence reported
+                        {% elif event.event_type == 'processing_started' %}
+                            ⚙️ Finding substitutes...
+                        {% elif event.event_type == 'allocated' %}
+                            ✅ {{ event.details }}
+                        {% elif event.event_type == 'no_cover' %}
+                            🚨 {{ event.details }}
+                        {% elif event.event_type == 'processing_complete' %}
+                            ✓ {{ event.details }}
+                        {% else %}
+                            {{ event.event_type }}: {{ event.details }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</body>
+</html>

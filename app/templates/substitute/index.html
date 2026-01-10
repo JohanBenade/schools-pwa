@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Substitutes - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        .header h1 { font-size: 24px; color: #1e293b; margin-bottom: 4px; }
+        .header p { color: #64748b; font-size: 14px; }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-decoration: none;
+            display: block;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .card:active { transform: scale(0.98); }
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        .card-icon.red { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+        .card-icon.blue { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); }
+        .card-icon.purple { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); }
+        .card h2 { font-size: 18px; color: #1e293b; margin-bottom: 4px; }
+        .card p { font-size: 14px; color: #64748b; }
+        .back-link {
+            display: block;
+            text-align: center;
+            color: #3b82f6;
+            text-decoration: none;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Substitutes</h1>
+            <p>{{ display_name or 'Teacher' }}</p>
+        </div>
+        
+        <a href="{{ url_for('substitute.report_absence') }}" class="card">
+            <div class="card-icon red">🤒</div>
+            <h2>Report Absence</h2>
+            <p>I can't come in today - find cover for my classes</p>
+        </a>
+        
+        <a href="{{ url_for('substitute.my_assignments') }}" class="card">
+            <div class="card-icon blue">📋</div>
+            <h2>My Schedule Today</h2>
+            <p>View my classes and any substitute duties</p>
+        </a>
+        
+        {% if session.get('role') in ['principal', 'deputy', 'admin'] %}
+        <a href="{{ url_for('substitute.mission_control') }}" class="card">
+            <div class="card-icon purple">🎛️</div>
+            <h2>Mission Control</h2>
+            <p>View all absences and coverage status</p>
+        </a>
+        {% endif %}
+        
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</body>
+</html>
