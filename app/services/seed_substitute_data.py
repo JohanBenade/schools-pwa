@@ -1,5 +1,6 @@
 """
 Seed data for substitute allocation demo
+- Creates tables if they don't exist
 - 8 periods + 2 breaks
 - Demo timetable for Ms Beatrix (sick teacher)
 - Realistic timetables for ~30 teachers
@@ -13,11 +14,87 @@ from app.services.db import get_connection
 TENANT_ID = "MARAGON"
 
 
+def init_substitute_tables():
+    """Create substitute tables if they don't exist."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Period table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS period (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                period_number INTEGER NOT NULL,
+                period_name TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                is_teaching INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_period_tenant ON period(tenant_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_period_sort ON period(tenant_id, sort_order)")
+        
+        # Timetable slot table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS timetable_slot (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                staff_id TEXT NOT NULL,
+                cycle_day INTEGER NOT NULL,
+                period_id TEXT NOT NULL,
+                class_name TEXT,
+                subject TEXT,
+                venue_id TEXT
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_timetable_staff ON timetable_slot(staff_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_timetable_day_period ON timetable_slot(tenant_id, cycle_day, period_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_timetable_tenant ON timetable_slot(tenant_id)")
+        
+        # Substitute config table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS substitute_config (
+                tenant_id TEXT PRIMARY KEY,
+                pointer_surname TEXT DEFAULT 'A',
+                pointer_updated_at TEXT,
+                cycle_start_date TEXT,
+                cycle_length INTEGER DEFAULT 7,
+                quiet_hours_start TEXT DEFAULT '21:00',
+                quiet_hours_end TEXT DEFAULT '06:00',
+                decline_cutoff_minutes INTEGER DEFAULT 15,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        
+        # Substitute log table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS substitute_log (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                absence_id TEXT NOT NULL,
+                substitute_request_id TEXT,
+                event_type TEXT NOT NULL,
+                staff_id TEXT,
+                details TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sublog_absence ON substitute_log(absence_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sublog_tenant_time ON substitute_log(tenant_id, created_at DESC)")
+        
+        conn.commit()
+        
+    return True
+
+
 def seed_periods():
     """Create period definitions for Maragon."""
     
     periods = [
-        # (period_number, name, start, end, is_teaching, sort_order)
         (1, "Period 1", "07:30", "08:15", 1, 1),
         (2, "Period 2", "08:20", "09:05", 1, 2),
         (3, "Period 3", "09:10", "09:55", 1, 3),
@@ -32,7 +109,6 @@ def seed_periods():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Clear existing periods
         cursor.execute("DELETE FROM period WHERE tenant_id = ?", (TENANT_ID,))
         
         for p_num, p_name, start, end, is_teaching, sort in periods:
@@ -112,35 +188,27 @@ def seed_demo_timetable():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Clear existing timetable
         cursor.execute("DELETE FROM timetable_slot WHERE tenant_id = ?", (TENANT_ID,))
         
-        # Get staff IDs for key demo actors
-        beatrix_id = get_staff_by_surname(cursor, "du Toit")      # Sick teacher, B001
-        jacqueline_id = get_staff_by_surname(cursor, "Sekhula")   # Adjacent B002, roll call
+        beatrix_id = get_staff_by_surname(cursor, "du Toit")
+        jacqueline_id = get_staff_by_surname(cursor, "Sekhula")
         
-        # Get period IDs
         period_ids = {}
         for p in [1, 2, 3, 4, 5, 6, 7]:
             period_ids[p] = get_period_id(cursor, p)
         
-        # Get venue IDs
         b001_id = get_venue_id(cursor, "B001")
         b002_id = get_venue_id(cursor, "B002")
         
         slots_created = 0
         
-        # === BEATRIX'S TIMETABLE (Day 3) ===
-        # She teaches 5 periods, free periods 3 and 6
+        # BEATRIX'S TIMETABLE (Day 3) - 5 periods, free 3 and 6
         if beatrix_id:
             beatrix_slots = [
-                # (cycle_day, period, class_name, subject, venue_id)
                 (3, 1, "Grade 10A", "English", b001_id),
                 (3, 2, "Grade 11B", "English", b001_id),
-                # Period 3 - FREE
                 (3, 4, "Grade 9C", "English", b001_id),
                 (3, 5, "Grade 12A", "English", b001_id),
-                # Period 6 - FREE
                 (3, 7, "Grade 8D", "English", b001_id),
             ]
             
@@ -155,15 +223,12 @@ def seed_demo_timetable():
                           class_name, subject, venue_id))
                     slots_created += 1
         
-        # === JACQUELINE'S TIMETABLE (Day 3) ===
-        # She's in B002, teaches some periods but available for roll call assist
+        # JACQUELINE'S TIMETABLE (Day 3) - Period 1 FREE for roll call
         if jacqueline_id:
             jacqueline_slots = [
-                # Period 1 - FREE (available for Beatrix's mentor roll call!)
                 (3, 2, "Grade 10B", "English", b002_id),
                 (3, 3, "Grade 9A", "English", b002_id),
                 (3, 4, "Grade 11A", "English", b002_id),
-                # Period 5 - FREE
                 (3, 6, "Grade 12B", "English", b002_id),
                 (3, 7, "Grade 8A", "English", b002_id),
             ]
@@ -179,10 +244,7 @@ def seed_demo_timetable():
                           class_name, subject, venue_id))
                     slots_created += 1
         
-        # === OTHER TEACHERS TIMETABLES ===
-        # Create realistic ~70% teaching load for all other teachers
-        # This ensures some are FREE when Beatrix needs cover
-        
+        # OTHER TEACHERS - ~70% load
         cursor.execute("""
             SELECT id, surname FROM staff 
             WHERE tenant_id = ? AND is_active = 1 AND can_substitute = 1
@@ -192,9 +254,8 @@ def seed_demo_timetable():
         
         other_teachers = cursor.fetchall()
         
-        # Get all venues for variety
         cursor.execute("""
-            SELECT id, venue_code FROM venue 
+            SELECT id FROM venue 
             WHERE tenant_id = ? AND venue_type = 'classroom'
         """, (TENANT_ID,))
         venues = cursor.fetchall()
@@ -204,11 +265,9 @@ def seed_demo_timetable():
                     "Geography", "History", "Accounting", "Business Studies", "Life Orientation"]
         
         import random
-        random.seed(42)  # Reproducible for demo
+        random.seed(42)
         
         for teacher_id, surname in other_teachers:
-            # Each teacher teaches ~5 periods on Day 3 (out of 7)
-            # Random selection ensures some are free when Beatrix needs cover
             teaching_periods = random.sample([1, 2, 3, 4, 5, 6, 7], k=random.randint(4, 6))
             
             for period in teaching_periods:
@@ -234,6 +293,8 @@ def seed_demo_timetable():
 
 def seed_all_substitute():
     """Run all substitute seeding."""
+    init_substitute_tables()  # Create tables first!
+    
     results = {
         'periods': seed_periods(),
         'config': seed_substitute_config(),
