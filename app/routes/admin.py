@@ -700,3 +700,84 @@ def debug_substitute_seed():
     
     results['status'] = 'ALL COMPLETE'
     return jsonify(results)
+
+
+@admin_bp.route('/verify-substitute-fixed')
+def verify_substitute_fixed():
+    """Verify substitute data is ready for demo."""
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Periods
+        cursor.execute("""
+            SELECT period_name, start_time, end_time 
+            FROM period WHERE tenant_id = 'MARAGON' AND is_teaching = 1
+            ORDER BY sort_order
+        """)
+        periods = [dict(row) for row in cursor.fetchall()]
+        
+        # Beatrix's schedule (sick teacher - B001)
+        cursor.execute("""
+            SELECT p.period_name, t.class_name, t.subject
+            FROM timetable_slot t
+            JOIN period p ON t.period_id = p.id
+            JOIN staff s ON t.staff_id = s.id
+            WHERE s.surname = 'du Toit' AND t.cycle_day = 3
+            ORDER BY p.sort_order
+        """)
+        beatrix_schedule = [dict(row) for row in cursor.fetchall()]
+        
+        # Beatrix's classroom and mentor group
+        cursor.execute("""
+            SELECT s.id, s.display_name, v.venue_code, mg.group_name as mentor_class
+            FROM staff s
+            LEFT JOIN staff_venue sv ON s.id = sv.staff_id
+            LEFT JOIN venue v ON sv.venue_id = v.id
+            LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
+            WHERE s.surname = 'du Toit' AND s.tenant_id = 'MARAGON'
+        """)
+        row = cursor.fetchone()
+        beatrix_info = dict(row) if row else None
+        
+        # Jacqueline's classroom (adjacent B002 - for roll call)
+        cursor.execute("""
+            SELECT s.id, s.display_name, v.venue_code, mg.group_name as mentor_class
+            FROM staff s
+            LEFT JOIN staff_venue sv ON s.id = sv.staff_id
+            LEFT JOIN venue v ON sv.venue_id = v.id
+            LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
+            WHERE s.surname = 'Sekhula' AND s.tenant_id = 'MARAGON'
+        """)
+        row = cursor.fetchone()
+        jacqueline_info = dict(row) if row else None
+        
+        # Config
+        cursor.execute("SELECT * FROM substitute_config WHERE tenant_id = 'MARAGON'")
+        row = cursor.fetchone()
+        config = dict(row) if row else None
+        
+        # Check adjacency
+        beatrix_room = beatrix_info.get('venue_code') if beatrix_info else None
+        jacqueline_room = jacqueline_info.get('venue_code') if jacqueline_info else None
+        is_adjacent = False
+        if beatrix_room and jacqueline_room:
+            # B001 and B002 are adjacent
+            is_adjacent = (beatrix_room[:1] == jacqueline_room[:1] and 
+                          abs(int(beatrix_room[1:]) - int(jacqueline_room[1:])) <= 2)
+        
+    return jsonify({
+        'periods': periods,
+        'sick_teacher': {
+            'info': beatrix_info,
+            'day3_schedule': beatrix_schedule,
+            'periods_to_cover': len(beatrix_schedule)
+        },
+        'roll_call_cover': {
+            'info': jacqueline_info,
+            'is_adjacent_to_beatrix': is_adjacent,
+            'note': 'Roll call is before school - no timetable check needed, just proximity'
+        },
+        'config': config,
+        'demo_ready': len(beatrix_schedule) == 5 and is_adjacent
+    })
