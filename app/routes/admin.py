@@ -781,3 +781,63 @@ def verify_substitute_fixed():
         'config': config,
         'demo_ready': len(beatrix_schedule) == 5 and is_adjacent
     })
+
+
+@admin_bp.route('/setup-substitute-demo')
+def setup_substitute_demo():
+    """Ensure demo users exist for substitute testing."""
+    from datetime import datetime
+    import uuid
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get Beatrix's staff ID
+        cursor.execute("""
+            SELECT id, display_name FROM staff 
+            WHERE surname = 'du Toit' AND tenant_id = 'MARAGON'
+        """)
+        beatrix = cursor.fetchone()
+        
+        results = {'beatrix': None, 'sessions_created': []}
+        
+        if beatrix:
+            results['beatrix'] = dict(beatrix)
+            
+            # Check if session exists
+            cursor.execute("""
+                SELECT * FROM user_session WHERE magic_code = 'beatrix'
+            """)
+            existing = cursor.fetchone()
+            
+            if not existing:
+                # Create session for Beatrix
+                cursor.execute("""
+                    INSERT INTO user_session 
+                    (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+                    VALUES (?, 'MARAGON', ?, 'beatrix', ?, 'teacher', 0)
+                """, (str(uuid.uuid4()), beatrix['id'], beatrix['display_name']))
+                results['sessions_created'].append('beatrix')
+        
+        # Ensure Pierre has principal role (might already exist)
+        cursor.execute("""
+            UPDATE user_session SET role = 'principal', can_resolve = 1 
+            WHERE magic_code = 'pierre'
+        """)
+        
+        # Ensure admin has admin role
+        cursor.execute("""
+            UPDATE user_session SET role = 'admin', can_resolve = 1 
+            WHERE magic_code = 'admin'
+        """)
+        
+        conn.commit()
+        
+        # List all sessions
+        cursor.execute("""
+            SELECT magic_code, display_name, role FROM user_session 
+            WHERE tenant_id = 'MARAGON'
+        """)
+        results['all_sessions'] = [dict(row) for row in cursor.fetchall()]
+        
+    return jsonify(results)
