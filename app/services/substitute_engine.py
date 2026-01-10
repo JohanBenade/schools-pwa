@@ -78,7 +78,7 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
             SELECT id, surname, display_name 
             FROM staff 
             WHERE tenant_id = ? AND is_active = 1 AND can_substitute = 1
-            ORDER BY display_name
+            ORDER BY first_name
         """, (TENANT_ID,))
         all_teachers = cursor.fetchall()
         
@@ -117,7 +117,7 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     
     # Find first teacher at or after pointer
     for teacher in free_teachers:
-        if teacher['display_name'].upper() >= pointer_surname.upper():
+        if teacher['first_name'].upper() >= pointer_surname.upper():
             # Move pointer to next letter after this surname
             # Extract name after title (Ms X or Mr X)
             name_part = teacher['display_name'].split(' ')[-1] if teacher['display_name'] else 'A'
@@ -130,7 +130,7 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     
     # Wrap around - pick first in list
     teacher = free_teachers[0]
-    name_part = teacher["display_name"].split(" ")[-1] if teacher["display_name"] else "A"
+    name_part = teacher["first_name"] if teacher["display_name"] else "A"
     next_pointer = name_part[0].upper()
     if next_pointer < 'Z':
         next_pointer = chr(ord(next_pointer) + 1)
