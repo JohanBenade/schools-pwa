@@ -159,9 +159,6 @@ def mission_control():
         """, (TENANT_ID,))
         row = cursor.fetchone()
         config = dict(row) if row else {}
-        cursor.execute("SELECT * FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
-        row = cursor.fetchone()
-        config = dict(row) if row else {}
         
         # Summary stats
         total_absences = len(absences)
