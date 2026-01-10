@@ -16,6 +16,27 @@ const firebaseConfig = {
 let messaging = null;
 let swRegistration = null;
 
+// Wait for service worker to be ready
+async function waitForServiceWorkerActive(registration) {
+  if (registration.active) {
+    return registration;
+  }
+  
+  // Wait for the service worker to activate
+  return new Promise((resolve) => {
+    const sw = registration.installing || registration.waiting;
+    if (sw) {
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'activated') {
+          resolve(registration);
+        }
+      });
+    } else {
+      resolve(registration);
+    }
+  });
+}
+
 // Initialize Firebase and request permission
 async function initializePush() {
   try {
@@ -31,9 +52,13 @@ async function initializePush() {
       return false;
     }
 
-    // Register service worker at ROOT path (not /static/)
-    swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log('Service worker registered:', swRegistration.scope);
+    // Register service worker at ROOT path
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    console.log('Service worker registered:', registration.scope);
+    
+    // Wait for it to be active
+    swRegistration = await waitForServiceWorkerActive(registration);
+    console.log('Service worker active');
 
     // Initialize Firebase
     if (!firebase.apps.length) {
@@ -70,7 +95,7 @@ async function requestNotificationPermission() {
 // Get FCM token and save to backend
 async function getAndSaveToken() {
   try {
-    if (!messaging) {
+    if (!messaging || !swRegistration) {
       await initializePush();
     }
     
