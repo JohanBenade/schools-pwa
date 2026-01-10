@@ -409,9 +409,8 @@ def create_app():
 </html>
 '''
     
+    @app.route('/firebase-messaging-sw.js')
+    def firebase_sw():
+        return app.send_static_file('firebase-messaging-sw.js')
+    
     return app
-
-
-@app.route('/firebase-messaging-sw.js')
-def firebase_sw():
-    return app.send_static_file('firebase-messaging-sw.js')
