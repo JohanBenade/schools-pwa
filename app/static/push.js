@@ -14,6 +14,7 @@ const firebaseConfig = {
 };
 
 let messaging = null;
+let swRegistration = null;
 
 // Initialize Firebase and request permission
 async function initializePush() {
@@ -30,9 +31,9 @@ async function initializePush() {
       return false;
     }
 
-    // Register service worker
-    const registration = await navigator.serviceWorker.register('/static/firebase-messaging-sw.js');
-    console.log('Service worker registered:', registration.scope);
+    // Register service worker at ROOT path (not /static/)
+    swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    console.log('Service worker registered:', swRegistration.scope);
 
     // Initialize Firebase
     if (!firebase.apps.length) {
@@ -40,9 +41,6 @@ async function initializePush() {
     }
     
     messaging = firebase.messaging();
-    
-    // Use our service worker
-    messaging.useServiceWorker(registration);
 
     return true;
   } catch (error) {
@@ -76,7 +74,11 @@ async function getAndSaveToken() {
       await initializePush();
     }
     
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+    // Pass serviceWorkerRegistration to getToken (Firebase 10+ way)
+    const token = await messaging.getToken({ 
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swRegistration
+    });
     
     if (token) {
       console.log('FCM Token:', token);
