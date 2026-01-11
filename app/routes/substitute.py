@@ -3,7 +3,7 @@ Substitute routes - Report absence, view assignments, Mission Control
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from app.services.db import get_connection
 from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
@@ -116,6 +116,7 @@ def absence_status(absence_id):
                           events=events)
 
 
+
 @substitute_bp.route('/mission-control')
 def mission_control():
     """Principal's view - all absences and coverage status."""
@@ -123,21 +124,31 @@ def mission_control():
     if role not in ['principal', 'deputy', 'admin']:
         return "Access denied", 403
     
-    today = date.today().isoformat()
+    today = date.today()
+    date_range = request.args.get('range', 'today')
+    
+    # Calculate date filter
+    if date_range == 'week':
+        # Get start of week (Monday)
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    else:
+        start_date = today
+        end_date = today
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get today's absences
+        # Get absences in date range
         cursor.execute("""
             SELECT a.*, s.display_name as teacher_name, s.surname,
                    mg.group_name as mentor_class
             FROM absence a
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
-            WHERE a.absence_date = ? AND a.tenant_id = ?
-            ORDER BY a.reported_at DESC
-        """, (today, TENANT_ID))
+            WHERE a.absence_date >= ? AND a.absence_date <= ? AND a.tenant_id = ?
+            ORDER BY a.absence_date DESC, a.reported_at DESC
+        """, (start_date.isoformat(), end_date.isoformat(), TENANT_ID))
         absences = [dict(row) for row in cursor.fetchall()]
         
         # Get substitute requests for each absence
@@ -170,16 +181,13 @@ def mission_control():
                           absences=absences,
                           config=config,
                           cycle_day=get_cycle_day(),
-                          today=today,
+                          today=today.isoformat(),
                           stats={
                               'total': total_absences,
                               'covered': fully_covered,
                               'partial': partial,
                               'escalated': escalated
                           })
-
-
-@substitute_bp.route('/my-assignments')
 def my_assignments():
     """Substitute teacher's view - their assignments for today."""
     staff_id = session.get('staff_id')

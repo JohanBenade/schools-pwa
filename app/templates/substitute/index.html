@@ -64,11 +64,13 @@
             <p>{{ display_name or 'Teacher' }}</p>
         </div>
         
+        {% if session.get('role') not in ['principal', 'deputy'] %}
         <a href="{{ url_for('substitute.report_absence') }}" class="card">
             <div class="card-icon red">🤒</div>
             <h2>Report Absence</h2>
             <p>I can't come in today - find cover for my classes</p>
         </a>
+        {% endif %}
         
         <a href="{{ url_for('substitute.my_assignments') }}" class="card">
             <div class="card-icon blue">📋</div>

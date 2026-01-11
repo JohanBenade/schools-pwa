@@ -25,6 +25,22 @@
         .header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
         .header h1 span { color: #22c55e; }
         .header-meta { text-align: right; font-size: 13px; color: #94a3b8; }
+        .date-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .date-filter a {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .date-filter a:hover { background: #334155; }
+        .date-filter a.active { background: #3b82f6; color: white; }
         .stats-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -91,11 +107,14 @@
             border-top: 1px solid #334155;
             font-size: 12px;
             color: #94a3b8;
-            max-height: 100px;
+            max-height: 150px;
             overflow-y: auto;
         }
-        .timeline-mini div { padding: 2px 0; }
-        .timeline-mini .time { color: #64748b; margin-right: 8px; }
+        .timeline-mini .event { padding: 4px 0; display: flex; gap: 8px; }
+        .timeline-mini .event-time { color: #64748b; min-width: 60px; }
+        .timeline-mini .event-text { flex: 1; }
+        .timeline-mini .event.success .event-text { color: #4ade80; }
+        .timeline-mini .event.error .event-text { color: #f87171; }
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -109,12 +128,6 @@
             text-decoration: none;
             margin-top: 20px;
             font-size: 14px;
-        }
-        .pointer-badge {
-            background: #3b82f6;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 12px;
         }
         .live-dot {
             display: inline-block;
@@ -137,8 +150,12 @@
             <h1>🎛️ Mission Control <span><span class="live-dot"></span>LIVE</span></h1>
             <div class="header-meta">
                 <div>{{ today }} • Day {{ cycle_day }}</div>
-                <div>Pointer: <span class="pointer-badge">{{ config.pointer_surname or 'A' }}</span></div>
             </div>
+        </div>
+        
+        <div class="date-filter">
+            <a href="{{ url_for('substitute.mission_control') }}" class="{{ 'active' if not request.args.get('range') or request.args.get('range') == 'today' }}">Today</a>
+            <a href="{{ url_for('substitute.mission_control', range='week') }}" class="{{ 'active' if request.args.get('range') == 'week' }}">This Week</a>
         </div>
         
         <div class="stats-row">
@@ -162,10 +179,7 @@
         
         {% if absences %}
             {% for absence in absences %}
-            <div class="absence-card {{ absence.status|lower }}" 
-                 hx-get="{{ url_for('substitute.absence_log', absence_id=absence.id) }}"
-                 hx-trigger="every 10s"
-                 hx-target="#log-{{ absence.id }}">
+            <div class="absence-card {{ absence.status|lower }}">
                 <div class="absence-header">
                     <div>
                         <h2>{{ absence.teacher_name }}</h2>
@@ -183,15 +197,19 @@
                     {% endfor %}
                 </div>
                 
-                <div class="timeline-mini" id="log-{{ absence.id }}">
-                    <div><span class="time">{{ absence.reported_at[11:16] if absence.reported_at else '--:--' }}</span> Reported</div>
+                <div class="timeline-mini" 
+                     id="log-{{ absence.id }}"
+                     hx-get="{{ url_for('substitute.absence_log', absence_id=absence.id) }}"
+                     hx-trigger="load, every 10s"
+                     hx-swap="innerHTML">
+                    <!-- Events loaded via HTMX -->
                 </div>
             </div>
             {% endfor %}
         {% else %}
             <div class="empty-state">
                 <h2>✅</h2>
-                <p>No absences reported today.<br>All teachers present!</p>
+                <p>No absences reported {{ 'today' if not request.args.get('range') or request.args.get('range') == 'today' else 'this week' }}.<br>All teachers present!</p>
             </div>
         {% endif %}
         
