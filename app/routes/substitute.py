@@ -188,6 +188,8 @@ def mission_control():
                               'partial': partial,
                               'escalated': escalated
                           })
+
+@substitute_bp.route('/my-assignments')
 def my_assignments():
     """Substitute teacher's view - their assignments for today."""
     staff_id = session.get('staff_id')
