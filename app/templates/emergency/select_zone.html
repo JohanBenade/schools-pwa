@@ -108,6 +108,10 @@
             flex-direction: column;
             gap: 10px;
         }
+        .zone-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
         .zone-btn {
             display: block;
             width: 100%;
@@ -129,9 +133,12 @@
             border-color: #3b82f6;
         }
         
-        /* Venue list (loaded via HTMX) */
-        #venue-list {
-            margin-top: 20px;
+        /* Venue list appears directly below selected zone */
+        .venue-list {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-left: 12px;
+            border-left: 3px solid #3b82f6;
         }
         
         .back-link {
@@ -143,6 +150,20 @@
             font-size: 14px;
         }
     </style>
+    <script>
+        function selectZone(btn) {
+            // Remove selected from all buttons
+            document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('selected'));
+            // Add selected to clicked button
+            btn.classList.add('selected');
+            // Clear all other venue lists
+            document.querySelectorAll('.venue-list').forEach(v => {
+                if (v.id !== 'venues-' + btn.dataset.zone) {
+                    v.innerHTML = '';
+                }
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="header">
@@ -171,18 +192,20 @@
         <h2>SELECT ZONE</h2>
         <div class="zones">
             {% for zone_code, zone_name in zones %}
-            <button class="zone-btn" 
-                    hx-get="/emergency/venues/{{ zone_code }}"
-                    hx-target="#venue-list"
-                    hx-swap="innerHTML"
-                    onclick="document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('selected')); this.classList.add('selected');">
-                {{ zone_name }}
-            </button>
+            <div class="zone-wrapper">
+                <button class="zone-btn" 
+                        data-zone="{{ zone_code }}"
+                        hx-get="/emergency/venues/{{ zone_code }}"
+                        hx-target="#venues-{{ zone_code }}"
+                        hx-swap="innerHTML"
+                        onclick="selectZone(this)">
+                    {{ zone_name }}
+                </button>
+                <div id="venues-{{ zone_code }}" class="venue-list">
+                    <!-- Venues load here when this zone is selected -->
+                </div>
+            </div>
             {% endfor %}
-        </div>
-        
-        <div id="venue-list">
-            <!-- Venues load here when zone is selected -->
         </div>
         
         <a href="/emergency/trigger" class="back-link">← Back to alert type</a>

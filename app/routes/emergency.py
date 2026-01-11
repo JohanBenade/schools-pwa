@@ -231,9 +231,9 @@ def get_venues_by_block(block):
             ('B1_GIRLS_A112', 'Girls - 1st Floor - Near A112'),
         ]
         
-        html = """<form action="/emergency/send" method="POST">
+        html = """<form action="/emergency/send" method="POST" style="margin-top: 12px;">
         <input type="hidden" name="is_bathroom" value="1">
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">"""
+        <div style="display: flex; flex-direction: column; gap: 8px;">"""
         
         for bathroom_id, bathroom_name in bathrooms:
             icon = '🚹' if 'Boys' in bathroom_name else '🚺'
