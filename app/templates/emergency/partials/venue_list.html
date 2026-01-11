@@ -1,3 +1,22 @@
+<style>
+.venue-option { 
+    display: flex; 
+    align-items: center; 
+    padding: 14px 16px; 
+    background: rgba(255,255,255,0.08); 
+    border-radius: 8px; 
+    cursor: pointer;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+}
+.venue-option:has(input:checked) {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: #3b82f6;
+}
+.venue-option input { margin-right: 12px; accent-color: #ef4444; }
+.venue-option span { color: white; font-size: 15px; }
+</style>
 <!-- Venue list partial - loaded via HTMX when zone is selected -->
 <h2 style="font-size: 14px; font-weight: 600; margin: 24px 0 16px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Select Venue</h2>
 

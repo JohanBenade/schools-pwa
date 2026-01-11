@@ -41,7 +41,6 @@
             margin-bottom: 24px;
         }
         
-        /* Default Location Quick-Tap */
         .default-location {
             margin-bottom: 32px;
         }
@@ -108,6 +107,13 @@
             flex-direction: column;
             gap: 10px;
         }
+        .zones.collapsed .zone-wrapper:not(.selected) {
+            display: none;
+        }
+        .zone-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
         .zone-btn {
             display: block;
             width: 100%;
@@ -124,37 +130,72 @@
         .zone-btn:hover {
             background: rgba(255,255,255,0.15);
         }
-        .zone-btn.selected {
+        .zone-wrapper.selected .zone-btn {
             background: #3b82f6;
             border-color: #3b82f6;
         }
         
-        /* Venue list (loaded via HTMX) */
-        #venue-list {
-            margin-top: 20px;
+        .venue-list {
+            margin-top: 12px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 3px solid #3b82f6;
         }
         
-        .back-link {
-            display: block;
+        .change-zone {
+            display: none;
+            margin-top: 16px;
             text-align: center;
-            margin-top: 30px;
-            color: #94a3b8;
+        }
+        .zones.collapsed .change-zone {
+            display: block;
+        }
+        .change-zone a {
+            color: #93c5fd;
             text-decoration: none;
             font-size: 14px;
         }
+        
+        .cancel-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            font-size: 16px;
+        }
     </style>
+    <script>
+        function selectZone(btn, zoneCode) {
+            // Mark this zone as selected
+            document.querySelectorAll('.zone-wrapper').forEach(w => w.classList.remove('selected'));
+            btn.closest('.zone-wrapper').classList.add('selected');
+            
+            // Collapse other zones
+            document.querySelector('.zones').classList.add('collapsed');
+            
+            // Clear other venue lists
+            document.querySelectorAll('.venue-list').forEach(v => v.innerHTML = '');
+        }
+        
+        function changeZone() {
+            // Expand all zones again
+            document.querySelector('.zones').classList.remove('collapsed');
+            document.querySelectorAll('.zone-wrapper').forEach(w => w.classList.remove('selected'));
+            document.querySelectorAll('.venue-list').forEach(v => v.innerHTML = '');
+        }
+    </script>
 </head>
 <body>
     <div class="header">
         <span>{{ user.display_name }}</span>
-        <a href="/emergency/">Cancel</a>
+        <a href="/">Cancel</a>
     </div>
     
     <div class="content">
         <div class="alert-type-badge">🚨 {{ alert_type }}</div>
         
         {% if default_venue_id and default_venue_name %}
-        <!-- Quick-tap default location -->
         <div class="default-location">
             <div class="default-location-label">Your default location</div>
             <form action="/emergency/send-default" method="POST">
@@ -171,21 +212,26 @@
         <h2>SELECT ZONE</h2>
         <div class="zones">
             {% for zone_code, zone_name in zones %}
-            <button class="zone-btn" 
-                    hx-get="/emergency/venues/{{ zone_code }}"
-                    hx-target="#venue-list"
-                    hx-swap="innerHTML"
-                    onclick="document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('selected')); this.classList.add('selected');">
-                {{ zone_name }}
-            </button>
+            <div class="zone-wrapper">
+                <button class="zone-btn" 
+                        data-zone="{{ zone_code }}"
+                        hx-get="/emergency/venues/{{ zone_code }}"
+                        hx-target="#venues-{{ zone_code }}"
+                        hx-swap="innerHTML"
+                        onclick="selectZone(this, '{{ zone_code }}')">
+                    {{ zone_name }}
+                </button>
+                <div id="venues-{{ zone_code }}" class="venue-list">
+                </div>
+            </div>
             {% endfor %}
+            
+            <div class="change-zone">
+                <a href="#" onclick="changeZone(); return false;">← Change zone</a>
+            </div>
         </div>
         
-        <div id="venue-list">
-            <!-- Venues load here when zone is selected -->
-        </div>
-        
-        <a href="/" class="cancel-link" style="display: block; text-align: center; margin-top: 30px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 16px;">Cancel</a>
+        <a href="/" class="cancel-link">Cancel</a>
     </div>
 </body>
 </html>

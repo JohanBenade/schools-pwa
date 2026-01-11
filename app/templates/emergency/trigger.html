@@ -26,15 +26,7 @@
             font-size: 14px;
             opacity: 0.8;
         }
-        .back-link {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            opacity: 0.8;
-        }
+        
         .container {
             text-align: center;
             max-width: 400px;
@@ -87,11 +79,21 @@
         .location-hint strong {
             color: #60a5fa;
         }
+        .cancel-link {
+            display: block;
+            margin-top: 30px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            font-size: 16px;
+        }
+        .cancel-link:hover {
+            color: rgba(255,255,255,0.8);
+        }
     </style>
 </head>
 <body>
     <div class="user-info">{{ user.display_name }}</div>
-    <a href="/" class="back-link">Back to Home</a>
+    
     
     <div class="container">
         <h1>Emergency Alert</h1>
