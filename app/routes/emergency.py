@@ -155,7 +155,7 @@ def select_location():
         return redirect(url_for('emergency.trigger'))
     
     # Get all venue blocks for zone selection
-    zones = [
+    zones = [        ('Bathroom', '🚻 Bathroom'),
         ('A_Ground', 'A Block Ground'),
         ('A_First', 'A Block First Floor'),
         ('A_Admin', 'A Block Admin/IT'),
@@ -217,6 +217,43 @@ def send_default():
 @emergency_bp.route('/venues/<block>')
 def get_venues_by_block(block):
     """HTMX endpoint - get venues for a block."""
+    
+    # Special handling for Bathroom block (not in venue table)
+    if block == 'Bathroom':
+        bathrooms = [
+            ('BG_BOYS_A001', 'Boys - Ground - Near A001'),
+            ('BG_GIRLS_A006', 'Girls - Ground - Near A006'),
+            ('BG_GIRLS_A008', 'Girls - Ground - Near A008'),
+            ('BG_GIRLS_KITCHEN', 'Girls - Ground - Near Kitchen'),
+            ('B1_BOYS_A101', 'Boys - 1st Floor - Near A101'),
+            ('B1_GIRLS_A105', 'Girls - 1st Floor - Near A105'),
+            ('B1_GIRLS_A107', 'Girls - 1st Floor - Near A107'),
+            ('B1_GIRLS_A112', 'Girls - 1st Floor - Near A112'),
+        ]
+        
+        html = """<form action="/emergency/send" method="POST">
+        <input type="hidden" name="is_bathroom" value="1">
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">"""
+        
+        for bathroom_id, bathroom_name in bathrooms:
+            icon = '🚹' if 'Boys' in bathroom_name else '🚺'
+            html += f"""
+            <label style="display: flex; align-items: center; padding: 14px 16px; background: rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;" onclick="document.querySelector('#selected_bathroom').value='{bathroom_name}'">
+                <input type="radio" name="venue_id" value="{bathroom_id}" style="margin-right: 12px; accent-color: #ef4444;" required>
+                <span style="color: white; font-size: 16px;">{icon} {bathroom_name}</span>
+            </label>"""
+        
+        html += """
+        </div>
+        <input type="hidden" id="selected_bathroom" name="location_display" value="">
+        <button type="submit" style="display: block; width: 100%; margin-top: 20px; padding: 16px; background: #ef4444; border: none; border-radius: 10px; color: white; font-size: 16px; font-weight: 600; cursor: pointer;">
+            🚨 SEND ALERT
+        </button>
+        </form>"""
+        
+        return html
+    
+    # Standard venue lookup from database
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -242,12 +279,16 @@ def send_alert():
     if not alert_type or not venue_id or not user['staff_id']:
         return redirect(url_for('emergency.index'))
     
-    # Get venue details
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT venue_name FROM venue WHERE id = ?", (venue_id,))
-        venue_row = cursor.fetchone()
-        location_display = venue_row['venue_name'] if venue_row else 'Unknown'
+    # Get venue details (check form first for bathrooms, then database)
+    location_display = request.form.get('location_display', '').strip()
+    
+    if not location_display:
+        # Standard venue - look up from database
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT venue_name FROM venue WHERE id = ?", (venue_id,))
+            venue_row = cursor.fetchone()
+            location_display = venue_row['venue_name'] if venue_row else 'Unknown'
         
         # Create alert
         alert_id = generate_id()
