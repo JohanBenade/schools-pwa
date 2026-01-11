@@ -89,7 +89,10 @@
         Resolved by {{ alert.resolved_by_name or 'Staff' }}
     </p>
     {% if alert.resolution_notes %}
-    <p class="resolution-notes" style="margin-top: 16px; font-size: 14px; opacity: 0.9; font-style: italic;">"{{ alert.resolution_notes }}"</p>
+    <div class="notes-card">
+        <div class="notes-label">Notes</div>
+        <div class="notes-content">{{ alert.resolution_notes }}</div>
+    </div>
     {% endif %}
     {% else %}
     <p class="resolved-by">The emergency has been resolved.</p>
