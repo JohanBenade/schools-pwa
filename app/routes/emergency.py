@@ -74,16 +74,10 @@ def has_responded(alert_id, staff_id):
 
 
 def can_user_resolve(user, alert):
-    """Check if user can resolve this alert - leadership OR the person who triggered it."""
+    """Check if user can resolve this alert - any logged in staff member."""
     if not user.get('staff_id') or not alert:
         return False
-    # Leadership can always resolve
-    if user.get('can_resolve'):
-        return True
-    # Person who triggered can resolve their own alert
-    if user.get('staff_id') == alert.get('triggered_by_id'):
-        return True
-    return False
+    return True
 
 
 @emergency_bp.route('/')

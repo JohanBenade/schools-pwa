@@ -64,8 +64,11 @@
     <div class="resolution-type">{{ alert.resolution_type or 'All Clear' }}</div>
     <p class="resolved-by">
         {{ alert.alert_type }} at {{ alert.location_display }}<br>
-        Resolved by {{ alert.resolved_by_name or 'Leadership' }}
+        Resolved by {{ alert.resolved_by_name or 'Staff' }}
     </p>
+    {% if alert.resolution_notes %}
+    <p class="resolution-notes" style="margin-top: 16px; font-size: 14px; opacity: 0.9; font-style: italic;">"{{ alert.resolution_notes }}"</p>
+    {% endif %}
     {% else %}
     <p class="resolved-by">The emergency has been resolved.</p>
     {% endif %}
