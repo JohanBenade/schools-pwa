@@ -2,46 +2,44 @@
 .venue-option { 
     display: flex; 
     align-items: center; 
-    padding: 14px 16px; 
+    padding: 16px 20px; 
     background: rgba(255,255,255,0.08); 
-    border-radius: 8px; 
+    border-radius: 10px; 
     cursor: pointer;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border: 1px solid transparent;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
-.venue-option:has(input:checked) {
-    background: rgba(59, 130, 246, 0.25);
+.venue-option:active,
+.venue-option.clicked {
+    background: rgba(59, 130, 246, 0.4);
     border-color: #3b82f6;
+    transform: scale(0.98);
 }
-.venue-option input { margin-right: 12px; accent-color: #ef4444; }
+.venue-option input { display: none; }
 .venue-option span { color: white; font-size: 15px; }
 </style>
-<!-- Venue list partial - loaded via HTMX when zone is selected -->
-<h2 style="font-size: 14px; font-weight: 600; margin: 24px 0 16px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Select Venue</h2>
 
-<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;">Select Venue</div>
+
+<form action="/emergency/send" method="POST" id="venue-form">
 {% for venue in venues %}
-    <form action="/emergency/send" method="POST" style="margin: 0;">
-        <input type="hidden" name="venue_id" value="{{ venue.id }}">
-        <button type="submit" style="
-            display: block;
-            width: 100%;
-            padding: 20px 24px;
-            background: {% if venue.id == default_venue_id %}linear-gradient(135deg, #22c55e 0%, #16a34a 100%){% else %}rgba(255,255,255,0.1){% endif %};
-            border: 1px solid {% if venue.id == default_venue_id %}#22c55e{% else %}rgba(255,255,255,0.2){% endif %};
-            border-radius: 12px;
-            color: white;
-            font-size: 18px;
-            font-weight: {% if venue.id == default_venue_id %}600{% else %}400{% endif %};
-            text-align: left;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-        ">
-            {{ venue.venue_name or venue.venue_code }}
-        </button>
-    </form>
-{% else %}
-    <p style="color: #64748b; text-align: center; padding: 20px;">No venues found for this zone</p>
+<label class="venue-option" onclick="selectVenue(this)">
+    <input type="radio" name="venue_id" value="{{ venue.id }}" required>
+    <span>{{ venue.venue_name }}</span>
+</label>
 {% endfor %}
-</div>
+</form>
+
+<script>
+function selectVenue(label) {
+    // Add highlight
+    label.classList.add('clicked');
+    // Check the radio
+    label.querySelector('input').checked = true;
+    // Submit after brief delay for visual feedback
+    setTimeout(() => {
+        document.getElementById('venue-form').submit();
+    }, 150);
+}
+</script>
