@@ -289,8 +289,10 @@ def send_alert():
             cursor.execute("SELECT venue_name FROM venue WHERE id = ?", (venue_id,))
             venue_row = cursor.fetchone()
             location_display = venue_row['venue_name'] if venue_row else 'Unknown'
-        
-        # Create alert
+    
+    # Create alert
+    with get_connection() as conn:
+        cursor = conn.cursor()
         alert_id = generate_id()
         cursor.execute("""
             INSERT INTO emergency_alert 
