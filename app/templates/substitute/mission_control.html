@@ -43,9 +43,12 @@
         .date-filter a.active { background: #3b82f6; color: white; }
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 24px;
+        }
+        @media (min-width: 600px) {
+            .stats-row { grid-template-columns: repeat(4, 1fr); }
         }
         .stat-card {
             background: #1e293b;
