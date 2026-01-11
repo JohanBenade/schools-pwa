@@ -33,7 +33,7 @@ def create_app():
     def handle_magic_link():
         """Handle magic link login via ?u= parameter."""
         magic_code = request.args.get('u')
-        if magic_code and 'staff_id' not in session:
+        if magic_code:  # Always override existing session
             from app.services.db import get_connection
             
             with get_connection() as conn:
