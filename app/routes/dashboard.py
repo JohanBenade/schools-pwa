@@ -38,7 +38,7 @@ def index():
             WHERE mg.tenant_id = ? AND mg.id NOT IN (
                 SELECT mentor_group_id FROM attendance WHERE date = ? AND tenant_id = ?
             )
-            ORDER BY mg.group_name LIMIT 5
+            ORDER BY g.grade_number, mg.group_name LIMIT 5
         ''', (TENANT_ID, today_str, TENANT_ID))
         pending_classes = [row['group_name'] for row in cursor.fetchall()]
         
