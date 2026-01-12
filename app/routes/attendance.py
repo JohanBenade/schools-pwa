@@ -32,14 +32,19 @@ def index():
     groups = get_mentor_groups_sqlite(TENANT_ID)
     today_str = date.today().isoformat()
     
-    # Add submission status to each group
     for group in groups:
         existing = get_attendance_for_today(group['id'], today_str)
         group['submitted'] = existing is not None
         group['submitted_at'] = existing['submitted_at'] if existing else None
     
     today_date = date.today().strftime('%A, %d %B %Y')
-    return render_template('attendance/select_group.html', groups=groups, today_date=today_date)
+    return render_template('attendance/select_group.html', 
+                         groups=groups, 
+                         today_date=today_date,
+                         nav_header=True,
+                         nav_title='Roll Call',
+                         nav_back_url='/',
+                         nav_back_label='Home')
 
 
 @attendance_bp.route('/roll-call/<mentor_group_id>')
@@ -53,24 +58,20 @@ def roll_call(mentor_group_id):
     learners = get_learners_by_mentor_group_sqlite(mentor_group_id)
     today_str = date.today().isoformat()
     
-    # Check if already submitted today
     existing_attendance = get_attendance_for_today(mentor_group_id, today_str)
     already_submitted = existing_attendance is not None
     submitted_at = None
     
     if already_submitted:
-        # Load from attendance_entry (submitted data)
         session['existing_attendance_id'] = existing_attendance['id']
         marks = get_attendance_entries(existing_attendance['id'])
         submitted_at = existing_attendance['submitted_at']
-        # Format time nicely
         try:
             dt = datetime.fromisoformat(submitted_at)
             submitted_at = dt.strftime('%H:%M')
         except:
             pass
     else:
-        # Load from pending_attendance (in-progress data)
         session.pop('existing_attendance_id', None)
         marks = get_pending_marks_sqlite(mentor_group_id)
     
@@ -79,36 +80,26 @@ def roll_call(mentor_group_id):
     
     stats = get_pending_stats_sqlite(mentor_group_id)
     
-    # If already submitted, calculate stats from existing marks
-    if already_submitted:
-        stats = {
-            'present': sum(1 for s in marks.values() if s == 'Present'),
-            'absent': sum(1 for s in marks.values() if s == 'Absent'),
-            'late': sum(1 for s in marks.values() if s == 'Late'),
-            'unmarked': sum(1 for s in marks.values() if s == 'Unmarked')
-        }
-    
     return render_template('attendance/roll_call.html',
-                          group_name=group['group_name'],
-                          mentor_name=group.get('mentor_name'),
-                          mentor_group_id=mentor_group_id,
-                          learners=learners,
-                          stats=stats,
-                          already_submitted=already_submitted,
-                          submitted_at=submitted_at)
+                         group=group,
+                         learners=learners,
+                         stats=stats,
+                         already_submitted=already_submitted,
+                         submitted_at=submitted_at,
+                         nav_header=True,
+                         nav_title=group['group_name'],
+                         nav_back_url='/attendance/',
+                         nav_back_label='Groups')
 
 
-@attendance_bp.route('/mark/<learner_id>', methods=['POST'])
-def mark_learner(learner_id):
-    status = request.form.get('status', 'Unmarked')
+@attendance_bp.route('/mark/<learner_id>/<status>')
+def mark_learner(learner_id, status):
     mentor_group_id = session.get('current_mentor_group_id')
     existing_attendance_id = session.get('existing_attendance_id')
     
     if existing_attendance_id:
-        # Update existing attendance entry
         update_attendance_entry(existing_attendance_id, learner_id, status)
     elif mentor_group_id:
-        # Store in pending
         mark_learner_sqlite(mentor_group_id, learner_id, status)
     
     return '', 204
@@ -120,7 +111,6 @@ def get_stats():
     existing_attendance_id = session.get('existing_attendance_id')
     
     if existing_attendance_id:
-        # Get stats from attendance_entry
         marks = get_attendance_entries(existing_attendance_id)
         stats = {
             'present': sum(1 for s in marks.values() if s == 'Present'),
@@ -147,12 +137,10 @@ def submit_attendance_route():
     today = date.today().isoformat()
     
     if existing_attendance_id:
-        # Re-submission - just update timestamp
         update_attendance_submitted(existing_attendance_id)
         marks = get_attendance_entries(existing_attendance_id)
         attendance_id = existing_attendance_id
     else:
-        # New submission
         marks = get_pending_marks_sqlite(mentor_group_id)
         
         if not marks:
@@ -175,7 +163,6 @@ def submit_attendance_route():
         
         clear_pending_attendance_sqlite(mentor_group_id)
     
-    # Update absent tracking for all marks
     for learner_id, status in marks.items():
         if status == 'Absent':
             update_learner_absent_tracking(learner_id, increment=True)
@@ -191,7 +178,11 @@ def submit_attendance_route():
     return render_template('attendance/success.html', 
                           group_name=group['group_name'] if group else 'Unknown',
                           count=len(marks),
-                          is_update=is_update)
+                          is_update=is_update,
+                          nav_header=True,
+                          nav_title='Submitted',
+                          nav_back_url='/',
+                          nav_back_label='Home')
 
 
 @attendance_bp.route('/learners')
