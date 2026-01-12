@@ -420,3 +420,25 @@ CREATE INDEX IF NOT EXISTS idx_sublog_tenant_time ON substitute_log(tenant_id, c
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (3, 'Substitute allocation - periods, timetable, config, audit log');
+
+-- ============================================
+-- MIGRATION 004: Decline + Multi-day (Jan 2026)
+-- ============================================
+
+-- Absence: multi-day support
+-- absence.end_date TEXT               -- Last day out (NULL = single day, same as start)
+-- absence.is_open_ended INTEGER       -- 1 = "until further notice"
+-- absence.returned_early INTEGER      -- 1 = came back before end_date
+-- absence.returned_at TEXT            -- When they reported return
+-- absence.return_reported_by_id TEXT  -- Who reported (self or admin)
+
+-- Substitute request: decline + cancel tracking
+-- substitute_request.declined_at TEXT
+-- substitute_request.declined_by_id TEXT
+-- substitute_request.decline_reason TEXT
+-- substitute_request.cancelled_at TEXT
+-- substitute_request.cancel_reason TEXT   -- 'early_return', 'absence_cancelled'
+-- substitute_request.request_date TEXT    -- Which date this sub request is for
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (4, 'Decline flow + Multi-day absence support');

@@ -802,3 +802,15 @@ def get_attendance_with_entries(attendance_id: str) -> list:
             ORDER BY l.first_name, l.surname
         ''', (attendance_id,))
         return [dict(row) for row in cursor.fetchall()]
+
+# Run migrations on import
+def run_pending_migrations():
+    """Run any pending migrations on startup."""
+    try:
+        from app.services.apply_migration_004 import apply_migration
+        apply_migration()
+    except Exception as e:
+        print(f"Migration check: {e}")
+
+# Auto-run on module load
+run_pending_migrations()

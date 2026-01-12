@@ -7,6 +7,13 @@ import os
 
 load_dotenv()
 
+# Run pending database migrations
+try:
+    from app.services.migrations import run_on_startup
+    run_on_startup()
+except Exception as e:
+    print(f"Migration startup: {e}")
+
 TENANT_ID = "MARAGON"
 
 
