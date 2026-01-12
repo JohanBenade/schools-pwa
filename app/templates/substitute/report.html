@@ -25,6 +25,7 @@
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
         }
         .form-group { margin-bottom: 20px; }
         .form-group label {
@@ -34,7 +35,7 @@
             color: #374151;
             margin-bottom: 8px;
         }
-        .form-group select, .form-group input, .form-group textarea {
+        .form-group select, .form-group input[type="date"], .form-group input[type="text"], .form-group textarea {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid #e5e7eb;
@@ -61,7 +62,7 @@
             border-color: #ef4444;
             background: #fef2f2;
         }
-        .radio-option input { display: none; }
+        .radio-option input[type="radio"] { display: none; }
         .radio-option span { font-size: 14px; color: #374151; }
         .submit-btn {
             width: 100%;
@@ -76,6 +77,9 @@
             transition: transform 0.1s;
         }
         .submit-btn:active { transform: scale(0.98); }
+        .submit-btn.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        }
         .back-link {
             display: block;
             text-align: center;
@@ -93,6 +97,62 @@
             font-size: 14px;
             color: #92400e;
         }
+        .info-box.blue {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+        .info-box.green {
+            background: #f0fdf4;
+            border-color: #22c55e;
+            color: #166534;
+        }
+        .date-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .date-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 10px;
+        }
+        .checkbox-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #ef4444;
+        }
+        .checkbox-row label {
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+        }
+        .active-absence {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .active-absence h3 {
+            color: #dc2626;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .active-absence p {
+            color: #7f1d1d;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -102,15 +162,63 @@
             <p>We'll automatically find cover for your classes</p>
         </div>
         
+        {% if active_absence %}
+        <!-- EARLY RETURN CARD -->
+        <div class="card">
+            <div class="active-absence">
+                <h3>📋 You have an active absence</h3>
+                <p>
+                    {{ active_absence.absence_type }} leave: 
+                    {{ active_absence.start_display }} 
+                    {% if active_absence.end_date and active_absence.end_date != active_absence.absence_date %}
+                        → {{ active_absence.end_display }}
+                    {% endif %}
+                    {% if active_absence.is_open_ended %}
+                        (until further notice)
+                    {% endif %}
+                </p>
+            </div>
+            
+            <form method="POST" action="{{ url_for('substitute.early_return') }}">
+                <input type="hidden" name="absence_id" value="{{ active_absence.id }}">
+                
+                <div class="form-group">
+                    <label>I'm returning on</label>
+                    <input type="date" name="return_date" value="{{ today }}" min="{{ today }}" required>
+                </div>
+                
+                <button type="submit" class="submit-btn green">
+                    ✅ I'm Back - Cancel Remaining Cover
+                </button>
+            </form>
+        </div>
+        
+        <div style="text-align: center; color: #64748b; margin: 20px 0;">— or report new absence —</div>
+        {% endif %}
+        
+        <!-- REPORT NEW ABSENCE CARD -->
         <div class="card">
             <div class="info-box">
                 ⚡ Substitutes will be assigned automatically and notified via push notification.
             </div>
             
-            <form method="POST" action="{{ url_for('substitute.report_absence') }}">
+            <form method="POST" action="{{ url_for('substitute.report_absence') }}" id="absenceForm">
                 <div class="form-group">
-                    <label>Date</label>
-                    <input type="date" name="absence_date" value="{{ today }}" required>
+                    <label>Dates</label>
+                    <div class="date-row">
+                        <div class="form-group">
+                            <input type="date" name="start_date" id="startDate" value="{{ today }}" min="{{ today }}" required>
+                            <small style="color: #64748b; font-size: 12px;">Start</small>
+                        </div>
+                        <div class="form-group" id="endDateGroup">
+                            <input type="date" name="end_date" id="endDate" value="{{ today }}" min="{{ today }}">
+                            <small style="color: #64748b; font-size: 12px;">End</small>
+                        </div>
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" name="is_open_ended" id="openEnded" value="1">
+                        <label for="openEnded">Until further notice (I'll report when I'm back)</label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -151,5 +259,31 @@
         
         <a href="{{ url_for('substitute.index') }}" class="back-link">← Cancel</a>
     </div>
+    
+    <script>
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        const endDateGroup = document.getElementById('endDateGroup');
+        const openEnded = document.getElementById('openEnded');
+        
+        // Sync end date min with start date
+        startDate.addEventListener('change', function() {
+            endDate.min = this.value;
+            if (endDate.value < this.value) {
+                endDate.value = this.value;
+            }
+        });
+        
+        // Toggle end date visibility when "until further notice" is checked
+        openEnded.addEventListener('change', function() {
+            if (this.checked) {
+                endDateGroup.style.opacity = '0.4';
+                endDate.disabled = true;
+            } else {
+                endDateGroup.style.opacity = '1';
+                endDate.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>

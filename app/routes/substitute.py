@@ -4,6 +4,7 @@ Substitute routes - Report absence, view assignments, Mission Control
 
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
 from datetime import date, datetime, timedelta
+import uuid
 from app.services.db import get_connection
 from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
@@ -77,15 +78,48 @@ def index():
 
 @substitute_bp.route('/report', methods=['GET', 'POST'])
 def report_absence():
-    """Teacher reports their own absence."""
+    """Teacher reports their own absence (supports multi-day)."""
     staff_id = session.get('staff_id')
     
     if not staff_id:
         return redirect('/?u=beatrix')
     
     if request.method == 'GET':
+        # Check for active absence (for early return option)
+        active_absence = None
         with get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Find active absence for this teacher
+            cursor.execute("""
+                SELECT id, absence_date, end_date, is_open_ended, absence_type, status
+                FROM absence 
+                WHERE staff_id = ? AND tenant_id = ? 
+                AND status IN ('Reported', 'Covered', 'Partial')
+                AND (
+                    (end_date IS NULL AND absence_date >= ?)
+                    OR (end_date IS NOT NULL AND end_date >= ?)
+                    OR is_open_ended = 1
+                )
+                ORDER BY absence_date DESC
+                LIMIT 1
+            """, (staff_id, TENANT_ID, date.today().isoformat(), date.today().isoformat()))
+            row = cursor.fetchone()
+            
+            if row:
+                active_absence = dict(row)
+                # Format dates for display
+                try:
+                    start_dt = datetime.strptime(active_absence['absence_date'], '%Y-%m-%d')
+                    active_absence['start_display'] = start_dt.strftime('%a %d %b')
+                    if active_absence['end_date']:
+                        end_dt = datetime.strptime(active_absence['end_date'], '%Y-%m-%d')
+                        active_absence['end_display'] = end_dt.strftime('%a %d %b')
+                except:
+                    active_absence['start_display'] = active_absence['absence_date']
+                    active_absence['end_display'] = active_absence.get('end_date', '')
+            
+            # Get periods for partial day option
             cursor.execute("""
                 SELECT id, period_number, period_name, start_time, end_time
                 FROM period 
@@ -96,22 +130,100 @@ def report_absence():
         
         return render_template('substitute/report.html',
                               periods=periods,
-                              today=date.today().isoformat())
+                              today=date.today().isoformat(),
+                              active_absence=active_absence)
     
+    # POST: Create new absence
     absence_type = request.form.get('absence_type', 'Sick')
     reason = request.form.get('reason', '')
-    absence_date = request.form.get('absence_date', date.today().isoformat())
+    start_date = request.form.get('start_date', date.today().isoformat())
+    end_date = request.form.get('end_date', start_date)
+    is_open_ended = request.form.get('is_open_ended') == '1'
     is_full_day = request.form.get('is_full_day', '1') == '1'
     
-    absence_id = create_absence(
+    # If open-ended, clear end_date
+    if is_open_ended:
+        end_date = None
+    
+    absence_id = create_absence_multiday(
         staff_id=staff_id,
-        absence_date=absence_date,
+        start_date=start_date,
+        end_date=end_date,
+        is_open_ended=is_open_ended,
         absence_type=absence_type,
         reason=reason,
         is_full_day=is_full_day
     )
     
     results = process_absence(absence_id)
+    
+    return redirect(url_for('substitute.absence_status', absence_id=absence_id))
+
+
+@substitute_bp.route('/early-return', methods=['POST'])
+def early_return():
+    """Teacher reports early return - cancels remaining substitute assignments."""
+    staff_id = session.get('staff_id')
+    
+    if not staff_id:
+        return redirect('/')
+    
+    absence_id = request.form.get('absence_id')
+    return_date = request.form.get('return_date', date.today().isoformat())
+    
+    if not absence_id:
+        return redirect(url_for('substitute.report_absence'))
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify this absence belongs to the teacher
+        cursor.execute("""
+            SELECT id, absence_date, end_date FROM absence 
+            WHERE id = ? AND staff_id = ?
+        """, (absence_id, staff_id))
+        absence = cursor.fetchone()
+        
+        if not absence:
+            return redirect(url_for('substitute.report_absence'))
+        
+        # Update absence record
+        cursor.execute("""
+            UPDATE absence 
+            SET returned_early = 1, 
+                returned_at = ?,
+                return_reported_by_id = ?,
+                end_date = ?,
+                updated_at = ?
+            WHERE id = ?
+        """, (datetime.now().isoformat(), staff_id, return_date, datetime.now().isoformat(), absence_id))
+        
+        # Cancel all substitute requests from return_date onwards
+        cursor.execute("""
+            UPDATE substitute_request
+            SET status = 'Cancelled',
+                cancelled_at = ?,
+                cancel_reason = 'early_return',
+                updated_at = ?
+            WHERE absence_id = ? 
+            AND request_date >= ?
+            AND status IN ('Pending', 'Assigned')
+        """, (datetime.now().isoformat(), datetime.now().isoformat(), absence_id, return_date))
+        
+        cancelled_count = cursor.rowcount
+        
+        # Log the early return
+        log_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
+            VALUES (?, ?, ?, 'early_return', ?, ?, ?)
+        """, (log_id, TENANT_ID, absence_id, staff_id, 
+              f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}}}',
+              datetime.now().isoformat()))
+        
+        conn.commit()
+        
+        # TODO: Send push notifications to cancelled subs
     
     return redirect(url_for('substitute.absence_status', absence_id=absence_id))
 
