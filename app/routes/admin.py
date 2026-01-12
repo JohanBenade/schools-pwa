@@ -86,7 +86,7 @@ def dashboard():
             else:
                 priority = 2
             
-            return (priority, g['group_name'])
+            return (priority, g['grade_number'] or 99, g['group_name'])
         
         groups = sorted(groups, key=sort_key)
     
