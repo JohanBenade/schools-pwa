@@ -2,9 +2,10 @@
 Management Dashboard - Principal, Deputy, Admin view
 """
 
-from flask import Blueprint, render_template, session, redirect
+from flask import Blueprint, session, redirect
 from datetime import date
 from app.services.db import get_connection
+from app.services.nav import get_nav_header, get_nav_styles
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
@@ -85,7 +86,7 @@ def index():
                 <div class="detail-item">👤 {active_emergency['triggered_by_name']}</div>
                 <div class="detail-item">🙋 {active_emergency['responder_count']} responding</div>
             </div>
-            <a href="/emergency/alert/{active_emergency['id']}" class="card-link">View Emergency →</a>
+            <a href="/emergency/" class="card-link">View Emergency →</a>
         '''
     else:
         emergency_html = '''
@@ -106,6 +107,9 @@ def index():
         names = ', '.join(pending_classes[:3]) + ('...' if len(pending_classes) > 3 else '')
         pending_html = f'<div class="detail-list"><div class="detail-item">⏳ {names}</div></div>'
     
+    nav_header = get_nav_header("Dashboard", "/", "Home")
+    nav_styles = get_nav_styles()
+    
     return f'''
 <!DOCTYPE html>
 <html lang="en">
@@ -116,10 +120,10 @@ def index():
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }}
-        .header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }}
-        .header h1 {{ font-size: 24px; font-weight: 600; }}
-        .header-date {{ font-size: 14px; opacity: 0.7; }}
-        .cards {{ display: flex; flex-direction: column; gap: 16px; max-width: 600px; margin: 0 auto; }}
+        .container {{ max-width: 600px; margin: 0 auto; }}
+        {nav_styles}
+        .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-bottom: 20px; }}
+        .cards {{ display: flex; flex-direction: column; gap: 16px; }}
         .card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; }}
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
         .card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }}
@@ -143,52 +147,49 @@ def index():
         .absence-row:last-child {{ border-bottom: none; }}
         .absence-name {{ font-weight: 500; }}
         .absence-status {{ font-size: 12px; padding: 2px 8px; border-radius: 8px; background: #22c55e; }}
-        .back-link {{ display: block; text-align: center; margin-top: 24px; color: #60a5fa; text-decoration: none; font-size: 14px; }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 Dashboard</h1>
-        <span class="header-date">{today_display}</span>
-    </div>
-    
-    <div class="cards">
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">📋 Attendance</span>
-                <span class="card-status {'status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red'}">{'All In' if pending_count == 0 else f'{pending_count} Pending'}</span>
-            </div>
-            <div class="big-number">{submitted_count}/{total_groups}</div>
-            <div class="big-label">registers submitted</div>
-            <div class="stat-row">
-                <div class="stat"><div class="stat-value">{absent_learners}</div><div class="stat-label">learners absent</div></div>
-                <div class="stat"><div class="stat-value">{pending_count}</div><div class="stat-label">outstanding</div></div>
-            </div>
-            {pending_html}
-            <a href="/admin/" class="card-link">View Details →</a>
-        </div>
+    <div class="container">
+        {nav_header}
+        <div class="header-date">{today_display}</div>
         
-        <div class="card {'emergency-active' if active_emergency else ''}">
-            <div class="card-header">
-                <span class="card-title">🚨 Emergencies</span>
-                <span class="card-status {'status-red' if active_emergency else 'status-green'}">{'ACTIVE' if active_emergency else 'All Clear'}</span>
+        <div class="cards">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📋 Attendance</span>
+                    <span class="card-status {'status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red'}">{'All In' if pending_count == 0 else f'{pending_count} Pending'}</span>
+                </div>
+                <div class="big-number">{submitted_count}/{total_groups}</div>
+                <div class="big-label">registers submitted</div>
+                <div class="stat-row">
+                    <div class="stat"><div class="stat-value">{absent_learners}</div><div class="stat-label">learners absent</div></div>
+                    <div class="stat"><div class="stat-value">{pending_count}</div><div class="stat-label">outstanding</div></div>
+                </div>
+                {pending_html}
+                <a href="/admin/" class="card-link">View Details →</a>
             </div>
-            {emergency_html}
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">👩‍🏫 Substitute Coverage</span>
-                <span class="card-status {'status-green' if gaps == 0 else 'status-yellow'}">{'All Covered' if gaps == 0 else f'{gaps} Gap{"s" if gaps != 1 else ""}'}</span>
+            
+            <div class="card {'emergency-active' if active_emergency else ''}">
+                <div class="card-header">
+                    <span class="card-title">🚨 Emergencies</span>
+                    <span class="card-status {'status-red' if active_emergency else 'status-green'}">{'ACTIVE' if active_emergency else 'All Clear'}</span>
+                </div>
+                {emergency_html}
             </div>
-            <div class="big-number">{total_absences}</div>
-            <div class="big-label">teacher{'s' if total_absences != 1 else ''} absent today</div>
-            {absences_html}
-            <a href="/substitute/mission-control" class="card-link">Mission Control →</a>
+            
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">👩‍🏫 Substitute Coverage</span>
+                    <span class="card-status {'status-green' if gaps == 0 else 'status-yellow'}">{'All Covered' if gaps == 0 else f'{gaps} Gap{"s" if gaps != 1 else ""}'}</span>
+                </div>
+                <div class="big-number">{total_absences}</div>
+                <div class="big-label">teacher{'s' if total_absences != 1 else ''} absent today</div>
+                {absences_html}
+                <a href="/substitute/mission-control" class="card-link">Mission Control →</a>
+            </div>
         </div>
     </div>
-    
-    <a href="/" class="back-link">← Back to Home</a>
 </body>
 </html>
 '''

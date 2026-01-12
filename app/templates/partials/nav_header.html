@@ -1,0 +1,58 @@
+{# Navigation Header Partial
+   
+   Usage: {% include 'partials/nav_header.html' %}
+   
+   Required variables:
+   - nav_title: Page title
+   - nav_back_url: Back button URL
+   - nav_back_label: Back button text (default: "Back")
+   
+   Optional:
+   - nav_theme: 'dark' (default) or 'light'
+#}
+<style>
+    .nav-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .nav-back {
+        color: #60a5fa;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+    .nav-back:hover {
+        background: rgba(96, 165, 250, 0.1);
+    }
+    .nav-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+    }
+    .nav-home {
+        font-size: 20px;
+        text-decoration: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+    .nav-home:hover {
+        background: rgba(255,255,255,0.1);
+    }
+    .nav-header-light .nav-back { color: #2563eb; }
+    .nav-header-light .nav-title { color: #1e293b; }
+    .nav-header-light { border-bottom-color: rgba(0,0,0,0.1); }
+</style>
+
+<nav class="nav-header {{ 'nav-header-light' if nav_theme == 'light' else '' }}">
+    <a href="{{ nav_back_url }}" class="nav-back">← {{ nav_back_label|default('Back') }}</a>
+    <span class="nav-title">{{ nav_title }}</span>
+    <a href="/" class="nav-home">🏠</a>
+</nav>
