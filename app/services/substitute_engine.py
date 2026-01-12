@@ -502,7 +502,7 @@ def reassign_declined_request(request_id, declined_by_id):
         
         # Get teachers already assigned on this date (excluding the decliner who's now free again)
         assigned_today = get_teachers_assigned_on_date(target_date)
-        assigned_today.discard(declined_by_id)  # Decliner is available again
+        assigned_today = set(assigned_today); assigned_today.discard(declined_by_id)  # Decliner is available again
         
         # Get cycle day for this date
         cursor.execute("SELECT cycle_day FROM cycle_day_config WHERE calendar_date = ? AND tenant_id = ?",
