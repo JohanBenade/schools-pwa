@@ -277,39 +277,56 @@ def mission_control():
         return "Access denied", 403
     
     today = date.today()
-    date_range = request.args.get('range', 'today')
+    tomorrow = today + timedelta(days=1)
+    tab = request.args.get('tab', 'today')
     
-    if date_range == 'week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    else:
-        start_date = today
-        end_date = today
+    # Calculate date range based on tab
+    if tab == 'tomorrow':
+        filter_start = tomorrow
+        filter_end = tomorrow
+        filter_dates = [tomorrow.isoformat()]
+    elif tab == 'week':
+        # Monday to Friday of current week
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+        filter_start = monday
+        filter_end = friday
+        filter_dates = [(monday + timedelta(days=i)).isoformat() for i in range(5)]
+    else:  # today
+        filter_start = today
+        filter_end = today
+        filter_dates = [today.isoformat()]
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
+        # Get absences that overlap with filter range
         cursor.execute("""
             SELECT a.*, s.display_name as teacher_name, s.surname,
                    mg.group_name as mentor_class
             FROM absence a
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
-            WHERE a.absence_date >= ? AND a.absence_date <= ? AND a.tenant_id = ?
+            WHERE a.tenant_id = ?
+              AND a.absence_date <= ?
+              AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
             ORDER BY a.absence_date DESC, a.reported_at DESC
-        """, (start_date.isoformat(), end_date.isoformat(), TENANT_ID))
+        """, (TENANT_ID, filter_end.isoformat(), filter_start.isoformat()))
         absences = [dict(row) for row in cursor.fetchall()]
         
         for absence in absences:
-            cursor.execute("""
+            # Get requests only for dates within filter range
+            placeholders = ','.join(['?' for _ in filter_dates])
+            cursor.execute(f"""
                 SELECT sr.*, p.period_name, p.period_number,
                        sub.display_name as substitute_name
                 FROM substitute_request sr
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN staff sub ON sr.substitute_id = sub.id
                 WHERE sr.absence_id = ?
+                  AND sr.request_date IN ({placeholders})
                 ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
-            """, (absence['id'],))
+            """, (absence['id'], *filter_dates))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
         
         cursor.execute("""
@@ -331,15 +348,14 @@ def mission_control():
                           absences=absences,
                           config=config,
                           cycle_day=get_cycle_day(),
-                          today=today.isoformat(),
-                          stats={
-                              'total': total_absences,
-                              'covered': fully_covered,
-                              'partial': partial,
-                              'escalated': escalated
-                          },
+                          today=today.strftime('%a %d %b'),
+                          stats={'total': total_absences, 'covered': fully_covered, 
+                                 'partial': partial, 'escalated': escalated},
                           nav_header=nav_header,
-                          nav_styles=nav_styles)
+                          nav_styles=nav_styles,
+                          current_tab=tab,
+                          filter_start=filter_start.strftime('%a %d %b'),
+                          filter_end=filter_end.strftime('%a %d %b'))
 
 
 @substitute_bp.route('/my-assignments')

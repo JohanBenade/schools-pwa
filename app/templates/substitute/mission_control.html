@@ -9,6 +9,10 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
         .container { max-width: 800px; margin: 0 auto; }
         {{ nav_styles|safe }}
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: rgba(255,255,255,0.1); border-radius: 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .tab:hover { background: rgba(255,255,255,0.15); }
+        .tab.active { background: #3b82f6; }
         .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
         .stat-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; }
         .stat-number { font-size: 32px; font-weight: 700; }
@@ -25,6 +29,9 @@
         .status-partial { background: #eab308; color: #000; }
         .status-escalated { background: #ef4444; }
         .absence-meta { font-size: 13px; opacity: 0.7; margin-bottom: 12px; }
+        .date-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .date-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+        .date-label { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; }
         .period-list { display: flex; flex-wrap: wrap; gap: 8px; }
         .period-chip { padding: 6px 12px; border-radius: 6px; font-size: 12px; background: rgba(255,255,255,0.1); }
         .period-chip.assigned { background: rgba(34, 197, 94, 0.3); }
@@ -36,6 +43,12 @@
 <body>
     <div class="container">
         {{ nav_header|safe }}
+        
+        <div class="tabs">
+            <a href="?tab=today" class="tab {{ 'active' if current_tab == 'today' else '' }}">Today</a>
+            <a href="?tab=tomorrow" class="tab {{ 'active' if current_tab == 'tomorrow' else '' }}">Tomorrow</a>
+            <a href="?tab=week" class="tab {{ 'active' if current_tab == 'week' else '' }}">This Week</a>
+        </div>
         
         <div class="stats">
             <div class="stat-card">
@@ -58,7 +71,7 @@
         
         <div class="config-bar">
             <span>📅 Cycle Day {{ cycle_day }} | 🔤 Pointer: {{ config.pointer_surname or 'A' }}</span>
-            <span>{{ today }}</span>
+            <span>{% if filter_start == filter_end %}{{ filter_start }}{% else %}{{ filter_start }} - {{ filter_end }}{% endif %}</span>
         </div>
         
         {% if absences %}
@@ -70,29 +83,40 @@
                 </div>
                 <div class="absence-meta">
                     {{ absence.absence_type }} | {{ absence.mentor_class or 'No mentor class' }}
-                </div>
-                <div class="period-list">
-                    {% if absence.requests %}
-                        {% for req in absence.requests %}
-                        <span class="period-chip {{ 'assigned' if req.substitute_id else 'pending' }}">
-                            {% if req.is_mentor_duty %}
-                                🏠 Roll Call → {{ req.substitute_name or 'Pending' }}
-                            {% else %}
-                                P{{ req.period_number }}: {{ req.substitute_name or 'Pending' }}
-                            {% endif %}
-                        </span>
-                        {% endfor %}
-                    {% else %}
-                        <span class="period-chip">No periods to cover</span>
+                    {% if absence.end_date and absence.end_date != absence.absence_date %}
+                     | {{ absence.absence_date }} to {{ absence.end_date }}
                     {% endif %}
                 </div>
+                
+                {% if absence.requests %}
+                    {% for req_date, reqs in absence.requests|groupby('request_date') %}
+                    <div class="date-section">
+                        <div class="date-label">📅 {{ req_date }}</div>
+                        <div class="period-list">
+                            {% for req in reqs %}
+                            <span class="period-chip {{ 'assigned' if req.substitute_id else 'pending' }}">
+                                {% if req.is_mentor_duty %}
+                                    🏠 Roll Call → {{ req.substitute_name or 'Pending' }}
+                                {% else %}
+                                    P{{ req.period_number }}: {{ req.substitute_name or 'Pending' }}
+                                {% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="period-list">
+                        <span class="period-chip">No periods in this view</span>
+                    </div>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}
             <div class="empty-state">
                 <div class="icon">✨</div>
                 <h3>All Teachers Present</h3>
-                <p>No absences reported for today</p>
+                <p>No absences for {{ filter_start }}{% if filter_start != filter_end %} - {{ filter_end }}{% endif %}</p>
             </div>
         {% endif %}
     </div>
