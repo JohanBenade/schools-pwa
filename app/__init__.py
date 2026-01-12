@@ -136,7 +136,7 @@ def create_app():
         user_role = session.get('role', 'teacher')
         
         show_dashboard = user_role in ['principal', 'deputy', 'admin']
-        show_admin = user_role in ['office_admin', 'admin']
+        show_admin = user_logged_in  # Dev: all magic link users
         
         icons_html = f'''
         <a href="/emergency/" class="app-icon">
