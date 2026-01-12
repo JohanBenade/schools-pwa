@@ -337,7 +337,7 @@ def process_absence(absence_id):
             already_assigned_today = get_teachers_assigned_on_date(target_date)
             
             # === MENTOR ROLL CALL (only first day for simplicity) ===
-            if absence['mentor_group_id'] and target_date == weekdays[0]:
+            if absence['mentor_group_id']:
                 adjacent_teacher = get_adjacent_teacher(absence['venue_code'])
                 
                 if adjacent_teacher:

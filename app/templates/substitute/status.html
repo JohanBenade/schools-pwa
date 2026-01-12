@@ -47,6 +47,21 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        .date-header {
+            background: #f1f5f9;
+            padding: 10px 16px;
+            margin: 0 -20px 16px -20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .date-header:first-of-type {
+            margin-top: -20px;
+            border-radius: 16px 16px 0 0;
+        }
         .assignment {
             display: flex;
             align-items: center;
@@ -135,7 +150,11 @@
         <div class="header">
             <span class="status-badge {{ absence.status|lower }}">{{ absence.status }}</span>
             <h1>{{ absence.teacher_name }}</h1>
-            <p>{{ absence.absence_type }} - {{ absence.absence_date }}</p>
+            {% if absence.end_date and absence.end_date != absence.absence_date %}
+            <p>{{ absence.absence_type }} • {{ absence.absence_date }} to {{ absence.end_date }}</p>
+            {% else %}
+            <p>{{ absence.absence_type }} • {{ absence.absence_date }}</p>
+            {% endif %}
         </div>
         
         {% set covered = requests|rejectattr('is_mentor_duty')|selectattr('status', 'eq', 'Assigned')|list|length %}
@@ -149,7 +168,12 @@
         <div class="card">
             <h2>Coverage Assignments</h2>
             
-            {% for req in requests %}
+            {% for date, date_requests in requests|groupby('request_date') %}
+            <div class="date-header">
+                📅 {{ date }}
+            </div>
+            
+            {% for req in date_requests %}
             <div class="assignment">
                 <div class="assignment-icon {% if req.is_mentor_duty %}mentor{% elif req.status == 'Assigned' %}period{% else %}no-cover{% endif %}">
                     {% if req.is_mentor_duty %}📋{% elif req.status == 'Assigned' %}✓{% else %}⚠️{% endif %}
@@ -167,6 +191,7 @@
                     {% if req.status == 'Assigned' %}Covered{% else %}No Cover{% endif %}
                 </span>
             </div>
+            {% endfor %}
             {% endfor %}
         </div>
         

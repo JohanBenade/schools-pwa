@@ -252,7 +252,7 @@ def absence_status(absence_id):
             LEFT JOIN period p ON sr.period_id = p.id
             LEFT JOIN staff sub ON sr.substitute_id = sub.id
             WHERE sr.absence_id = ?
-            ORDER BY sr.is_mentor_duty DESC, p.sort_order
+            ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
         """, (absence_id,))
         requests = [dict(row) for row in cursor.fetchall()]
         
@@ -308,7 +308,7 @@ def mission_control():
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN staff sub ON sr.substitute_id = sub.id
                 WHERE sr.absence_id = ?
-                ORDER BY sr.is_mentor_duty DESC, p.sort_order
+                ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
             """, (absence['id'],))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
         
@@ -374,7 +374,7 @@ def my_assignments():
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
             WHERE sr.substitute_id = ? AND a.absence_date = ?
-            ORDER BY sr.is_mentor_duty DESC, p.sort_order
+            ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
         """, (staff_id, today))
         assignments = [dict(row) for row in cursor.fetchall()]
         
