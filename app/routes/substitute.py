@@ -360,16 +360,33 @@ def mission_control():
 
 @substitute_bp.route('/my-assignments')
 def my_assignments():
-    """Substitute teacher's view - their assignments for today."""
+    """Substitute teacher's view - their schedule with sub duties."""
     staff_id = session.get('staff_id')
     if not staff_id:
         return redirect('/')
     
-    today = date.today().isoformat()
-    cycle_day = get_cycle_day()
+    # Handle Today/Tomorrow tabs
+    tab = request.args.get('tab', 'today')
+    today_date = date.today()
+    tomorrow_date = today_date + timedelta(days=1)
     
+    if tab == 'tomorrow':
+        target_date = tomorrow_date
+    else:
+        target_date = today_date
+    
+    target_date_str = target_date.isoformat()
+    
+    # Get cycle day for target date
     with get_connection() as conn:
         cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT cycle_day FROM cycle_day_config 
+            WHERE calendar_date = ? AND tenant_id = ?
+        """, (target_date_str, TENANT_ID))
+        cycle_row = cursor.fetchone()
+        cycle_day = cycle_row['cycle_day'] if cycle_row else 1
         
         cursor.execute("""
             SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
@@ -389,9 +406,9 @@ def my_assignments():
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
-            WHERE sr.substitute_id = ? AND sr.request_date = ?
+            WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
             ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
-        """, (staff_id, today))
+        """, (staff_id, target_date_str))
         assignments = [dict(row) for row in cursor.fetchall()]
         
         cursor.execute("""
@@ -437,17 +454,18 @@ def my_assignments():
         mentor_duty = next((a for a in assignments if a['is_mentor_duty']), None)
     
     back_url, back_label = get_back_url_for_user()
-    nav_header = get_nav_header("My Assignments", "/substitute/", "Substitutes")
+    nav_header = get_nav_header("My Schedule", "/substitute/", "Substitutes")
     nav_styles = get_nav_styles()
     
     return render_template('substitute/my_assignments.html',
                           schedule=schedule,
                           mentor_duty=mentor_duty,
-                          today=today,
+                          display_date=target_date.strftime('%a %d %b'),
                           cycle_day=cycle_day,
                           sub_count=len(assignments),
                           nav_header=nav_header,
-                          nav_styles=nav_styles)
+                          nav_styles=nav_styles,
+                          current_tab=tab)
 
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
