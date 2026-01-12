@@ -504,8 +504,10 @@ def reassign_declined_request(request_id, declined_by_id):
         assigned_today = get_teachers_assigned_on_date(target_date)
         assigned_today = set(assigned_today); assigned_today.discard(declined_by_id)  # Decliner is available again
         
-        # Get cycle day for this date
-        cursor.execute("SELECT cycle_day FROM cycle_day_config WHERE calendar_date = ? AND tenant_id = ?",
+        # Get cycle day (default to 1 for now)
+        cycle_day = get_cycle_day()  # Use current cycle day
+        if False:  # cycle_day_config table not implemented yet
+            cursor.execute("SELECT cycle_day FROM cycle_day_config_disabled WHERE calendar_date = ? AND tenant_id = ?",
                       (target_date, TENANT_ID))
         cycle_row = cursor.fetchone()
         cycle_day = cycle_row['cycle_day'] if cycle_row else 1
