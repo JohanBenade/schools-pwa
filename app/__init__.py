@@ -32,19 +32,12 @@ def create_app():
     @app.before_request
     def check_password_gate():
         """Password gate to keep out public visitors."""
-        # Skip for static files and the gate page itself
         if request.path.startswith('/static') or request.path == '/gate':
             return
-        
-        # Check if already authenticated via gate
         if session.get('gate_passed'):
             return
-        
-        # Check if gate password submitted
         if request.method == 'POST' and request.path == '/gate':
-            return  # Let the gate route handle it
-        
-        # Not authenticated - redirect to gate
+            return
         return redirect('/gate')
     
     @app.route('/gate', methods=['GET', 'POST'])
@@ -85,16 +78,8 @@ def create_app():
             max-width: 320px;
             width: 100%;
         }}
-        h1 {{
-            color: white;
-            font-size: 24px;
-            margin-bottom: 8px;
-        }}
-        p {{
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
-            margin-bottom: 24px;
-        }}
+        h1 {{ color: white; font-size: 24px; margin-bottom: 8px; }}
+        p {{ color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 24px; }}
         input {{
             width: 100%;
             padding: 14px 16px;
@@ -115,21 +100,15 @@ def create_app():
             font-weight: 600;
             cursor: pointer;
         }}
-        button:active {{
-            background: #2563eb;
-        }}
-        .error {{
-            color: #f87171;
-            font-size: 14px;
-            margin-bottom: 16px;
-        }}
+        button:active {{ background: #2563eb; }}
+        .error {{ color: #f87171; font-size: 14px; margin-bottom: 16px; }}
     </style>
 </head>
 <body>
     <div class="gate-box">
         <h1>SchoolOps</h1>
         <p>Pilot access only</p>
-        {"<div class=\'error\'>" + error + "</div>" if error else ""}
+        {"<div class='error'>" + error + "</div>" if error else ""}
         <form method="POST">
             <input type="password" name="password" placeholder="Enter password" autofocus>
             <button type="submit">Enter</button>
@@ -167,7 +146,6 @@ def create_app():
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
             
-            # Redirect to clean URL
             clean_url = request.path
             return redirect(clean_url)
     
@@ -185,7 +163,6 @@ def create_app():
     
     @app.route('/')
     def home():
-        # Check for active emergency alert
         from app.services.db import get_connection
         active_alert = None
         
@@ -203,6 +180,68 @@ def create_app():
         
         user_name = session.get('display_name', '')
         user_logged_in = 'staff_id' in session
+        user_role = session.get('role', 'teacher')
+        
+        # Role-based menu visibility
+        show_dashboard = user_role in ['principal', 'deputy', 'admin']
+        show_admin = user_role in ['office_admin', 'admin']
+        
+        # Build icon list based on role
+        icons_html = f'''
+        <!-- Emergency - Everyone -->
+        <a href="/emergency/" class="app-icon">
+            <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
+            <span class="app-label">Emergency</span>
+        </a>
+        
+        <!-- Roll Call - Everyone -->
+        <a href="/attendance/" class="app-icon">
+            <div class="icon-box bg-blue">&#128203;</div>
+            <span class="app-label">Roll Call</span>
+        </a>
+        
+        <!-- Substitutes - Everyone -->
+        <a href="/substitute/" class="app-icon">
+            <div class="icon-box bg-orange">&#128260;</div>
+            <span class="app-label">Substitutes</span>
+        </a>
+        '''
+        
+        # Dashboard - Leadership only
+        if show_dashboard:
+            icons_html += '''
+        <a href="/dashboard" class="app-icon">
+            <div class="icon-box bg-indigo">&#128200;</div>
+            <span class="app-label">Dashboard</span>
+        </a>
+        '''
+        
+        # Admin - Office admin and system admin only
+        if show_admin:
+            icons_html += '''
+        <a href="/admin/" class="app-icon">
+            <div class="icon-box bg-gray">&#128202;</div>
+            <span class="app-label">Admin</span>
+        </a>
+        '''
+        
+        # Placeholders - Everyone
+        icons_html += '''
+        <a href="#" class="app-icon coming-soon" onclick="return false;">
+            <div class="icon-box bg-green">&#128694;</div>
+            <span class="app-label">Duty</span>
+        </a>
+        
+        <a href="#" class="app-icon coming-soon" onclick="return false;">
+            <div class="icon-box bg-purple">&#128196;</div>
+            <span class="app-label">Documents</span>
+        </a>
+        
+        <a href="#" class="app-icon coming-soon" onclick="return false;">
+            <div class="icon-box bg-teal">&#128197;</div>
+            <span class="app-label">Timetable</span>
+        </a>
+        '''
         
         return f'''
 <!DOCTYPE html>
@@ -216,7 +255,6 @@ def create_app():
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
     <style>
@@ -242,25 +280,15 @@ def create_app():
             align-items: center;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }}
-        .user-bar a {{
-            color: #3b82f6;
-            text-decoration: none;
-        }}
+        .user-bar a {{ color: #3b82f6; text-decoration: none; }}
         .header {{
             text-align: center;
             margin-bottom: 40px;
             color: #1E293B;
             padding-top: 20px;
         }}
-        .header h1 {{
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }}
-        .header p {{
-            font-size: 14px;
-            opacity: 0.9;
-        }}
+        .header h1 {{ font-size: 28px; font-weight: 600; margin-bottom: 4px; }}
+        .header p {{ font-size: 14px; opacity: 0.9; }}
         .grid {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -282,9 +310,7 @@ def create_app():
             text-decoration: none;
             -webkit-tap-highlight-color: transparent;
         }}
-        .app-icon:active .icon-box {{
-            transform: scale(0.92);
-        }}
+        .app-icon:active .icon-box {{ transform: scale(0.92); }}
         .icon-box {{
             width: 60px;
             height: 60px;
@@ -299,12 +325,7 @@ def create_app():
             position: relative;
         }}
         @media (min-width: 768px) {{
-            .icon-box {{
-                width: 72px;
-                height: 72px;
-                border-radius: 16px;
-                font-size: 32px;
-            }}
+            .icon-box {{ width: 72px; height: 72px; border-radius: 16px; font-size: 32px; }}
         }}
         .app-label {{
             font-size: 11px;
@@ -314,7 +335,6 @@ def create_app():
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }}
         @media (min-width: 768px) {{
             .app-label {{ font-size: 12px; max-width: 80px; }}
@@ -326,16 +346,9 @@ def create_app():
         .bg-red {{ background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }}
         .bg-gray {{ background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }}
         .bg-teal {{ background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }}
-        .bg-pink {{ background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }}
         .bg-indigo {{ background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }}
-        
-        .coming-soon .icon-box {{
-            opacity: 0.4;
-        }}
-        .coming-soon .app-label {{
-            opacity: 0.6;
-        }}
-        
+        .coming-soon .icon-box {{ opacity: 0.4; }}
+        .coming-soon .app-label {{ opacity: 0.6; }}
         .footer {{
             text-align: center;
             margin-top: 50px;
@@ -343,35 +356,11 @@ def create_app():
             opacity: 0.7;
             font-size: 12px;
         }}
-        
-        .badge {{
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: #ef4444;
-            color: white;
-            font-size: 12px;
-            font-weight: 600;
-            min-width: 20px;
-            height: 20px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        
-        /* Emergency icon pulsing */
-        .emergency-pulse {{
-            animation: pulse-red 1.5s infinite;
-        }}
+        .emergency-pulse {{ animation: pulse-red 1.5s infinite; }}
         @keyframes pulse-red {{
             0%, 100% {{ box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }}
             50% {{ box-shadow: 0 4px 20px rgba(239, 68, 68, 0.8); }}
         }}
-        
-        /* Push notification prompt */
         .push-prompt {{
             position: fixed;
             bottom: 20px;
@@ -388,13 +377,8 @@ def create_app():
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 1000;
         }}
-        .push-prompt.show {{
-            display: flex;
-        }}
-        .push-prompt-text {{
-            flex: 1;
-            font-size: 14px;
-        }}
+        .push-prompt.show {{ display: flex; }}
+        .push-prompt-text {{ flex: 1; font-size: 14px; }}
         .push-prompt-btn {{
             padding: 8px 16px;
             border: none;
@@ -403,14 +387,8 @@ def create_app():
             font-weight: 600;
             cursor: pointer;
         }}
-        .push-prompt-btn.allow {{
-            background: #22c55e;
-            color: white;
-        }}
-        .push-prompt-btn.dismiss {{
-            background: transparent;
-            color: #94a3b8;
-        }}
+        .push-prompt-btn.allow {{ background: #22c55e; color: white; }}
+        .push-prompt-btn.dismiss {{ background: transparent; color: #94a3b8; }}
     </style>
 </head>
 <body>
@@ -419,7 +397,6 @@ def create_app():
         {'<a href="/admin/seed-emergency">Setup</a>' if user_logged_in else '<span style="opacity:0.5">Use magic link to login</span>'}
     </div>
     
-    <!-- Alert banner placeholder - polled via HTMX -->
     <div id="alert-banner" 
          hx-get="/emergency/banner" 
          hx-trigger="load, every 5s"
@@ -432,55 +409,11 @@ def create_app():
     </div>
     
     <div class="grid">
-        <!-- Emergency - Primary for demo -->
-        <a href="/emergency/" class="app-icon">
-            <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
-            <span class="app-label">Emergency</span>
-        </a>
-        
-        <!-- Roll Call -->
-        <a href="/attendance/" class="app-icon">
-            <div class="icon-box bg-blue">&#128203;</div>
-            <span class="app-label">Roll Call</span>
-        </a>
-        
-        <!-- Eagle Eye - Principal Dashboard -->
-        <a href="/principal/" class="app-icon">
-            <div class="icon-box bg-indigo">&#129413;</div>
-            <span class="app-label">Eagle Eye</span>
-        </a>
-        
-        <!-- Admin -->
-        <a href="/admin/" class="app-icon">
-            <div class="icon-box bg-gray">&#128202;</div>
-            <span class="app-label">Admin</span>
-        </a>
-        
-        <!-- Coming Soon -->
-        <a href="/substitute/" class="app-icon">
-            <div class="icon-box bg-orange">&#128260;</div>
-            <span class="app-label">Substitutes</span>
-        </a>
-        
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-green">&#128694;</div>
-            <span class="app-label">Duty</span>
-        </a>
-        
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-purple">&#128196;</div>
-            <span class="app-label">Documents</span>
-        </a>
-        
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-teal">&#128197;</div>
-            <span class="app-label">Timetable</span>
-        </a>
+        {icons_html}
     </div>
     
     <div class="footer">Term 1 2026 Pilot</div>
     
-    <!-- Push notification prompt -->
     <div class="push-prompt" id="pushPrompt">
         <span class="push-prompt-text">🔔 Enable notifications to receive emergency alerts</span>
         <button class="push-prompt-btn dismiss" onclick="dismissPushPrompt()">Later</button>
@@ -489,38 +422,44 @@ def create_app():
     
     <script src="/static/push.js"></script>
     <script>
-        // Check if we should show push prompt
         function checkPushPrompt() {{
             if (!('Notification' in window)) return;
             if (!('serviceWorker' in navigator)) return;
             if (Notification.permission !== 'default') return;
             if (localStorage.getItem('push_prompt_dismissed')) return;
-            
-            // Show prompt after 2 seconds
             setTimeout(() => {{
                 document.getElementById('pushPrompt').classList.add('show');
             }}, 2000);
         }}
-        
         async function enablePushNotifications() {{
             document.getElementById('pushPrompt').classList.remove('show');
             const granted = await requestNotificationPermission();
-            if (granted) {{
-                console.log('Push notifications enabled!');
-            }}
+            if (granted) {{ console.log('Push notifications enabled!'); }}
         }}
-        
         function dismissPushPrompt() {{
             document.getElementById('pushPrompt').classList.remove('show');
             localStorage.setItem('push_prompt_dismissed', 'true');
         }}
-        
-        // Check on load
         {'checkPushPrompt();' if user_logged_in else ''}
     </script>
 </body>
 </html>
 '''
+    
+    # Redirect old URLs to new dashboard
+    @app.route('/principal/')
+    def old_eagle_eye():
+        return redirect('/dashboard')
+    
+    @app.route('/dashboard')
+    def management_dashboard():
+        """Management Dashboard - Principal, Deputy, Admin only."""
+        user_role = session.get('role', 'teacher')
+        if user_role not in ['principal', 'deputy', 'admin']:
+            return redirect('/')
+        
+        # Placeholder - we'll build this next
+        return redirect('/substitute/mission-control')
     
     @app.route('/firebase-messaging-sw.js')
     def firebase_sw():
