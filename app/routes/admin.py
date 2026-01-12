@@ -1326,3 +1326,62 @@ def add_bongi():
         'display_name': staff['display_name'],
         'magic_link': 'https://schoolops.co.za/?u=bongi'
     })
+
+
+@admin_bp.route('/add-deputies')
+def add_deputies():
+    """Add Kea and Marie-Louise as deputy users."""
+    import uuid
+    
+    results = {'added': [], 'errors': []}
+    
+    deputies = [
+        {'surname': 'Mogapi', 'magic_code': 'kea', 'first_name': 'Kea'},
+        {'surname': 'Korb', 'magic_code': 'marielouise', 'first_name': 'Marie-Louise'},
+    ]
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for dep in deputies:
+            cursor.execute("""
+                SELECT id, display_name FROM staff 
+                WHERE surname = ? AND tenant_id = 'MARAGON'
+            """, (dep['surname'],))
+            staff = cursor.fetchone()
+            
+            if not staff:
+                results['errors'].append(f"{dep['first_name']} {dep['surname']} not found in staff table")
+                continue
+            
+            cursor.execute("SELECT id FROM user_session WHERE magic_code = ?", (dep['magic_code'],))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute("""
+                    UPDATE user_session 
+                    SET staff_id = ?, display_name = ?, role = 'deputy', can_resolve = 1
+                    WHERE magic_code = ?
+                """, (staff['id'], staff['display_name'], dep['magic_code']))
+            else:
+                cursor.execute("""
+                    INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+                    VALUES (?, 'MARAGON', ?, ?, ?, 'deputy', 1)
+                """, (str(uuid.uuid4()), staff['id'], dep['magic_code'], staff['display_name']))
+            
+            results['added'].append({
+                'name': staff['display_name'],
+                'magic_code': dep['magic_code'],
+                'magic_link': f"https://schoolops.co.za/?u={dep['magic_code']}"
+            })
+        
+        conn.commit()
+        
+        cursor.execute("""
+            SELECT magic_code, display_name, role FROM user_session 
+            WHERE tenant_id = 'MARAGON'
+            ORDER BY role, display_name
+        """)
+        results['all_sessions'] = [dict(row) for row in cursor.fetchall()]
+    
+    return jsonify(results)
