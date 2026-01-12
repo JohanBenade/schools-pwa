@@ -1,68 +1,76 @@
-{% extends "base.html" %}
-{% block title %}Admin Dashboard{% endblock %}
-
-{% block content %}
-<div class="p-4 pb-24">
-    <div class="mb-4">
-        <h1 class="text-xl font-bold text-gray-800">Attendance Dashboard</h1>
-        <p class="text-gray-600">{{ today_display }}</p>
-    </div>
-    
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 gap-3 mb-6">
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div class="text-2xl font-bold text-blue-700">{{ submitted_count }}/{{ total_groups }}</div>
-            <div class="text-sm text-blue-600">Submitted</div>
-        </div>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <div class="text-2xl font-bold text-amber-700">{{ pending_count }}</div>
-            <div class="text-sm text-amber-600">Pending</div>
-        </div>
-    </div>
-    
-    <!-- Classes List - sorted by status -->
-    <div class="space-y-2">
-        {% for group in groups %}
-        {% set has_absent = group.absent_count and group.absent_count > 0 %}
-        {% set is_fully_captured = has_absent and group.captured_count == group.absent_count %}
-        {% set is_all_present = group.attendance_id and not has_absent %}
-        {% set is_done = is_fully_captured or is_all_present %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        {{ nav_styles|safe }}
+        .nav-header { border-bottom-color: rgba(0,0,0,0.1); }
+        .nav-back { color: #2563eb; }
+        .nav-back:hover { background: rgba(37, 99, 235, 0.1); }
+        .nav-title { color: #1e293b; }
+        .date-display { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 20px; }
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-card h3 { font-size: 32px; font-weight: 700; color: #1e293b; }
+        .stat-card p { font-size: 14px; color: #64748b; }
+        .stat-card.highlight h3 { color: #ea580c; }
+        .class-list { display: flex; flex-direction: column; gap: 8px; }
+        .class-row { display: flex; justify-content: space-between; align-items: center; background: white; padding: 16px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .class-info { display: flex; align-items: center; gap: 12px; }
+        .class-code { font-weight: 600; color: #1e293b; }
+        .class-mentor { color: #64748b; font-size: 14px; }
+        .class-status { font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 6px; }
+        .status-pending { background: #fef3c7; color: #b45309; }
+        .status-submitted { background: #d1fae5; color: #047857; }
+        .status-action { background: #fee2e2; color: #b91c1c; }
+        .refresh-btn { display: block; width: 100%; padding: 16px; background: white; border: none; border-radius: 12px; font-size: 16px; color: #64748b; cursor: pointer; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .refresh-btn:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
         
-        {% if group.attendance_id %}
-        <a href="{{ url_for('admin.class_detail', attendance_id=group.attendance_id) }}" 
-           class="block rounded-lg p-3 shadow-sm border {% if is_done %}bg-gray-50 border-gray-200 opacity-60{% else %}bg-white border-green-300{% endif %}">
-        {% else %}
-        <div class="bg-white rounded-lg p-3 shadow-sm border border-amber-300">
-        {% endif %}
-            <div class="flex justify-between items-center">
-                <div>
-                    <span class="font-medium {% if is_done %}text-gray-500{% else %}text-gray-800{% endif %}">{{ group.group_name }}</span>
-                    <span class="text-gray-400 text-sm ml-2">{{ group.mentor_name or 'No mentor' }}</span>
-                </div>
-                {% if group.attendance_id %}
-                <div class="flex items-center gap-1">
-                    <span class="inline-block min-w-[24px] px-1.5 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700 text-center">{{ group.present_count }}</span>
-                    <span class="inline-block min-w-[24px] px-1.5 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700 text-center">{{ group.absent_count }}{% if group.captured_count and not is_done %}<sup>{{ group.captured_count }}</sup>{% endif %}</span>
-                    <span class="inline-block min-w-[24px] px-1.5 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700 text-center">{{ group.late_count }}</span>
-                    {% if is_done %}<span class="text-xs text-gray-400 ml-1">✓</span>{% endif %}
-                </div>
-                {% else %}
-                <span class="text-amber-600 text-xs font-medium">⏳ Pending</span>
-                {% endif %}
+        <div class="date-display">{{ today_display }}</div>
+        
+        <div class="stats-row">
+            <div class="stat-card">
+                <h3>{{ submitted_count }}/{{ total_groups }}</h3>
+                <p>Submitted</p>
             </div>
-        {% if group.attendance_id %}
-        </a>
-        {% else %}
+            <div class="stat-card highlight">
+                <h3>{{ pending_count }}</h3>
+                <p>Pending</p>
+            </div>
         </div>
-        {% endif %}
-        {% endfor %}
+        
+        <div class="class-list">
+            {% for group in groups %}
+            <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% else %}#{% endif %}" 
+               class="class-row" style="text-decoration: none;">
+                <div class="class-info">
+                    <span class="class-code">{{ group.group_name }}</span>
+                    <span class="class-mentor">{{ group.mentor_name or 'No mentor' }}</span>
+                </div>
+                <span class="class-status {% if not group.attendance_id %}status-pending{% elif group.absent_count and group.absent_count > group.captured_count %}status-action{% else %}status-submitted{% endif %}">
+                    {% if not group.attendance_id %}
+                        ⏳ Pending
+                    {% elif group.absent_count and group.absent_count > group.captured_count %}
+                        🔴 {{ group.absent_count - group.captured_count }} to capture
+                    {% else %}
+                        ✓ Done
+                    {% endif %}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+        
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Dashboard</button>
     </div>
-    
-    <!-- Refresh -->
-    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-        <button onclick="location.reload()" class="w-full py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200">
-            🔄 Refresh Dashboard
-        </button>
-    </div>
-</div>
-{% endblock %}
+</body>
+</html>
