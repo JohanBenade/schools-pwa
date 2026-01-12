@@ -30,6 +30,117 @@ def create_app():
     app.register_blueprint(substitute_bp)
     
     @app.before_request
+    def check_password_gate():
+        """Password gate to keep out public visitors."""
+        # Skip for static files and the gate page itself
+        if request.path.startswith('/static') or request.path == '/gate':
+            return
+        
+        # Check if already authenticated via gate
+        if session.get('gate_passed'):
+            return
+        
+        # Check if gate password submitted
+        if request.method == 'POST' and request.path == '/gate':
+            return  # Let the gate route handle it
+        
+        # Not authenticated - redirect to gate
+        return redirect('/gate')
+    
+    @app.route('/gate', methods=['GET', 'POST'])
+    def password_gate():
+        """Password gate page."""
+        error = None
+        if request.method == 'POST':
+            password = request.form.get('password', '')
+            if password == 'maragon2026':
+                session['gate_passed'] = True
+                return redirect('/')
+            else:
+                error = 'Incorrect password'
+        
+        return f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolOps</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .gate-box {{
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+        }}
+        h1 {{
+            color: white;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }}
+        p {{
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }}
+        input {{
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }}
+        button {{
+            width: 100%;
+            padding: 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }}
+        button:active {{
+            background: #2563eb;
+        }}
+        .error {{
+            color: #f87171;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="gate-box">
+        <h1>SchoolOps</h1>
+        <p>Pilot access only</p>
+        {"<div class=\'error\'>" + error + "</div>" if error else ""}
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter password" autofocus>
+            <button type="submit">Enter</button>
+        </form>
+    </div>
+</body>
+</html>
+'''
+    
+
+    @app.before_request
     def handle_magic_link():
         """Handle magic link login via ?u= parameter."""
         magic_code = request.args.get('u')

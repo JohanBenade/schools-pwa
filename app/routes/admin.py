@@ -1233,3 +1233,64 @@ def reset_substitute_test():
         'success': True,
         'message': 'Substitute test data cleared, pointer reset to A'
     })
+
+
+@admin_bp.route('/add-johan')
+def add_johan():
+    """Add Johan as test user with Z999 venue."""
+    import uuid
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Check if Johan already exists
+        cursor.execute("SELECT id FROM staff WHERE surname = 'Benade' AND tenant_id = 'MARAGON'")
+        existing_staff = cursor.fetchone()
+        
+        if existing_staff:
+            staff_id = existing_staff['id']
+        else:
+            # Create staff record
+            staff_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO staff (id, tenant_id, title, first_name, surname, display_name, staff_type, can_substitute, is_active)
+                VALUES (?, 'MARAGON', 'Mr', 'Johan', 'Benade', 'Mr Johan', 'Admin', 0, 1)
+            """, (staff_id,))
+        
+        # Check if venue Z999 exists
+        cursor.execute("SELECT id FROM venue WHERE venue_code = 'Z999' AND tenant_id = 'MARAGON'")
+        existing_venue = cursor.fetchone()
+        
+        if existing_venue:
+            venue_id = existing_venue['id']
+        else:
+            # Create venue
+            venue_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO venue (id, tenant_id, venue_code, venue_name, venue_type, block, sort_order, is_active)
+                VALUES (?, 'MARAGON', 'Z999', 'Z999 - Mr Johan (SchoolOps)', 'office', 'Admin', 999, 1)
+            """, (venue_id,))
+        
+        # Link staff to venue
+        cursor.execute("DELETE FROM staff_venue WHERE staff_id = ?", (staff_id,))
+        cursor.execute("""
+            INSERT INTO staff_venue (staff_id, venue_id, tenant_id)
+            VALUES (?, ?, 'MARAGON')
+        """, (staff_id, venue_id))
+        
+        # Create or update user session
+        cursor.execute("DELETE FROM user_session WHERE magic_code = 'johan'")
+        cursor.execute("""
+            INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+            VALUES (?, 'MARAGON', ?, 'johan', 'Mr Johan', 'admin', 1)
+        """, (str(uuid.uuid4()), staff_id))
+        
+        conn.commit()
+    
+    return jsonify({
+        'success': True,
+        'staff_id': staff_id,
+        'venue_id': venue_id,
+        'magic_link': 'https://schoolops.co.za/?u=johan',
+        'message': 'Johan added with Z999 venue and admin role'
+    })
