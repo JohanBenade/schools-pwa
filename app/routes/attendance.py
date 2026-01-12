@@ -80,20 +80,28 @@ def roll_call(mentor_group_id):
     
     stats = get_pending_stats_sqlite(mentor_group_id)
     
+    # Pass individual variables that template expects
+    group_name = group['group_name']
+    mentor_name = group.get('mentor_name', 'No mentor assigned')
+    
     return render_template('attendance/roll_call.html',
                          group=group,
+                         group_name=group_name,
+                         mentor_name=mentor_name,
                          learners=learners,
                          stats=stats,
                          already_submitted=already_submitted,
                          submitted_at=submitted_at,
                          nav_header=True,
-                         nav_title=group['group_name'],
+                         nav_title=group_name,
                          nav_back_url='/attendance/',
                          nav_back_label='Groups')
 
 
-@attendance_bp.route('/mark/<learner_id>/<status>')
-def mark_learner(learner_id, status):
+@attendance_bp.route('/mark/<learner_id>', methods=['POST'])
+def mark_learner(learner_id):
+    """Mark a learner's attendance status"""
+    status = request.form.get('status', 'Present')
     mentor_group_id = session.get('current_mentor_group_id')
     existing_attendance_id = session.get('existing_attendance_id')
     
@@ -112,11 +120,15 @@ def get_stats():
     
     if existing_attendance_id:
         marks = get_attendance_entries(existing_attendance_id)
+        learners = get_learners_by_mentor_group_sqlite(mentor_group_id)
+        total_learners = len(learners)
+        marked_learners = set(marks.keys())
+        
         stats = {
             'present': sum(1 for s in marks.values() if s == 'Present'),
             'absent': sum(1 for s in marks.values() if s == 'Absent'),
             'late': sum(1 for s in marks.values() if s == 'Late'),
-            'unmarked': sum(1 for s in marks.values() if s == 'Unmarked')
+            'unmarked': total_learners - len([s for s in marks.values() if s in ('Present', 'Absent', 'Late')])
         }
     elif mentor_group_id:
         stats = get_pending_stats_sqlite(mentor_group_id)
