@@ -12,21 +12,21 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 40px);
+        }
+        .content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
-            color: white;
         }
-        .user-info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        
         .container {
             text-align: center;
             max-width: 400px;
@@ -59,67 +59,46 @@
             transform: scale(0.95);
             box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
         }
-        .emergency-btn span {
+        .emergency-btn .icon {
             font-size: 48px;
             margin-bottom: 8px;
         }
-        .help-text {
-            margin-top: 40px;
+        .hint {
+            margin-top: 30px;
             font-size: 14px;
             opacity: 0.7;
-            line-height: 1.6;
         }
-        .location-hint {
-            margin-top: 20px;
-            padding: 12px 20px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
+        .history-link {
+            margin-top: 40px;
+        }
+        .history-link a {
+            color: #60a5fa;
+            text-decoration: none;
             font-size: 14px;
         }
-        .location-hint strong {
-            color: #60a5fa;
-        }
-        .cancel-link {
-            display: block;
-            margin-top: 30px;
-            color: rgba(255,255,255,0.6);
-            text-decoration: none;
-            font-size: 16px;
-        }
-        .cancel-link:hover {
-            color: rgba(255,255,255,0.8);
-        }
+        {{ nav_styles|safe }}
     </style>
 </head>
 <body>
-    <div class="user-info">{{ user.display_name }}</div>
-    
-    
-    <div class="container">
-        <h1>Emergency Alert</h1>
+    <div class="page-wrapper">
+        {{ nav_header|safe }}
         
-        <a href="{{ url_for('emergency.trigger') }}" class="emergency-btn">
-            <span>🚨</span>
-            EMERGENCY
-        </a>
-        
-        {% if user.default_venue_name %}
-        <div class="location-hint">
-            Your default location: <strong>{{ user.default_venue_name }}</strong>
+        <div class="content">
+            <div class="container">
+                <h1>Emergency Alert</h1>
+                
+                <a href="/emergency/trigger" class="emergency-btn">
+                    <span class="icon">🚨</span>
+                    <span>EMERGENCY</span>
+                </a>
+                
+                <p class="hint">Tap to trigger an emergency alert</p>
+                
+                <div class="history-link">
+                    <a href="/emergency/history">View Alert History →</a>
+                </div>
+            </div>
         </div>
-        {% endif %}
-        
-        <p class="help-text">
-            Tap the button to select emergency type<br>and location on next screen.
-        </p>
-        
-        <a href="/" class="cancel-link">Cancel</a>
-    </div>
-    
-    <!-- Poll for active alerts -->
-    <div hx-get="{{ url_for('emergency.banner') }}" 
-         hx-trigger="every 5s"
-         hx-swap="innerHTML">
     </div>
 </body>
 </html>

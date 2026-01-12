@@ -14,93 +14,95 @@
             padding: 20px;
             color: white;
         }
-        .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        .back-btn {
-            color: white;
-            text-decoration: none;
-            font-size: 24px;
-            margin-right: 16px;
+        .page-wrapper {
+            max-width: 500px;
+            margin: 0 auto;
         }
         h1 {
-            font-size: 20px;
+            font-size: 24px;
+            margin-bottom: 30px;
             font-weight: 500;
+            text-align: center;
         }
-        .types-grid {
+        .type-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
-            max-width: 400px;
-            margin: 0 auto;
+            margin-bottom: 30px;
         }
         .type-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 30px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
             border-radius: 16px;
-            border: none;
+            padding: 24px 16px;
+            text-align: center;
             cursor: pointer;
-            text-decoration: none;
-            transition: transform 0.1s;
+            transition: all 0.2s;
         }
-        .type-btn:active {
-            transform: scale(0.95);
+        .type-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
         }
-        .type-btn span {
-            font-size: 48px;
+        .type-btn .icon {
+            font-size: 40px;
             margin-bottom: 12px;
+            display: block;
         }
-        .type-btn strong {
+        .type-btn .label {
             font-size: 16px;
+            font-weight: 500;
             color: white;
         }
-        .medical { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
-        .security { background: linear-gradient(135deg, #f97316 0%, #c2410c 100%); }
-        .fire { background: linear-gradient(135deg, #eab308 0%, #a16207 100%); }
-        .general { background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); }
-        
-        .cancel-link {
-            display: block;
-            text-align: center;
-            margin-top: 30px;
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            font-size: 16px;
-        }
+        .type-btn.medical { border-color: #ef4444; }
+        .type-btn.medical:hover { background: rgba(239, 68, 68, 0.2); }
+        .type-btn.security { border-color: #f59e0b; }
+        .type-btn.security:hover { background: rgba(245, 158, 11, 0.2); }
+        .type-btn.fire { border-color: #f97316; }
+        .type-btn.fire:hover { background: rgba(249, 115, 22, 0.2); }
+        .type-btn.general { border-color: #3b82f6; }
+        .type-btn.general:hover { background: rgba(59, 130, 246, 0.2); }
+        {{ nav_styles|safe }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <a href="/" class="back-btn">&larr;</a>
+    <div class="page-wrapper">
+        {{ nav_header|safe }}
+        
         <h1>What type of emergency?</h1>
+        
+        <div class="type-grid">
+            <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="alert_type" value="Medical">
+                <button type="submit" class="type-btn medical">
+                    <span class="icon">🏥</span>
+                    <span class="label">Medical</span>
+                </button>
+            </form>
+            
+            <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="alert_type" value="Security">
+                <button type="submit" class="type-btn security">
+                    <span class="icon">🚨</span>
+                    <span class="label">Security</span>
+                </button>
+            </form>
+            
+            <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="alert_type" value="Fire">
+                <button type="submit" class="type-btn fire">
+                    <span class="icon">🔥</span>
+                    <span class="label">Fire</span>
+                </button>
+            </form>
+            
+            <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="alert_type" value="General">
+                <button type="submit" class="type-btn general">
+                    <span class="icon">⚡</span>
+                    <span class="label">General</span>
+                </button>
+            </form>
+        </div>
     </div>
-    
-    <div class="types-grid">
-        <form action="{{ url_for('emergency.trigger') }}" method="POST" style="display: contents;">
-            <button type="submit" name="alert_type" value="Medical" class="type-btn medical">
-                <span>🏥</span>
-                <strong>Medical</strong>
-            </button>
-            <button type="submit" name="alert_type" value="Security" class="type-btn security">
-                <span>🔒</span>
-                <strong>Security</strong>
-            </button>
-            <button type="submit" name="alert_type" value="Fire" class="type-btn fire">
-                <span>🔥</span>
-                <strong>Fire</strong>
-            </button>
-            <button type="submit" name="alert_type" value="General" class="type-btn general">
-                <span>⚠️</span>
-                <strong>General</strong>
-            </button>
-        </form>
-    </div>
-    
-    <a href="/" class="cancel-link">Cancel</a>
 </body>
 </html>

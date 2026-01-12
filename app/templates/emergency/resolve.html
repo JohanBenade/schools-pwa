@@ -4,32 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Resolve Emergency - SchoolOps</title>
+    <title>Resolve Alert - SchoolOps</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             padding: 20px;
             color: white;
         }
-        .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 24px;
+        .page-wrapper {
+            max-width: 500px;
+            margin: 0 auto;
         }
-        .back-btn {
-            color: white;
-            text-decoration: none;
-            font-size: 24px;
-            margin-right: 16px;
-        }
-        h1 {
-            font-size: 20px;
-            font-weight: 500;
-        }
-        
         .alert-summary {
             background: rgba(239, 68, 68, 0.2);
             border: 1px solid rgba(239, 68, 68, 0.4);
@@ -37,183 +25,151 @@
             padding: 16px;
             margin-bottom: 24px;
         }
-        .alert-summary h2 {
-            font-size: 18px;
-            margin-bottom: 8px;
-        }
-        .alert-summary p {
+        .alert-summary .type {
             font-size: 14px;
-            opacity: 0.9;
+            font-weight: 600;
+            opacity: 0.8;
         }
-        
-        .responders-summary {
-            margin-bottom: 24px;
+        .alert-summary .location {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 4px;
         }
-        .responders-summary h3 {
+        .section-title {
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.7;
+            font-weight: 600;
             margin-bottom: 12px;
+            opacity: 0.8;
         }
-        .responder-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .chip {
-            background: rgba(34, 197, 94, 0.3);
-            color: #22c55e;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-        }
-        
-        .form-section {
-            margin-bottom: 24px;
-        }
-        .form-section label {
-            display: block;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.7;
-            margin-bottom: 12px;
-        }
-        
         .resolution-options {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
+            margin-bottom: 24px;
         }
         .resolution-option {
             display: flex;
             align-items: center;
-            padding: 16px;
+            gap: 12px;
             background: rgba(255,255,255,0.1);
             border: 2px solid transparent;
             border-radius: 12px;
+            padding: 14px 16px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .resolution-option:has(input:checked) {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.2);
+        .resolution-option:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .resolution-option.selected {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.2);
         }
         .resolution-option input {
-            margin-right: 12px;
-            width: 20px;
-            height: 20px;
+            display: none;
         }
         .resolution-option .icon {
             font-size: 24px;
-            margin-right: 12px;
         }
-        .resolution-option .text strong {
-            display: block;
-            margin-bottom: 2px;
-        }
-        .resolution-option .text span {
-            font-size: 13px;
-            opacity: 0.8;
-        }
-        
-        textarea {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            background: rgba(255,255,255,0.1);
-            color: white;
+        .resolution-option .label {
             font-size: 16px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 100px;
+            font-weight: 500;
         }
-        textarea::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
-        
-        .submit-btn {
+        .notes-input {
             width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: white;
+            font-size: 15px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 24px;
+        }
+        .notes-input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        .resolve-btn {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             border: none;
             border-radius: 12px;
+            padding: 18px 24px;
             color: white;
             font-size: 18px;
             font-weight: 600;
+            width: 100%;
             cursor: pointer;
-            margin-top: 24px;
-            transition: transform 0.1s;
         }
-        .submit-btn:active {
+        .resolve-btn:active {
             transform: scale(0.98);
         }
+        .responders-summary {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .responders-list {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+        {{ nav_styles|safe }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <a href="{{ url_for('emergency.index') }}" class="back-btn">&larr;</a>
-        <h1>Resolve Emergency</h1>
-    </div>
-    
-    <div class="alert-summary">
-        <h2>{{ alert.alert_type }} at {{ alert.location_display }}</h2>
-        <p>Triggered by {{ alert.triggered_by_name or 'Unknown' }}</p>
-    </div>
-    
-    <div class="responders-summary">
-        <h3>Responders ({{ responders|length }})</h3>
-        <div class="responder-chips">
-            {% for r in responders %}
-            <span class="chip">{{ r.responder_name or 'Staff' }}</span>
-            {% endfor %}
-            {% if not responders %}
-            <span style="opacity: 0.7;">No responders</span>
-            {% endif %}
+    <div class="page-wrapper">
+        {{ nav_header|safe }}
+        
+        <div class="alert-summary">
+            <div class="type">{{ alert.alert_type }} Emergency</div>
+            <div class="location">{{ alert.location_display }}</div>
         </div>
-    </div>
-    
-    <form action="{{ url_for('emergency.resolve') }}" method="POST">
-        <div class="form-section">
-            <label>Resolution</label>
-            <div class="resolution-options">
-                <label class="resolution-option">
-                    <input type="radio" name="resolution_type" value="AllClear" checked>
-                    <span class="icon">&#10003;</span>
-                    <div class="text">
-                        <strong>All Clear</strong>
-                        <span>Situation resolved, safe to resume</span>
-                    </div>
-                </label>
-                <label class="resolution-option">
-                    <input type="radio" name="resolution_type" value="FalseAlarm">
-                    <span class="icon">&#10060;</span>
-                    <div class="text">
-                        <strong>False Alarm</strong>
-                        <span>Alert triggered by mistake</span>
-                    </div>
-                </label>
-                <label class="resolution-option">
-                    <input type="radio" name="resolution_type" value="Escalated">
-                    <span class="icon">&#8599;</span>
-                    <div class="text">
-                        <strong>Escalated</strong>
-                        <span>Handed to external services</span>
-                    </div>
-                </label>
+        
+        {% if responders %}
+        <div class="responders-summary">
+            <div class="section-title">Responders ({{ responders|length }})</div>
+            <div class="responders-list">
+                {{ responders|map(attribute='responder_name')|join(', ') }}
             </div>
         </div>
+        {% endif %}
         
-        <div class="form-section">
-            <label>Notes (optional)</label>
-            <textarea name="notes" placeholder="Any additional details..."></textarea>
-        </div>
-        
-        <button type="submit" class="submit-btn">
-            Resolve Emergency
-        </button>
-    </form>
+        <form action="/emergency/resolve" method="POST">
+            <div class="section-title">Resolution Type</div>
+            <div class="resolution-options">
+                <label class="resolution-option selected" onclick="selectOption(this)">
+                    <input type="radio" name="resolution_type" value="AllClear" checked>
+                    <span class="icon">✅</span>
+                    <span class="label">All Clear - Situation resolved</span>
+                </label>
+                <label class="resolution-option" onclick="selectOption(this)">
+                    <input type="radio" name="resolution_type" value="FalseAlarm">
+                    <span class="icon">❌</span>
+                    <span class="label">False Alarm</span>
+                </label>
+                <label class="resolution-option" onclick="selectOption(this)">
+                    <input type="radio" name="resolution_type" value="Escalated">
+                    <span class="icon">🚑</span>
+                    <span class="label">Escalated - External help called</span>
+                </label>
+            </div>
+            
+            <div class="section-title">Notes (optional)</div>
+            <textarea name="notes" class="notes-input" placeholder="Brief summary of what happened..."></textarea>
+            
+            <button type="submit" class="resolve-btn">
+                ✓ Resolve Alert
+            </button>
+        </form>
+    </div>
+    
+    <script>
+        function selectOption(el) {
+            document.querySelectorAll('.resolution-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+    </script>
 </body>
 </html>

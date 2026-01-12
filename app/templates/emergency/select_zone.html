@@ -3,235 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Select Location - Emergency</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Select Location - SchoolOps</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
+            padding: 20px;
             color: white;
         }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 20px;
-            background: rgba(255,255,255,0.1);
-        }
-        .header a {
-            color: #93c5fd;
-            text-decoration: none;
-            font-size: 14px;
-        }
-        .content {
-            padding: 20px;
+        .page-wrapper {
             max-width: 500px;
             margin: 0 auto;
         }
         .alert-type-badge {
             display: inline-block;
-            background: #ef4444;
-            color: white;
             padding: 8px 16px;
             border-radius: 20px;
-            font-weight: 600;
             font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .alert-type-badge.Medical { background: #ef4444; }
+        .alert-type-badge.Security { background: #f59e0b; }
+        .alert-type-badge.Fire { background: #f97316; }
+        .alert-type-badge.General { background: #3b82f6; }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.7;
             margin-bottom: 24px;
         }
-        
-        .default-location {
-            margin-bottom: 32px;
-        }
-        .default-location-label {
-            font-size: 13px;
-            color: #94a3b8;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .default-location-btn {
-            display: block;
-            width: 100%;
-            padding: 18px 20px;
+        .quick-send {
             background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             border: none;
             border-radius: 12px;
+            padding: 16px 20px;
             color: white;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
+            width: 100%;
             cursor: pointer;
-            text-align: center;
-            text-decoration: none;
-            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
-        .default-location-btn:active {
-            transform: scale(0.98);
-        }
-        .default-location-btn span {
-            display: block;
-            font-size: 13px;
-            font-weight: 400;
-            opacity: 0.9;
-            margin-top: 4px;
-        }
-        
-        .divider {
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
-            margin: 24px 0;
-            color: #64748b;
-            font-size: 13px;
-        }
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #334155;
-        }
-        .divider span {
-            padding: 0 16px;
-        }
-        
-        h2 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #e2e8f0;
-        }
-        .zones {
-            display: flex;
-            flex-direction: column;
+            justify-content: center;
             gap: 10px;
         }
-        .zones.collapsed .zone-wrapper:not(.selected) {
-            display: none;
+        .quick-send:active {
+            transform: scale(0.98);
         }
-        .zone-wrapper {
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 14px;
+            opacity: 0.5;
+        }
+        .zone-list {
             display: flex;
             flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
         }
         .zone-btn {
-            display: block;
-            width: 100%;
-            padding: 16px 20px;
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 10px;
+            border-radius: 12px;
+            padding: 14px 16px;
             color: white;
-            font-size: 16px;
+            font-size: 15px;
             text-align: left;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .zone-btn:hover {
             background: rgba(255,255,255,0.15);
         }
-        .zone-wrapper.selected .zone-btn {
-            background: #3b82f6;
+        .zone-btn.active {
+            background: rgba(59, 130, 246, 0.3);
             border-color: #3b82f6;
         }
-        
+        .zone-btn::after {
+            content: '›';
+            font-size: 20px;
+            opacity: 0.5;
+        }
         .venue-list {
-            margin-top: 12px;
-            margin-left: 16px;
-            padding-left: 16px;
-            border-left: 3px solid #3b82f6;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 8px;
+            margin-bottom: 16px;
         }
-        
-        .change-zone {
-            display: none;
-            margin-top: 16px;
-            text-align: center;
-        }
-        .zones.collapsed .change-zone {
-            display: block;
-        }
-        .change-zone a {
-            color: #93c5fd;
-            text-decoration: none;
+        .venue-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: white;
             font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 6px;
         }
-        
-        .cancel-link {
-            display: block;
+        .venue-btn:last-child {
+            margin-bottom: 0;
+        }
+        .venue-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .venue-btn.default {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.2);
+        }
+        .loading {
             text-align: center;
-            margin-top: 30px;
-            color: rgba(255,255,255,0.6);
-            text-decoration: none;
-            font-size: 16px;
+            padding: 20px;
+            opacity: 0.7;
         }
+        {{ nav_styles|safe }}
     </style>
-    <script>
-        function selectZone(btn, zoneCode) {
-            // Mark this zone as selected
-            document.querySelectorAll('.zone-wrapper').forEach(w => w.classList.remove('selected'));
-            btn.closest('.zone-wrapper').classList.add('selected');
-            
-            // Collapse other zones
-            document.querySelector('.zones').classList.add('collapsed');
-            
-            // Clear other venue lists
-            document.querySelectorAll('.venue-list').forEach(v => v.innerHTML = '');
-        }
-        
-        function changeZone() {
-            // Expand all zones again
-            document.querySelector('.zones').classList.remove('collapsed');
-            document.querySelectorAll('.zone-wrapper').forEach(w => w.classList.remove('selected'));
-            document.querySelectorAll('.venue-list').forEach(v => v.innerHTML = '');
-        }
-    </script>
 </head>
 <body>
-    <div class="header">
-        <span>{{ user.display_name }}</span>
-        <a href="/">Cancel</a>
-    </div>
-    
-    <div class="content">
-        <div class="alert-type-badge">🚨 {{ alert_type }}</div>
+    <div class="page-wrapper">
+        {{ nav_header|safe }}
         
-        {% if default_venue_id and default_venue_name %}
-        <div class="default-location">
-            <div class="default-location-label">Your default location</div>
-            <form action="/emergency/send-default" method="POST">
-                <button type="submit" class="default-location-btn">
-                    📍 {{ default_venue_name }}
-                    <span>Tap to send alert from here</span>
-                </button>
-            </form>
-        </div>
+        <span class="alert-type-badge {{ alert_type }}">{{ alert_type }}</span>
+        <h1>Where is the emergency?</h1>
+        <p class="subtitle">Select the zone, then the specific location</p>
         
-        <div class="divider"><span>or select different location</span></div>
+        {% if default_venue_name %}
+        <form action="/emergency/send-default" method="POST">
+            <button type="submit" class="quick-send">
+                <span>📍</span>
+                <span>Send from {{ default_venue_name }}</span>
+            </button>
+        </form>
+        <div class="divider">— or select different location —</div>
         {% endif %}
         
-        <h2>SELECT ZONE</h2>
-        <div class="zones">
-            {% for zone_code, zone_name in zones %}
-            <div class="zone-wrapper">
-                <button class="zone-btn" 
-                        data-zone="{{ zone_code }}"
-                        hx-get="/emergency/venues/{{ zone_code }}"
-                        hx-target="#venues-{{ zone_code }}"
-                        hx-swap="innerHTML"
-                        onclick="selectZone(this, '{{ zone_code }}')">
-                    {{ zone_name }}
-                </button>
-                <div id="venues-{{ zone_code }}" class="venue-list">
-                </div>
-            </div>
+        <div class="zone-list">
+            {% for zone_id, zone_name in zones %}
+            <button type="button" class="zone-btn" 
+                    hx-get="/emergency/venues/{{ zone_id }}"
+                    hx-target="#venues-{{ zone_id }}"
+                    hx-swap="innerHTML"
+                    onclick="this.classList.toggle('active')">
+                {{ zone_name }}
+            </button>
+            <div id="venues-{{ zone_id }}" class="venue-container"></div>
             {% endfor %}
-            
-            <div class="change-zone">
-                <a href="#" onclick="changeZone(); return false;">← Change zone</a>
-            </div>
         </div>
-        
-        <a href="/" class="cancel-link">Cancel</a>
     </div>
 </body>
 </html>
