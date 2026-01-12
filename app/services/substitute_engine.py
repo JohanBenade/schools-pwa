@@ -1,10 +1,11 @@
 """
 Substitute Allocation Engine
 The magic that auto-assigns substitutes when a teacher reports sick.
+Updated: Multi-day support
 """
 
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from app.services.db import get_connection
 
 TENANT_ID = "MARAGON"
@@ -45,6 +46,23 @@ def get_cycle_day(target_date=None):
         
         cycle_day = (days_diff % cycle_length) + 1
         return cycle_day
+
+
+def get_weekdays_between(start_date, end_date):
+    """Get list of weekdays (Mon-Fri) between start and end dates inclusive."""
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    weekdays = []
+    current = start_date
+    while current <= end_date:
+        if current.weekday() < 5:  # Monday = 0, Friday = 4
+            weekdays.append(current)
+        current += timedelta(days=1)
+    
+    return weekdays
 
 
 def get_teacher_schedule(staff_id, cycle_day):
@@ -100,6 +118,21 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
         return free_teachers
 
 
+def get_teachers_assigned_on_date(target_date):
+    """Get list of staff_ids already assigned as substitute on a specific date."""
+    if isinstance(target_date, date):
+        target_date = target_date.isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT substitute_id 
+            FROM substitute_request 
+            WHERE request_date = ? AND status IN ('Assigned', 'Confirmed') AND substitute_id IS NOT NULL
+        """, (target_date,))
+        return [row['substitute_id'] for row in cursor.fetchall()]
+
+
 def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname):
     """
     Find the next substitute using A-Z rotation.
@@ -119,7 +152,6 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     for teacher in free_teachers:
         if teacher['first_name'].upper() >= pointer_surname.upper():
             # Move pointer to next letter after this surname
-            # Extract name after title (Ms X or Mr X)
             name_part = teacher['display_name'].split(' ')[-1] if teacher['display_name'] else 'A'
             next_pointer = name_part[0].upper()
             if next_pointer < 'Z':
@@ -221,20 +253,22 @@ def get_current_pointer():
 def process_absence(absence_id):
     """
     Main allocation engine - process a reported absence.
+    UPDATED: Supports multi-day absences.
     
-    1. Get sick teacher's schedule for today
-    2. Check if mentor teacher - assign roll call to adjacent teacher
-    3. For each teaching period, find and assign substitute
-    4. Log everything for Mission Control
-    5. Return results for display
+    1. Get absence date range (start_date to end_date)
+    2. For each weekday in range:
+       a. Get sick teacher's schedule for that cycle day
+       b. Check if mentor teacher - assign roll call
+       c. For each teaching period, find and assign substitute
+    3. Log everything for Mission Control
+    4. Return results for display
     
     Returns dict with allocation results.
     """
     results = {
         'absence_id': absence_id,
         'started_at': datetime.now().isoformat(),
-        'roll_call': None,
-        'periods': [],
+        'days': [],
         'pointer_start': get_current_pointer(),
         'pointer_end': None,
         'success': False
@@ -270,112 +304,133 @@ def process_absence(absence_id):
         # Log start
         log_event(absence_id, 'processing_started')
         
-        # Get cycle day
-        cycle_day = get_cycle_day(absence['absence_date'])
-        results['cycle_day'] = cycle_day
+        # Determine date range
+        start_date = absence['absence_date']
+        end_date = absence.get('end_date') or start_date  # Single day if no end_date
         
-        # === MENTOR ROLL CALL ===
-        if absence['mentor_group_id']:
-            adjacent_teacher = get_adjacent_teacher(absence['venue_code'])
-            
-            if adjacent_teacher:
-                # Create roll call assignment
-                request_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT INTO substitute_request
-                    (id, tenant_id, absence_id, period_id, substitute_id, status,
-                     is_mentor_duty, mentor_group_id, class_name, venue_name, assigned_at)
-                    VALUES (?, ?, ?, ?, ?, 'Assigned', 1, ?, ?, ?, ?)
-                """, (request_id, TENANT_ID, absence_id, None, adjacent_teacher['id'],
-                      absence['mentor_group_id'], absence['mentor_class'],
-                      absence['venue_code'], datetime.now().isoformat()))
-                conn.commit()
-                
-                log_event(absence_id, 'allocated', adjacent_teacher['id'],
-                         f"Mentor roll call {absence['mentor_class']} - adjacent room {adjacent_teacher['venue_code']}",
-                         request_id)
-                
-                results['roll_call'] = {
-                    'substitute': adjacent_teacher['display_name'],
-                    'venue': adjacent_teacher['venue_code'],
-                    'mentor_class': absence['mentor_class'],
-                    'request_id': request_id
-                }
-            else:
-                log_event(absence_id, 'no_cover', None, 
-                         f"No adjacent teacher for mentor roll call {absence['mentor_class']}")
-                results['roll_call'] = {'error': 'No adjacent teacher found'}
-        
-        # === TEACHING PERIODS ===
-        schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
-        
-        # Filter by start/end period if partial day
-        # (For now, process all - can filter later)
+        # Get all weekdays in range
+        weekdays = get_weekdays_between(start_date, end_date)
+        results['date_range'] = {
+            'start': start_date,
+            'end': end_date,
+            'total_days': len(weekdays)
+        }
         
         pointer = get_current_pointer()
-        already_assigned_today = []
+        total_covered = 0
+        total_periods = 0
         
-        for slot in schedule:
-            period_result = {
-                'period_name': slot['period_name'],
-                'period_number': slot['period_number'],
-                'class_name': slot['class_name'],
-                'subject': slot['subject'],
-                'venue': slot['venue_code'],
-                'substitute': None,
-                'status': None
+        # Process each day
+        for target_date in weekdays:
+            target_date_str = target_date.isoformat()
+            day_result = {
+                'date': target_date_str,
+                'date_display': target_date.strftime('%a %d %b'),
+                'cycle_day': get_cycle_day(target_date),
+                'roll_call': None,
+                'periods': []
             }
             
-            # Find substitute
-            sub_teacher, new_pointer = get_next_substitute(
-                slot['period_id'], cycle_day, already_assigned_today, pointer
-            )
+            cycle_day = day_result['cycle_day']
             
-            if sub_teacher:
-                # Create substitute request
-                request_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT INTO substitute_request
-                    (id, tenant_id, absence_id, period_id, substitute_id, status,
-                     class_name, subject, venue_id, venue_name, assigned_at)
-                    VALUES (?, ?, ?, ?, ?, 'Assigned', ?, ?, ?, ?, ?)
-                """, (request_id, TENANT_ID, absence_id, slot['period_id'],
-                      sub_teacher['id'], slot['class_name'], slot['subject'],
-                      slot['venue_id'], slot['venue_code'], datetime.now().isoformat()))
-                conn.commit()
-                
-                log_event(absence_id, 'allocated', sub_teacher['id'],
-                         f"{slot['period_name']}: {slot['class_name']} in {slot['venue_code']}",
-                         request_id)
-                
-                period_result['substitute'] = sub_teacher['display_name']
-                period_result['substitute_id'] = sub_teacher['id']
-                period_result['request_id'] = request_id
-                period_result['status'] = 'assigned'
-                
-                # Track for one-sub-per-day rule
-                already_assigned_today.append(sub_teacher['id'])
-                pointer = new_pointer
-                
-            else:
-                # No cover available
-                log_event(absence_id, 'no_cover', None,
-                         f"{slot['period_name']}: No substitute available")
-                period_result['status'] = 'no_cover'
+            # Get teachers already assigned on this specific date
+            already_assigned_today = get_teachers_assigned_on_date(target_date)
             
-            results['periods'].append(period_result)
+            # === MENTOR ROLL CALL (only first day for simplicity) ===
+            if absence['mentor_group_id'] and target_date == weekdays[0]:
+                adjacent_teacher = get_adjacent_teacher(absence['venue_code'])
+                
+                if adjacent_teacher:
+                    request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         is_mentor_duty, mentor_group_id, class_name, venue_name, assigned_at, request_date)
+                        VALUES (?, ?, ?, ?, ?, 'Assigned', 1, ?, ?, ?, ?, ?)
+                    """, (request_id, TENANT_ID, absence_id, None, adjacent_teacher['id'],
+                          absence['mentor_group_id'], absence['mentor_class'],
+                          absence['venue_code'], datetime.now().isoformat(), target_date_str))
+                    conn.commit()
+                    
+                    log_event(absence_id, 'allocated', adjacent_teacher['id'],
+                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - adjacent room {adjacent_teacher['venue_code']}",
+                             request_id)
+                    
+                    day_result['roll_call'] = {
+                        'substitute': adjacent_teacher['display_name'],
+                        'venue': adjacent_teacher['venue_code'],
+                        'mentor_class': absence['mentor_class'],
+                        'request_id': request_id
+                    }
+                else:
+                    log_event(absence_id, 'no_cover', None, 
+                             f"[{target_date_str}] No adjacent teacher for mentor roll call {absence['mentor_class']}")
+                    day_result['roll_call'] = {'error': 'No adjacent teacher found'}
+            
+            # === TEACHING PERIODS ===
+            schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
+            
+            for slot in schedule:
+                period_result = {
+                    'period_name': slot['period_name'],
+                    'period_number': slot['period_number'],
+                    'class_name': slot['class_name'],
+                    'subject': slot['subject'],
+                    'venue': slot['venue_code'],
+                    'substitute': None,
+                    'status': None
+                }
+                
+                total_periods += 1
+                
+                # Find substitute
+                sub_teacher, new_pointer = get_next_substitute(
+                    slot['period_id'], cycle_day, already_assigned_today, pointer
+                )
+                
+                if sub_teacher:
+                    request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         class_name, subject, venue_id, venue_name, assigned_at, request_date)
+                        VALUES (?, ?, ?, ?, ?, 'Assigned', ?, ?, ?, ?, ?, ?)
+                    """, (request_id, TENANT_ID, absence_id, slot['period_id'],
+                          sub_teacher['id'], slot['class_name'], slot['subject'],
+                          slot['venue_id'], slot['venue_code'], datetime.now().isoformat(),
+                          target_date_str))
+                    conn.commit()
+                    
+                    log_event(absence_id, 'allocated', sub_teacher['id'],
+                             f"[{target_date_str}] {slot['period_name']}: {slot['class_name']} in {slot['venue_code']}",
+                             request_id)
+                    
+                    period_result['substitute'] = sub_teacher['display_name']
+                    period_result['substitute_id'] = sub_teacher['id']
+                    period_result['request_id'] = request_id
+                    period_result['status'] = 'assigned'
+                    
+                    already_assigned_today.append(sub_teacher['id'])
+                    total_covered += 1
+                    pointer = new_pointer
+                    
+                else:
+                    log_event(absence_id, 'no_cover', None,
+                             f"[{target_date_str}] {slot['period_name']}: No substitute available")
+                    period_result['status'] = 'no_cover'
+                
+                day_result['periods'].append(period_result)
+            
+            results['days'].append(day_result)
         
         # Update pointer
         update_pointer(pointer)
         results['pointer_end'] = pointer
         
         # Update absence status
-        covered_count = sum(1 for p in results['periods'] if p['status'] == 'assigned')
-        total_count = len(results['periods'])
-        
-        if covered_count == total_count:
+        if total_covered == total_periods:
             new_status = 'Covered'
-        elif covered_count > 0:
+        elif total_covered > 0:
             new_status = 'Partial'
         else:
             new_status = 'Escalated'
@@ -386,12 +441,12 @@ def process_absence(absence_id):
         conn.commit()
         
         results['absence_status'] = new_status
-        results['covered_count'] = covered_count
-        results['total_count'] = total_count
+        results['covered_count'] = total_covered
+        results['total_count'] = total_periods
         
         # Log completion
         log_event(absence_id, 'processing_complete', None,
-                 f"Covered {covered_count}/{total_count} periods. Pointer: {results['pointer_start']} -> {pointer}")
+                 f"Covered {total_covered}/{total_periods} periods over {len(weekdays)} days. Pointer: {results['pointer_start']} -> {pointer}")
         
         results['completed_at'] = datetime.now().isoformat()
         results['success'] = True
@@ -402,7 +457,7 @@ def process_absence(absence_id):
 def create_absence(staff_id, absence_date, absence_type, reason, is_full_day=True,
                    start_period=None, end_period=None, reported_by_id=None):
     """
-    Create a new absence record.
+    Create a new absence record (single day - legacy support).
     Returns absence_id.
     """
     absence_id = str(uuid.uuid4())
