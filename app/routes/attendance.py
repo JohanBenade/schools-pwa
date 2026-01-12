@@ -80,7 +80,6 @@ def roll_call(mentor_group_id):
     
     stats = get_pending_stats_sqlite(mentor_group_id)
     
-    # Pass individual variables that template expects
     group_name = group['group_name']
     mentor_name = group.get('mentor_name', 'No mentor assigned')
     
@@ -122,7 +121,6 @@ def get_stats():
         marks = get_attendance_entries(existing_attendance_id)
         learners = get_learners_by_mentor_group_sqlite(mentor_group_id)
         total_learners = len(learners)
-        marked_learners = set(marks.keys())
         
         stats = {
             'present': sum(1 for s in marks.values() if s == 'Present'),
