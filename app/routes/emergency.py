@@ -150,6 +150,7 @@ def select_location():
     
     # Get all venue blocks for zone selection
     zones = [
+        ('Bathroom', 'Bathroom'),
         ('A_Ground', 'A Block Ground'),
         ('A_First', 'A Block First Floor'),
         ('A_Admin', 'A Block Admin/IT'),
@@ -211,6 +212,26 @@ def send_default():
 @emergency_bp.route('/venues/<block>')
 def get_venues_by_block(block):
     """HTMX endpoint - get venues for a block."""
+    user = get_current_user()
+    
+    # Special handling for bathrooms (hardcoded, not in venue table)
+    if block == 'Bathroom':
+        bathrooms = [
+            {'id': 'BG_BOYS_A001', 'venue_code': 'BG_BOYS', 'venue_name': 'Boys - Ground - Near A001'},
+            {'id': 'BG_GIRLS_A006', 'venue_code': 'BG_GIRLS', 'venue_name': 'Girls - Ground - Near A006'},
+            {'id': 'BG_GIRLS_A008', 'venue_code': 'BG_GIRLS', 'venue_name': 'Girls - Ground - Near A008'},
+            {'id': 'BG_GIRLS_KITCHEN', 'venue_code': 'BG_GIRLS', 'venue_name': 'Girls - Ground - Near Kitchen'},
+            {'id': 'B1_BOYS_A101', 'venue_code': 'B1_BOYS', 'venue_name': 'Boys - 1st Floor - Near A101'},
+            {'id': 'B1_GIRLS_A105', 'venue_code': 'B1_GIRLS', 'venue_name': 'Girls - 1st Floor - Near A105'},
+            {'id': 'B1_GIRLS_A107', 'venue_code': 'B1_GIRLS', 'venue_name': 'Girls - 1st Floor - Near A107'},
+            {'id': 'B1_GIRLS_A112', 'venue_code': 'B1_GIRLS', 'venue_name': 'Girls - 1st Floor - Near A112'},
+        ]
+        return render_template('emergency/partials/venue_list.html',
+                             venues=bathrooms,
+                             default_venue_id=user.get('default_venue_id'),
+                             is_bathroom=True)
+    
+    # Regular venues from database
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -220,10 +241,10 @@ def get_venues_by_block(block):
         """, (TENANT_ID, block))
         venues = [dict(row) for row in cursor.fetchall()]
     
-    user = get_current_user()
     return render_template('emergency/partials/venue_list.html',
                          venues=venues,
-                         default_venue_id=user.get('default_venue_id'))
+                         default_venue_id=user.get('default_venue_id'),
+                         is_bathroom=False)
 
 
 @emergency_bp.route('/send', methods=['POST'])
@@ -236,14 +257,31 @@ def send_alert():
     if not alert_type or not venue_id or not user['staff_id']:
         return redirect(url_for('emergency.index'))
     
-    # Get venue details
+    # Check if this is a bathroom (codes start with BG_ or B1_)
+    if venue_id.startswith('BG_') or venue_id.startswith('B1_'):
+        # Bathroom - use hardcoded mapping
+        bathroom_names = {
+            'BG_BOYS_A001': 'Bathroom - Boys - Ground - Near A001',
+            'BG_GIRLS_A006': 'Bathroom - Girls - Ground - Near A006',
+            'BG_GIRLS_A008': 'Bathroom - Girls - Ground - Near A008',
+            'BG_GIRLS_KITCHEN': 'Bathroom - Girls - Ground - Near Kitchen',
+            'B1_BOYS_A101': 'Bathroom - Boys - 1st Floor - Near A101',
+            'B1_GIRLS_A105': 'Bathroom - Girls - 1st Floor - Near A105',
+            'B1_GIRLS_A107': 'Bathroom - Girls - 1st Floor - Near A107',
+            'B1_GIRLS_A112': 'Bathroom - Girls - 1st Floor - Near A112',
+        }
+        location_display = bathroom_names.get(venue_id, 'Bathroom - Unknown')
+    else:
+        # Regular venue - lookup from database
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT venue_name FROM venue WHERE id = ?", (venue_id,))
+            venue_row = cursor.fetchone()
+            location_display = venue_row['venue_name'] if venue_row else 'Unknown'
+    
+    # Create alert
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT venue_name FROM venue WHERE id = ?", (venue_id,))
-        venue_row = cursor.fetchone()
-        location_display = venue_row['venue_name'] if venue_row else 'Unknown'
-        
-        # Create alert
         alert_id = generate_id()
         cursor.execute("""
             INSERT INTO emergency_alert 
