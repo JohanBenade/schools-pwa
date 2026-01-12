@@ -1294,3 +1294,35 @@ def add_johan():
         'magic_link': 'https://schoolops.co.za/?u=johan',
         'message': 'Johan added with Z999 venue and admin role'
     })
+
+
+@admin_bp.route('/add-bongi')
+def add_bongi():
+    """Add Ms Bongi magic link."""
+    import uuid
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Find Bongi's staff ID
+        cursor.execute("SELECT id, display_name FROM staff WHERE surname = 'Mochabe' AND tenant_id = 'MARAGON'")
+        staff = cursor.fetchone()
+        
+        if not staff:
+            return jsonify({'error': 'Bongi not found in staff table'})
+        
+        # Create or update user session
+        cursor.execute("DELETE FROM user_session WHERE magic_code = 'bongi'")
+        cursor.execute("""
+            INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+            VALUES (?, 'MARAGON', ?, 'bongi', ?, 'grade_head', 1)
+        """, (str(uuid.uuid4()), staff['id'], staff['display_name']))
+        
+        conn.commit()
+    
+    return jsonify({
+        'success': True,
+        'staff_id': staff['id'],
+        'display_name': staff['display_name'],
+        'magic_link': 'https://schoolops.co.za/?u=bongi'
+    })
