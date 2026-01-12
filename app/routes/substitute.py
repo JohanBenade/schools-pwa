@@ -377,16 +377,13 @@ def my_assignments():
     
     target_date_str = target_date.isoformat()
     
-    # Get cycle day for target date
+    # Get cycle day - use today's and adjust for tomorrow
+    cycle_day = get_cycle_day()
+    if tab == 'tomorrow':
+        cycle_day = (cycle_day % 7) + 1  # Next cycle day (1-7)
+    
     with get_connection() as conn:
         cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT cycle_day FROM cycle_day_config 
-            WHERE calendar_date = ? AND tenant_id = ?
-        """, (target_date_str, TENANT_ID))
-        cycle_row = cursor.fetchone()
-        cycle_day = cycle_row['cycle_day'] if cycle_row else 1
         
         cursor.execute("""
             SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
