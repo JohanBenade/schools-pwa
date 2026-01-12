@@ -551,3 +551,27 @@ def history():
                          date_to=date_to,
                          nav_header=nav_header,
                          nav_styles=nav_styles)
+
+
+@emergency_bp.route('/responders-section/<alert_id>')
+def responders_section(alert_id):
+    """HTMX endpoint - returns responders section with count."""
+    responders = get_responders(alert_id)
+    count = len(responders)
+    
+    html = f'''
+    <div class="responders-title">
+        <span>Responders</span>
+        <span class="responders-count">{count}</span>
+    </div>
+    <div class="responder-list">
+    '''
+    
+    if responders:
+        for r in responders:
+            html += f'<div class="responder-item"><span>✓ {r["responder_name"]}</span></div>'
+    else:
+        html += '<div class="no-responders">No responders yet</div>'
+    
+    html += '</div>'
+    return html
