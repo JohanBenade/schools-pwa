@@ -5,7 +5,7 @@ Substitute routes - Report absence, view assignments, Mission Control
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
 from datetime import date, datetime, timedelta
 import uuid
-from app.services.db import get_connection
+from app.services.db import get_connection, create_absence_multiday
 from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
     get_teacher_schedule, get_current_pointer
