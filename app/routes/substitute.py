@@ -9,10 +9,19 @@ from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
     get_teacher_schedule, get_current_pointer
 )
+from app.services.nav import get_nav_header, get_nav_styles
 
 substitute_bp = Blueprint('substitute', __name__, url_prefix='/substitute')
 
 TENANT_ID = "MARAGON"
+
+
+def get_back_url_for_user():
+    """Get appropriate back URL based on user role."""
+    role = session.get('role', 'teacher')
+    if role in ['principal', 'deputy', 'admin']:
+        return '/dashboard/', 'Dashboard'
+    return '/', 'Home'
 
 
 @substitute_bp.route('/')
@@ -20,10 +29,50 @@ def index():
     """Substitute home - links to report absence or view assignments."""
     staff_id = session.get('staff_id')
     display_name = session.get('display_name', 'Teacher')
+    back_url, back_label = get_back_url_for_user()
+    nav_header = get_nav_header("Substitutes", back_url, back_label)
+    nav_styles = get_nav_styles()
     
-    return render_template('substitute/index.html',
-                          staff_id=staff_id,
-                          display_name=display_name)
+    return f'''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Substitutes - SchoolOps</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }}
+        .container {{ max-width: 500px; margin: 0 auto; }}
+        {nav_styles}
+        .menu {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
+        .menu-item {{ display: block; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: white; }}
+        .menu-item:hover {{ background: rgba(255,255,255,0.15); }}
+        .menu-item h3 {{ font-size: 18px; margin-bottom: 4px; }}
+        .menu-item p {{ font-size: 14px; opacity: 0.7; }}
+        .menu-icon {{ font-size: 24px; margin-bottom: 8px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {nav_header}
+        <div class="menu">
+            <a href="/substitute/report" class="menu-item">
+                <div class="menu-icon">🤒</div>
+                <h3>Report Absence</h3>
+                <p>I'm sick and need cover today</p>
+            </a>
+            <a href="/substitute/my-assignments" class="menu-item">
+                <div class="menu-icon">📋</div>
+                <h3>My Assignments</h3>
+                <p>View my substitute duties</p>
+            </a>
+            {f'<a href="/substitute/mission-control" class="menu-item"><div class="menu-icon">🎛️</div><h3>Mission Control</h3><p>Manage all absences and coverage</p></a>' if session.get('role') in ['principal', 'deputy', 'admin'] else ''}
+        </div>
+    </div>
+</body>
+</html>
+'''
 
 
 @substitute_bp.route('/report', methods=['GET', 'POST'])
@@ -32,10 +81,9 @@ def report_absence():
     staff_id = session.get('staff_id')
     
     if not staff_id:
-        return redirect('/?u=beatrix')  # For demo, redirect to login
+        return redirect('/?u=beatrix')
     
     if request.method == 'GET':
-        # Get periods for partial day selection
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -50,13 +98,11 @@ def report_absence():
                               periods=periods,
                               today=date.today().isoformat())
     
-    # POST - Create absence and process
     absence_type = request.form.get('absence_type', 'Sick')
     reason = request.form.get('reason', '')
     absence_date = request.form.get('absence_date', date.today().isoformat())
     is_full_day = request.form.get('is_full_day', '1') == '1'
     
-    # Create absence record
     absence_id = create_absence(
         staff_id=staff_id,
         absence_date=absence_date,
@@ -65,20 +111,17 @@ def report_absence():
         is_full_day=is_full_day
     )
     
-    # Process - find substitutes
     results = process_absence(absence_id)
     
-    # Redirect to confirmation/live view
     return redirect(url_for('substitute.absence_status', absence_id=absence_id))
 
 
 @substitute_bp.route('/status/<absence_id>')
 def absence_status(absence_id):
-    """View status of an absence - for sick teacher to see their cover."""
+    """View status of an absence."""
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get absence details
         cursor.execute("""
             SELECT a.*, s.display_name as teacher_name
             FROM absence a
@@ -90,7 +133,6 @@ def absence_status(absence_id):
             return "Absence not found", 404
         absence = dict(absence)
         
-        # Get substitute requests
         cursor.execute("""
             SELECT sr.*, p.period_name, p.period_number, p.start_time, p.end_time,
                    sub.display_name as substitute_name
@@ -102,7 +144,6 @@ def absence_status(absence_id):
         """, (absence_id,))
         requests = [dict(row) for row in cursor.fetchall()]
         
-        # Get event log
         cursor.execute("""
             SELECT * FROM substitute_log
             WHERE absence_id = ?
@@ -116,7 +157,6 @@ def absence_status(absence_id):
                           events=events)
 
 
-
 @substitute_bp.route('/mission-control')
 def mission_control():
     """Principal's view - all absences and coverage status."""
@@ -127,9 +167,7 @@ def mission_control():
     today = date.today()
     date_range = request.args.get('range', 'today')
     
-    # Calculate date filter
     if date_range == 'week':
-        # Get start of week (Monday)
         start_date = today - timedelta(days=today.weekday())
         end_date = today
     else:
@@ -139,7 +177,6 @@ def mission_control():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get absences in date range
         cursor.execute("""
             SELECT a.*, s.display_name as teacher_name, s.surname,
                    mg.group_name as mentor_class
@@ -151,7 +188,6 @@ def mission_control():
         """, (start_date.isoformat(), end_date.isoformat(), TENANT_ID))
         absences = [dict(row) for row in cursor.fetchall()]
         
-        # Get substitute requests for each absence
         for absence in absences:
             cursor.execute("""
                 SELECT sr.*, p.period_name, p.period_number,
@@ -164,18 +200,20 @@ def mission_control():
             """, (absence['id'],))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
         
-        # Get current config
         cursor.execute("""
             SELECT * FROM substitute_config WHERE tenant_id = ?
         """, (TENANT_ID,))
         row = cursor.fetchone()
         config = dict(row) if row else {}
         
-        # Summary stats
         total_absences = len(absences)
         fully_covered = sum(1 for a in absences if a['status'] == 'Covered')
         partial = sum(1 for a in absences if a['status'] == 'Partial')
         escalated = sum(1 for a in absences if a['status'] == 'Escalated')
+    
+    # Build navigation
+    nav_header = get_nav_header("Mission Control", "/dashboard/", "Dashboard")
+    nav_styles = get_nav_styles()
     
     return render_template('substitute/mission_control.html',
                           absences=absences,
@@ -187,7 +225,10 @@ def mission_control():
                               'covered': fully_covered,
                               'partial': partial,
                               'escalated': escalated
-                          })
+                          },
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
+
 
 @substitute_bp.route('/my-assignments')
 def my_assignments():
@@ -202,7 +243,6 @@ def my_assignments():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get normal schedule
         cursor.execute("""
             SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
                    v.venue_code
@@ -214,7 +254,6 @@ def my_assignments():
         """, (staff_id, cycle_day))
         normal_schedule = {row['period_number']: dict(row) for row in cursor.fetchall()}
         
-        # Get substitute assignments for today
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
                    a.staff_id as absent_staff_id, s.display_name as absent_teacher
@@ -227,7 +266,6 @@ def my_assignments():
         """, (staff_id, today))
         assignments = [dict(row) for row in cursor.fetchall()]
         
-        # Get all periods
         cursor.execute("""
             SELECT period_number, period_name, start_time, end_time
             FROM period
@@ -236,7 +274,6 @@ def my_assignments():
         """, (TENANT_ID,))
         all_periods = [dict(row) for row in cursor.fetchall()]
         
-        # Build combined schedule
         schedule = []
         assignment_periods = {a['period_number']: a for a in assignments if a['period_number']}
         
@@ -252,7 +289,6 @@ def my_assignments():
             }
             
             if p_num in assignment_periods:
-                # Substitute duty
                 a = assignment_periods[p_num]
                 entry['is_substitute'] = True
                 entry['is_free'] = False
@@ -262,7 +298,6 @@ def my_assignments():
                 entry['absent_teacher'] = a['absent_teacher']
                 entry['request_id'] = a['id']
             elif p_num in normal_schedule:
-                # Normal teaching
                 n = normal_schedule[p_num]
                 entry['is_free'] = False
                 entry['class_name'] = n['class_name']
@@ -271,15 +306,20 @@ def my_assignments():
             
             schedule.append(entry)
         
-        # Check for mentor duty
         mentor_duty = next((a for a in assignments if a['is_mentor_duty']), None)
+    
+    back_url, back_label = get_back_url_for_user()
+    nav_header = get_nav_header("My Assignments", "/substitute/", "Substitutes")
+    nav_styles = get_nav_styles()
     
     return render_template('substitute/my_assignments.html',
                           schedule=schedule,
                           mentor_duty=mentor_duty,
                           today=today,
                           cycle_day=cycle_day,
-                          sub_count=len(assignments))
+                          sub_count=len(assignments),
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
 
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
@@ -291,16 +331,12 @@ def decline_assignment(request_id):
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Update request
         cursor.execute("""
             UPDATE substitute_request
             SET status = 'Declined', declined_at = ?, declined_by_id = ?, decline_reason = ?
             WHERE id = ? AND substitute_id = ?
         """, (datetime.now().isoformat(), staff_id, reason, request_id, staff_id))
         conn.commit()
-        
-        # TODO: Trigger reassignment logic
-        # For now, just log it
     
     return redirect(url_for('substitute.my_assignments'))
 

@@ -4,219 +4,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mission Control - SchoolOps</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: #f8fafc;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 900px; margin: 0 auto; }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-top: 10px;
-        }
-        .header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .header h1 span { color: #22c55e; }
-        .header-meta { text-align: right; font-size: 13px; color: #94a3b8; }
-        .date-filter {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-        .date-filter a {
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: #1e293b;
-            color: #94a3b8;
-            text-decoration: none;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .date-filter a:hover { background: #334155; }
-        .date-filter a.active { background: #3b82f6; color: white; }
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        @media (min-width: 600px) {
-            .stats-row { grid-template-columns: repeat(4, 1fr); }
-        }
-        .stat-card {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-        }
-        .stat-card h2 { font-size: 36px; margin-bottom: 4px; }
-        .stat-card p { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
-        .stat-card.green h2 { color: #22c55e; }
-        .stat-card.yellow h2 { color: #eab308; }
-        .stat-card.red h2 { color: #ef4444; }
-        .absence-card {
-            background: #1e293b;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border-left: 4px solid #3b82f6;
-        }
-        .absence-card.covered { border-left-color: #22c55e; }
-        .absence-card.partial { border-left-color: #eab308; }
-        .absence-card.escalated { border-left-color: #ef4444; }
-        .absence-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
-        }
-        .absence-header h2 { font-size: 18px; margin-bottom: 4px; }
-        .absence-header p { font-size: 13px; color: #94a3b8; }
-        .absence-status {
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .absence-status.covered { background: #166534; }
-        .absence-status.partial { background: #854d0e; }
-        .absence-status.escalated { background: #991b1b; }
-        .periods-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 8px;
-        }
-        .period-slot {
-            background: #334155;
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 12px;
-        }
-        .period-slot.assigned { background: #14532d; }
-        .period-slot.no-cover { background: #7f1d1d; }
-        .period-slot.mentor { background: #1e3a5f; }
-        .period-slot h4 { margin-bottom: 4px; font-size: 11px; color: #94a3b8; }
-        .period-slot p { font-size: 13px; }
-        .timeline-mini {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #334155;
-            font-size: 12px;
-            color: #94a3b8;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        .timeline-mini .event { padding: 4px 0; display: flex; gap: 8px; }
-        .timeline-mini .event-time { color: #64748b; min-width: 60px; }
-        .timeline-mini .event-text { flex: 1; }
-        .timeline-mini .event.success .event-text { color: #4ade80; }
-        .timeline-mini .event.error .event-text { color: #f87171; }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #64748b;
-        }
-        .empty-state h2 { font-size: 48px; margin-bottom: 16px; }
-        .back-link {
-            display: block;
-            text-align: center;
-            color: #3b82f6;
-            text-decoration: none;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-        .live-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #22c55e;
-            border-radius: 50%;
-            margin-right: 6px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        {{ nav_styles|safe }}
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; }
+        .stat-number { font-size: 32px; font-weight: 700; }
+        .stat-label { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+        .stat-green { color: #22c55e; }
+        .stat-yellow { color: #eab308; }
+        .stat-red { color: #ef4444; }
+        .config-bar { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; display: flex; justify-content: space-between; }
+        .absence-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .absence-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .absence-name { font-size: 18px; font-weight: 600; }
+        .absence-status { padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+        .status-covered { background: #22c55e; }
+        .status-partial { background: #eab308; color: #000; }
+        .status-escalated { background: #ef4444; }
+        .absence-meta { font-size: 13px; opacity: 0.7; margin-bottom: 12px; }
+        .period-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .period-chip { padding: 6px 12px; border-radius: 6px; font-size: 12px; background: rgba(255,255,255,0.1); }
+        .period-chip.assigned { background: rgba(34, 197, 94, 0.3); }
+        .period-chip.pending { background: rgba(234, 179, 8, 0.3); }
+        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.7; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎛️ Mission Control <span><span class="live-dot"></span>LIVE</span></h1>
-            <div class="header-meta">
-                <div>{{ today }} • Day {{ cycle_day }}</div>
-            </div>
-        </div>
+        {{ nav_header|safe }}
         
-        <div class="date-filter">
-            <a href="{{ url_for('substitute.mission_control') }}" class="{{ 'active' if not request.args.get('range') or request.args.get('range') == 'today' }}">Today</a>
-            <a href="{{ url_for('substitute.mission_control', range='week') }}" class="{{ 'active' if request.args.get('range') == 'week' }}">This Week</a>
-        </div>
-        
-        <div class="stats-row">
+        <div class="stats">
             <div class="stat-card">
-                <h2>{{ stats.total }}</h2>
-                <p>Absences</p>
+                <div class="stat-number">{{ stats.total }}</div>
+                <div class="stat-label">Absences</div>
             </div>
-            <div class="stat-card green">
-                <h2>{{ stats.covered }}</h2>
-                <p>Fully Covered</p>
+            <div class="stat-card">
+                <div class="stat-number stat-green">{{ stats.covered }}</div>
+                <div class="stat-label">Covered</div>
             </div>
-            <div class="stat-card yellow">
-                <h2>{{ stats.partial }}</h2>
-                <p>Partial Cover</p>
+            <div class="stat-card">
+                <div class="stat-number stat-yellow">{{ stats.partial }}</div>
+                <div class="stat-label">Partial</div>
             </div>
-            <div class="stat-card red">
-                <h2>{{ stats.escalated }}</h2>
-                <p>Need Attention</p>
+            <div class="stat-card">
+                <div class="stat-number stat-red">{{ stats.escalated }}</div>
+                <div class="stat-label">Escalated</div>
             </div>
+        </div>
+        
+        <div class="config-bar">
+            <span>📅 Cycle Day {{ cycle_day }} | 🔤 Pointer: {{ config.pointer_surname or 'A' }}</span>
+            <span>{{ today }}</span>
         </div>
         
         {% if absences %}
             {% for absence in absences %}
-            <div class="absence-card {{ absence.status|lower }}">
+            <div class="absence-card">
                 <div class="absence-header">
-                    <div>
-                        <h2>{{ absence.teacher_name }}</h2>
-                        <p>{{ absence.absence_type }} {% if absence.mentor_class %}• Mentor {{ absence.mentor_class }}{% endif %}</p>
-                    </div>
-                    <span class="absence-status {{ absence.status|lower }}">{{ absence.status|upper }}</span>
+                    <span class="absence-name">{{ absence.teacher_name }}</span>
+                    <span class="absence-status status-{{ absence.status|lower }}">{{ absence.status }}</span>
                 </div>
-                
-                <div class="periods-grid">
-                    {% for req in absence.requests %}
-                    <div class="period-slot {% if req.is_mentor_duty %}mentor{% elif req.status == 'Assigned' %}assigned{% else %}no-cover{% endif %}">
-                        <h4>{% if req.is_mentor_duty %}ROLL CALL{% else %}{{ req.period_name }}{% endif %}</h4>
-                        <p>{% if req.substitute_name %}{{ req.substitute_name }}{% else %}⚠️ No Cover{% endif %}</p>
-                    </div>
-                    {% endfor %}
+                <div class="absence-meta">
+                    {{ absence.absence_type }} | {{ absence.mentor_class or 'No mentor class' }}
                 </div>
-                
-                <div class="timeline-mini" 
-                     id="log-{{ absence.id }}"
-                     hx-get="{{ url_for('substitute.absence_log', absence_id=absence.id) }}"
-                     hx-trigger="load, every 10s"
-                     hx-swap="innerHTML">
-                    <!-- Events loaded via HTMX -->
+                <div class="period-list">
+                    {% if absence.requests %}
+                        {% for req in absence.requests %}
+                        <span class="period-chip {{ 'assigned' if req.substitute_id else 'pending' }}">
+                            {% if req.is_mentor_duty %}
+                                🏠 Roll Call → {{ req.substitute_name or 'Pending' }}
+                            {% else %}
+                                P{{ req.period_number }}: {{ req.substitute_name or 'Pending' }}
+                            {% endif %}
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="period-chip">No periods to cover</span>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
         {% else %}
             <div class="empty-state">
-                <h2>✅</h2>
-                <p>No absences reported {{ 'today' if not request.args.get('range') or request.args.get('range') == 'today' else 'this week' }}.<br>All teachers present!</p>
+                <div class="icon">✨</div>
+                <h3>All Teachers Present</h3>
+                <p>No absences reported for today</p>
             </div>
         {% endif %}
-        
-        <a href="/" class="back-link">← Back to Home</a>
     </div>
 </body>
 </html>
