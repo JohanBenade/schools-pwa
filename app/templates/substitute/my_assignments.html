@@ -13,10 +13,10 @@
             padding: 20px;
         }
         .container { max-width: 500px; margin: 0 auto; }
+        {{ nav_styles|safe }}
         .header {
             text-align: center;
             margin-bottom: 24px;
-            padding-top: 20px;
         }
         .header h1 { font-size: 24px; color: #1e293b; margin-bottom: 4px; }
         .header p { color: #64748b; font-size: 14px; }
@@ -35,10 +35,8 @@
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
         }
+        .mentor-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .mentor-alert-icon {
             width: 44px;
             height: 44px;
@@ -85,6 +83,7 @@
             font-weight: 600;
             margin-top: 4px;
         }
+        .period-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .period-status {
             width: 36px;
             height: 36px;
@@ -97,6 +96,17 @@
         .period-status.teaching { background: #dbeafe; }
         .period-status.substitute { background: #fed7aa; }
         .period-status.free { background: #f1f5f9; }
+        .decline-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .decline-btn:hover { background: #fecaca; }
         .summary-bar {
             display: flex;
             justify-content: space-between;
@@ -105,18 +115,55 @@
             font-size: 13px;
             color: #64748b;
         }
-        .back-link {
-            display: block;
-            text-align: center;
-            color: #3b82f6;
-            text-decoration: none;
-            margin-top: 20px;
-            font-size: 14px;
+        
+        /* Decline Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 8px; color: #1e293b; }
+        .modal p { font-size: 14px; color: #64748b; margin-bottom: 16px; }
+        .modal textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 16px;
+        }
+        .modal-buttons { display: flex; gap: 12px; }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel { background: #f1f5f9; color: #64748b; }
+        .btn-confirm { background: #dc2626; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
+        {{ nav_header|safe }}
+        
         <div class="header">
             <h1>📋 My Schedule</h1>
             <p>{{ today }} • Day {{ cycle_day }}</p>
@@ -128,11 +175,16 @@
         
         {% if mentor_duty %}
         <div class="mentor-alert">
-            <div class="mentor-alert-icon">📋</div>
-            <div>
-                <h3>Mentor Roll Call: {{ mentor_duty.class_name }}</h3>
-                <p>Covering for {{ mentor_duty.absent_teacher }} • {{ mentor_duty.venue_name }}</p>
+            <div class="mentor-header">
+                <div class="mentor-alert-icon">📋</div>
+                <div>
+                    <h3>Mentor Roll Call: {{ mentor_duty.class_name }}</h3>
+                    <p>Covering for {{ mentor_duty.absent_teacher }} • {{ mentor_duty.venue_name }}</p>
+                </div>
             </div>
+            <button class="decline-btn" onclick="openDecline('{{ mentor_duty.id }}', 'Roll Call', '{{ mentor_duty.absent_teacher }}')">
+                Decline
+            </button>
         </div>
         {% endif %}
         
@@ -156,8 +208,16 @@
                         <p>{{ period.subject }} • {{ period.venue }}</p>
                     {% endif %}
                 </div>
-                <div class="period-status {% if period.is_substitute %}substitute{% elif period.is_free %}free{% else %}teaching{% endif %}">
-                    {% if period.is_substitute %}🔄{% elif period.is_free %}—{% else %}📚{% endif %}
+                <div class="period-actions">
+                    {% if period.is_substitute %}
+                        <button class="decline-btn" onclick="openDecline('{{ period.request_id }}', 'P{{ period.period_number }}', '{{ period.absent_teacher }}')">
+                            Decline
+                        </button>
+                    {% else %}
+                        <div class="period-status {% if period.is_free %}free{% else %}teaching{% endif %}">
+                            {% if period.is_free %}—{% else %}📚{% endif %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -167,8 +227,38 @@
                 <span>{{ sub_count }} substitute duties</span>
             </div>
         </div>
-        
-        <a href="{{ url_for('substitute.index') }}" class="back-link">← Back</a>
     </div>
+    
+    <!-- Decline Modal -->
+    <div class="modal-overlay" id="declineModal">
+        <div class="modal">
+            <h2>Decline Assignment</h2>
+            <p id="declineInfo">Period X - Covering for Ms Teacher</p>
+            <form id="declineForm" method="POST">
+                <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeDecline()">Cancel</button>
+                    <button type="submit" class="btn-confirm">Confirm Decline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function openDecline(requestId, period, teacher) {
+            document.getElementById('declineInfo').textContent = period + ' - Covering for ' + teacher;
+            document.getElementById('declineForm').action = '/substitute/decline/' + requestId;
+            document.getElementById('declineModal').classList.add('active');
+        }
+        
+        function closeDecline() {
+            document.getElementById('declineModal').classList.remove('active');
+        }
+        
+        // Close modal on overlay click
+        document.getElementById('declineModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDecline();
+        });
+    </script>
 </body>
 </html>

@@ -389,7 +389,7 @@ def my_assignments():
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
-            WHERE sr.substitute_id = ? AND a.absence_date = ?
+            WHERE sr.substitute_id = ? AND sr.request_date = ?
             ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
         """, (staff_id, today))
         assignments = [dict(row) for row in cursor.fetchall()]
@@ -452,19 +452,72 @@ def my_assignments():
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
 def decline_assignment(request_id):
-    """Substitute declines an assignment."""
+    """Substitute declines an assignment - with 30-min cutoff and auto-reassign."""
     staff_id = session.get('staff_id')
-    reason = request.form.get('reason', 'No reason given')
+    reason = request.form.get('reason', '').strip() or 'No reason given'
+    now = datetime.now()
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
+        # Get the request details
+        cursor.execute("""
+            SELECT sr.*, p.start_time, p.period_name, a.absence_date, a.id as absence_id,
+                   s.display_name as decliner_name
+            FROM substitute_request sr
+            LEFT JOIN period p ON sr.period_id = p.id
+            JOIN absence a ON sr.absence_id = a.id
+            JOIN staff s ON sr.substitute_id = s.id
+            WHERE sr.id = ? AND sr.substitute_id = ?
+        """, (request_id, staff_id))
+        req = cursor.fetchone()
+        
+        if not req:
+            return "Assignment not found", 404
+        
+        req = dict(req)
+        
+        # Check 30-min cutoff (only for non-mentor duties with a period)
+        if req['start_time'] and req['request_date'] == date.today().isoformat():
+            period_start = datetime.strptime(f"{req['request_date']} {req['start_time']}", "%Y-%m-%d %H:%M")
+            minutes_until = (period_start - now).total_seconds() / 60
+            
+            # Get cutoff from config
+            cursor.execute("SELECT decline_cutoff_minutes FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
+            config = cursor.fetchone()
+            cutoff = config['decline_cutoff_minutes'] if config else 30
+            
+            if minutes_until < cutoff:
+                # Too late to decline
+                return render_template('substitute/decline_too_late.html',
+                    period_name=req['period_name'],
+                    minutes_until=int(minutes_until),
+                    cutoff=cutoff), 400
+        
+        # Mark as declined
         cursor.execute("""
             UPDATE substitute_request
             SET status = 'Declined', declined_at = ?, declined_by_id = ?, decline_reason = ?
-            WHERE id = ? AND substitute_id = ?
-        """, (datetime.now().isoformat(), staff_id, reason, request_id, staff_id))
+            WHERE id = ?
+        """, (now.isoformat(), staff_id, reason, request_id))
+        
+        # Log the decline
+        cursor.execute("""
+            INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
+            VALUES (?, ?, 'declined', ?, ?, ?, ?)
+        """, (str(uuid.uuid4()), req['absence_id'], 
+              f"{req['decliner_name']} declined {req['period_name'] or 'Roll Call'}: {reason}",
+              staff_id, TENANT_ID, now.isoformat()))
+        
         conn.commit()
+        
+        # Auto-reassign
+        from app.services.substitute_engine import reassign_declined_request
+        new_sub = reassign_declined_request(request_id, staff_id)
+        
+        if new_sub:
+            # TODO: Send push notification to new substitute
+            pass
     
     return redirect(url_for('substitute.my_assignments'))
 

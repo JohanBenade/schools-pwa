@@ -479,3 +479,127 @@ def create_absence(staff_id, absence_date, absence_type, reason, is_full_day=Tru
              f"{absence_type}: {reason or 'No reason given'}")
     
     return absence_id
+
+
+def reassign_declined_request(request_id, declined_by_id):
+    """Reassign a declined substitute request to next available teacher."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get the declined request details
+        cursor.execute("""
+            SELECT sr.*, a.staff_id as absent_staff_id, a.id as absence_id
+            FROM substitute_request sr
+            JOIN absence a ON sr.absence_id = a.id
+            WHERE sr.id = ?
+        """, (request_id,))
+        req = cursor.fetchone()
+        if not req:
+            return None
+        req = dict(req)
+        
+        target_date = req['request_date']
+        
+        # Get teachers already assigned on this date (excluding the decliner who's now free again)
+        assigned_today = get_teachers_assigned_on_date(target_date)
+        assigned_today.discard(declined_by_id)  # Decliner is available again
+        
+        # Get cycle day for this date
+        cursor.execute("SELECT cycle_day FROM cycle_day_config WHERE calendar_date = ? AND tenant_id = ?",
+                      (target_date, TENANT_ID))
+        cycle_row = cursor.fetchone()
+        cycle_day = cycle_row['cycle_day'] if cycle_row else 1
+        
+        # Get current pointer
+        cursor.execute("SELECT pointer_surname FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
+        config = cursor.fetchone()
+        pointer = config['pointer_surname'] if config else 'A'
+        
+        # Get available teachers for this period (free this period, not absent, not the decliner)
+        if req['period_id']:
+            cursor.execute("""
+                SELECT s.id, s.surname, s.display_name
+                FROM staff s
+                WHERE s.tenant_id = ?
+                  AND s.is_active = 1
+                  AND s.can_substitute = 1
+                  AND s.id != ?
+                  AND s.id != ?
+                  AND s.id NOT IN (
+                      SELECT staff_id FROM absence 
+                      WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
+                        AND status != 'Cancelled'
+                  )
+                  AND s.id NOT IN (
+                      SELECT staff_id FROM timetable_slot 
+                      WHERE period_id = ? AND cycle_day = ?
+                  )
+                ORDER BY 
+                    CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
+                    s.surname
+            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date,
+                  req['period_id'], cycle_day, pointer))
+        else:
+            # Mentor duty - find adjacent room teacher or any available
+            cursor.execute("""
+                SELECT s.id, s.surname, s.display_name
+                FROM staff s
+                WHERE s.tenant_id = ?
+                  AND s.is_active = 1
+                  AND s.can_substitute = 1
+                  AND s.id != ?
+                  AND s.id != ?
+                ORDER BY 
+                    CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
+                    s.surname
+            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, pointer))
+        
+        candidates = [dict(row) for row in cursor.fetchall()]
+        
+        # Pass 1: Teachers with 0 subs today
+        new_sub = None
+        for c in candidates:
+            if c['id'] not in assigned_today:
+                new_sub = c
+                break
+        
+        # Pass 2: Teachers with 1 sub today
+        if not new_sub:
+            for c in candidates:
+                new_sub = c
+                break
+        
+        if new_sub:
+            # Update the request with new substitute
+            cursor.execute("""
+                UPDATE substitute_request
+                SET substitute_id = ?, status = 'Assigned', 
+                    declined_at = NULL, declined_by_id = NULL, decline_reason = NULL
+            WHERE id = ?
+            """, (new_sub['id'], request_id))
+            
+            # Log the reassignment
+            cursor.execute("""
+                INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
+                VALUES (?, ?, 'reassigned', ?, ?, ?, ?)
+            """, (str(uuid.uuid4()), req['absence_id'],
+                  f"Reassigned to {new_sub['display_name']}",
+                  new_sub['id'], TENANT_ID, datetime.now().isoformat()))
+            
+            conn.commit()
+            return new_sub
+        else:
+            # No one available - mark as escalated
+            cursor.execute("""
+                UPDATE substitute_request SET status = 'Escalated' WHERE id = ?
+            """, (request_id,))
+            
+            cursor.execute("""
+                INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
+                VALUES (?, ?, 'no_cover', ?, NULL, ?, ?)
+            """, (str(uuid.uuid4()), req['absence_id'],
+                  f"No substitute available after decline",
+                  TENANT_ID, datetime.now().isoformat()))
+            
+            conn.commit()
+            return None
