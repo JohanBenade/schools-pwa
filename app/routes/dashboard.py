@@ -33,15 +33,14 @@ def index():
         
         pending_count = total_groups - submitted_count
         
-        # Get pending classes sorted by grade then name
+        # Get pending classes - simple query
         cursor.execute('''
-            SELECT mg.group_name, g.grade_number
+            SELECT mg.group_name
             FROM mentor_group mg
-            LEFT JOIN grade g ON mg.grade_id = g.id
             WHERE mg.tenant_id = ? AND mg.id NOT IN (
                 SELECT mentor_group_id FROM attendance WHERE date = ? AND tenant_id = ?
             )
-            ORDER BY g.grade_number, mg.group_name
+            ORDER BY mg.group_name
             LIMIT 5
         ''', (TENANT_ID, today_str, TENANT_ID))
         pending_classes = [row['group_name'] for row in cursor.fetchall()]
