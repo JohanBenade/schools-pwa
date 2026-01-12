@@ -57,6 +57,19 @@
         .detail-value {
             font-weight: 500;
             font-size: 14px;
+            text-align: right;
+            max-width: 60%;
+        }
+        .notes-row {
+            flex-direction: column;
+            gap: 8px;
+        }
+        .notes-row .detail-value {
+            text-align: left;
+            max-width: 100%;
+            font-weight: 400;
+            font-style: italic;
+            opacity: 0.9;
         }
         .home-btn {
             background: rgba(255,255,255,0.2);
@@ -105,6 +118,12 @@
                 <span class="detail-label">Resolved by</span>
                 <span class="detail-value">{{ alert.resolved_by_name or 'Unknown' }}</span>
             </div>
+            {% if alert.resolution_notes %}
+            <div class="detail-row notes-row">
+                <span class="detail-label">Notes</span>
+                <span class="detail-value">{{ alert.resolution_notes }}</span>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
         
