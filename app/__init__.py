@@ -248,8 +248,6 @@ def create_app():
         .push-prompt-btn {{ padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }}
         .push-prompt-btn.allow {{ background: #22c55e; color: white; }}
         .push-prompt-btn.dismiss {{ background: transparent; color: #94a3b8; }}
-        .toast {{ position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 1001; opacity: 0; transition: opacity 0.3s; pointer-events: none; }}
-        .toast.show {{ opacity: 1; }}
     </style>
 </head>
 <body>
@@ -264,13 +262,12 @@ def create_app():
     </div>
     <div class="grid">{icons_html}</div>
     <div class="footer">Term 1 2026 Pilot</div>
-    <div class="toast" id="toast"></div>
     <div class="push-prompt" id="pushPrompt">
         <span class="push-prompt-text">🔔 Enable notifications to receive emergency alerts</span>
         <button class="push-prompt-btn dismiss" onclick="dismissPushPrompt()">Later</button>
         <button class="push-prompt-btn allow" onclick="enablePushNotifications()">Enable</button>
     </div>
-    <script src="/static/push.js"></script>    <script>        (function() {            const params = new URLSearchParams(window.location.search);            const toast = params.get('toast');            if (toast === 'decline_success') {                const el = document.getElementById('toast');                el.textContent = '✓ Assignment declined';                el.classList.add('show');                setTimeout(() => el.classList.remove('show'), 3000);                history.replaceState(null, '', '/');            }        })();    </script>
+    <script src="/static/push.js"></script>
     <script>
         function checkPushPrompt() {{ if (!('Notification' in window)) return; if (!('serviceWorker' in navigator)) return; if (Notification.permission !== 'default') return; if (localStorage.getItem('push_prompt_dismissed')) return; setTimeout(() => {{ document.getElementById('pushPrompt').classList.add('show'); }}, 2000); }}
         async function enablePushNotifications() {{ document.getElementById('pushPrompt').classList.remove('show'); const granted = await requestNotificationPermission(); if (granted) {{ console.log('Push notifications enabled!'); }} }}
