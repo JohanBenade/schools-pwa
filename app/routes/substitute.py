@@ -489,7 +489,7 @@ def decline_assignment(request_id):
             # TODO: Send push notification to new substitute
             pass
     
-    return redirect(url_for('substitute.my_assignments'))
+    return redirect('/?toast=decline_success')
 
 
 @substitute_bp.route('/log/<absence_id>')
