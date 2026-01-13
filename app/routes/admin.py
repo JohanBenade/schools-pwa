@@ -571,3 +571,41 @@ def view_duties():
         'homework_pointer': config['homework_pointer_index'] if config else 0,
         'eligible_staff_count': staff_count
     })
+
+
+@admin_bp.route('/add-test-users')
+def add_test_users():
+    """Add test users for duty testing."""
+    from app.services.db import get_connection
+    import uuid
+    
+    added = []
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        test_users = ['Chelsea', 'Thycha', 'Rika', 'Daleen', 'Anike']
+        
+        for name in test_users:
+            cursor.execute("SELECT id, display_name FROM staff WHERE display_name LIKE ? AND tenant_id = 'MARAGON'", (f'%{name}%',))
+            staff = cursor.fetchone()
+            
+            if not staff:
+                continue
+            
+            magic_code = name.lower()
+            
+            cursor.execute("SELECT id FROM user_session WHERE magic_code = ? AND tenant_id = 'MARAGON'", (magic_code,))
+            if cursor.fetchone():
+                continue
+            
+            cursor.execute("""
+                INSERT INTO user_session (id, tenant_id, staff_id, display_name, role, magic_code, can_resolve, created_at)
+                VALUES (?, 'MARAGON', ?, ?, 'teacher', ?, 0, datetime('now'))
+            """, (str(uuid.uuid4()), staff['id'], staff['display_name'], magic_code))
+            
+            added.append(magic_code)
+        
+        conn.commit()
+    
+    return jsonify({'added': added, 'message': f'Added {len(added)} test users'})
