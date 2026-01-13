@@ -529,3 +529,14 @@ CREATE TABLE IF NOT EXISTS terrain_config (
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (5, 'Terrain duty + My Daily Schedule - areas, calendar, bell schedules, meetings, config');
+
+-- ============================================
+-- MIGRATION 006: Homework Venue Duty (Jan 2026)
+-- ============================================
+
+-- duty_roster.duty_type TEXT DEFAULT 'terrain' (terrain or homework)
+-- terrain_config.homework_pointer_index INTEGER DEFAULT 0
+-- terrain_config.homework_pointer_updated_at TEXT
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (6, 'Homework venue duty support');
