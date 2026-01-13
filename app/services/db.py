@@ -859,6 +859,12 @@ def run_pending_migrations():
         seed_sport_events()
     except Exception as e:
         print(f"Sport events seed check: {e}")
+    
+    try:
+        from app.services.seed_sport_duties import seed_sport_duties
+        seed_sport_duties()
+    except Exception as e:
+        print(f"Sport duties seed check: {e}")
 
 # Auto-run on module load
 run_pending_migrations()
