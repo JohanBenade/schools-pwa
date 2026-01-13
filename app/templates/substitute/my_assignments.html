@@ -244,6 +244,7 @@
             <h2>Decline Assignment</h2>
             <p id="declineInfo">Period X - Covering for Ms Teacher</p>
             <form id="declineForm" method="POST">
+                <input type="hidden" name="tab" id="declineTab" value="{{ current_tab }}">
                 <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeDecline()">Cancel</button>
