@@ -1,6 +1,6 @@
 """
 Duty routes - My Day (teacher's full schedule view)
-Combines: teaching periods, terrain duty, homework duty, sub assignments
+Combines: teaching periods, terrain duty, homework duty, sub assignments, sport duties
 """
 
 from flask import Blueprint, render_template, request, redirect, session
@@ -31,12 +31,11 @@ def my_day():
         target_date = today_date
     
     target_date_str = target_date.isoformat()
-    weekday = target_date.weekday()  # 0=Mon, 6=Sun
+    weekday = target_date.weekday()
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get calendar info for this date
         cursor.execute("""
             SELECT cycle_day, day_type, bell_schedule, day_name
             FROM school_calendar
@@ -52,17 +51,16 @@ def my_day():
         else:
             cycle_day = get_cycle_day()
             day_type = 'academic' if weekday < 5 else 'weekend'
-            if weekday in [0, 2]:  # Mon, Wed
+            if weekday in [0, 2]:
                 bell_schedule = 'type_a'
-            elif weekday in [1, 3]:  # Tue, Thu
+            elif weekday in [1, 3]:
                 bell_schedule = 'type_b'
-            elif weekday == 4:  # Fri
+            elif weekday == 4:
                 bell_schedule = 'type_c'
             else:
                 bell_schedule = 'none'
             day_name = f"D{cycle_day}" if cycle_day else None
         
-        # Get bell slots for this schedule type
         cursor.execute("""
             SELECT * FROM bell_schedule
             WHERE tenant_id = ? AND schedule_type = ?
@@ -70,7 +68,6 @@ def my_day():
         """, (TENANT_ID, bell_schedule))
         bell_slots = [dict(row) for row in cursor.fetchall()]
         
-        # Get teaching schedule (if we have timetable data)
         teaching_slots = {}
         if cycle_day:
             cursor.execute("""
@@ -83,7 +80,6 @@ def my_day():
             """, (staff_id, cycle_day))
             teaching_slots = {row['period_number']: dict(row) for row in cursor.fetchall()}
         
-        # Get terrain duty for this date
         cursor.execute("""
             SELECT dr.*, ta.area_name, ta.area_code
             FROM duty_roster dr
@@ -93,7 +89,6 @@ def my_day():
         terrain_row = cursor.fetchone()
         terrain_duty = dict(terrain_row) if terrain_row else None
         
-        # Get homework duty for this date
         cursor.execute("""
             SELECT * FROM duty_roster
             WHERE staff_id = ? AND duty_date = ? AND duty_type = 'homework'
@@ -101,7 +96,6 @@ def my_day():
         homework_row = cursor.fetchone()
         homework_duty = dict(homework_row) if homework_row else None
         
-        # Get sub assignments
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
                    s.display_name as absent_teacher, sr.venue_name
@@ -116,7 +110,16 @@ def my_day():
         sub_by_period = {a['period_number']: a for a in sub_assignments if a['period_number']}
         mentor_sub = next((a for a in sub_assignments if a['is_mentor_duty']), None)
         
-        # Get mentor group info
+        # Get sport duty for this date
+        cursor.execute("""
+            SELECT sd.*, se.event_name, se.start_time as event_start, se.end_time as event_end,
+                   se.sport_type, se.venue_name, se.affects_timetable, se.id as event_id
+            FROM sport_duty sd
+            JOIN sport_event se ON sd.event_id = se.id
+            WHERE sd.staff_id = ? AND sd.tenant_id = ? AND se.event_date = ?
+        """, (staff_id, TENANT_ID, target_date_str))
+        sport_duties = [dict(row) for row in cursor.fetchall()]
+        
         cursor.execute("""
             SELECT mg.group_name, g.grade_name
             FROM mentor_group mg
@@ -126,10 +129,27 @@ def my_day():
         mentor_row = cursor.fetchone()
         mentor_group = dict(mentor_row) if mentor_row else None
         
-        # Build schedule items
         schedule = []
         
-        # Add morning duty if terrain duty exists
+        # Sport duties at top
+        for sport in sport_duties:
+            schedule.append({
+                'slot_type': 'sport',
+                'slot_name': sport['event_name'],
+                'start_time': sport['event_start'] or '08:00',
+                'end_time': sport['event_end'],
+                'content': f"{sport['duty_type']}: {sport['duty_role'] or 'Assigned'}",
+                'badge': sport['sport_type'],
+                'badge_color': 'teal',
+                'is_duty': False,
+                'is_sub': False,
+                'is_free': False,
+                'is_sport': True,
+                'request_id': None,
+                'event_id': sport['event_id'],
+                'affects_timetable': sport['affects_timetable']
+            })
+        
         if terrain_duty:
             schedule.append({
                 'slot_type': 'duty',
@@ -142,6 +162,7 @@ def my_day():
                 'is_duty': True,
                 'is_sub': False,
                 'is_free': False,
+                'is_sport': False,
                 'request_id': None
             })
         
@@ -157,6 +178,7 @@ def my_day():
                 'is_duty': False,
                 'is_sub': False,
                 'is_free': False,
+                'is_sport': False,
                 'request_id': None
             }
             
@@ -219,6 +241,7 @@ def my_day():
     
     sub_count = len(sub_assignments)
     duty_count = (1 if terrain_duty else 0) + (1 if homework_duty else 0)
+    sport_count = len(sport_duties)
     
     nav_header = get_nav_header("My Day", "/", "Home")
     nav_styles = get_nav_styles()
@@ -231,8 +254,10 @@ def my_day():
                           cycle_day=cycle_day,
                           sub_count=sub_count,
                           duty_count=duty_count,
+                          sport_count=sport_count,
                           terrain_duty=terrain_duty,
                           homework_duty=homework_duty,
+                          sport_duties=sport_duties,
                           nav_header=nav_header,
                           nav_styles=nav_styles,
                           current_tab=tab)
