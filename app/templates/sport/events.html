@@ -6,11 +6,18 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Sport Events | SchoolOps</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    {{ nav_styles|safe }}
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; min-height: 100vh; color: white; }
         .container { max-width: 600px; margin: 0 auto; padding: 0 16px 100px; }
+        
+        /* Nav styles */
+        .nav-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-back { color: #60a5fa; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 8px; transition: background 0.2s; }
+        .nav-back:hover { background: rgba(96, 165, 250, 0.1); }
+        .nav-title { font-size: 18px; font-weight: 600; color: white; }
+        .nav-home { font-size: 20px; text-decoration: none; padding: 8px 12px; border-radius: 8px; transition: background 0.2s; }
+        .nav-home:hover { background: rgba(255,255,255,0.1); }
         
         /* Filter tabs */
         .filter-tabs { display: flex; gap: 8px; margin: 20px 0; overflow-x: auto; padding-bottom: 8px; }
@@ -62,9 +69,13 @@
     </style>
 </head>
 <body>
-    {{ nav_header|safe }}
-    
     <div class="container">
+        <div class="nav-header">
+            <a href="/" class="nav-back">← Home</a>
+            <span class="nav-title">Sport Events 🏆</span>
+            <a href="/" class="nav-home">🏠</a>
+        </div>
+        
         <!-- Filter tabs -->
         <div class="filter-tabs">
             <a href="/sport/events?filter=this_week" class="filter-tab {{ 'active' if filter_type == 'this_week' else '' }}">This Week</a>
