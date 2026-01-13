@@ -406,7 +406,7 @@ def my_assignments():
         mentor_duty = next((a for a in assignments if a['is_mentor_duty']), None)
     
     back_url, back_label = get_back_url_for_user()
-    nav_header = get_nav_header("My Schedule", "/substitute/", "Substitutes")
+    nav_header = get_nav_header("My Schedule", "/", "Home")
     nav_styles = get_nav_styles()
     
     return render_template('substitute/my_assignments.html',
