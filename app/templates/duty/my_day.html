@@ -48,20 +48,65 @@
         .empty-schedule { text-align: center; padding: 40px 20px; opacity: 0.7; }
         .sport-event-link { text-decoration: none; color: inherit; display: block; }
         .sport-event-link:hover .slot { background: rgba(20, 184, 166, 0.3); }
-        .decline-link {
+        .decline-btn {
             font-size: 12px;
             color: #ef4444;
-            text-decoration: none;
-            padding: 4px 8px;
+            background: transparent;
             border: 1px solid #ef4444;
+            padding: 4px 8px;
             border-radius: 4px;
-            margin-left: 8px;
+            cursor: pointer;
         }
-        .decline-link:hover {
+        .decline-btn:hover {
             background: #ef4444;
             color: white;
         }
         .affects-notice { font-size: 10px; color: #a78bfa; margin-top: 4px; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 8px; color: white; }
+        .modal p { font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
+        .modal textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .modal textarea::placeholder { color: #64748b; }
+        .modal-buttons { display: flex; gap: 12px; }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #94a3b8; }
+        .btn-confirm { background: #dc2626; color: white; }
     </style>
 </head>
 <body>
@@ -145,7 +190,7 @@
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
                 {% endif %}
                 {% if slot.is_sub and slot.request_id %}
-                <a href="/substitute/my-assignments" class="decline-link">✕ Decline</a>
+                <button class="decline-btn" onclick="openDecline('{{ slot.request_id }}', '{{ slot.slot_name }}', '{{ slot.badge }}')">✕ Decline</button>
                 {% endif %}
             </div>
             {% endif %}
@@ -153,5 +198,34 @@
         </div>
         {% endif %}
     </div>
+
+    <div class="modal-overlay" id="declineModal">
+        <div class="modal">
+            <h2>Decline Assignment</h2>
+            <p id="declineInfo"></p>
+            <form id="declineForm" method="POST">
+                <input type="hidden" name="return_to" value="/duty/my-day?tab={{ current_tab }}">
+                <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeDecline()">Cancel</button>
+                    <button type="submit" class="btn-confirm">Confirm Decline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openDecline(requestId, slotName, teacher) {
+            document.getElementById('declineInfo').textContent = slotName + ' - ' + (teacher || '');
+            document.getElementById('declineForm').action = '/substitute/decline/' + requestId;
+            document.getElementById('declineModal').classList.add('active');
+        }
+        function closeDecline() {
+            document.getElementById('declineModal').classList.remove('active');
+        }
+        document.getElementById('declineModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDecline();
+        });
+    </script>
 </body>
 </html>

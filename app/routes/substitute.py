@@ -489,8 +489,8 @@ def decline_assignment(request_id):
             # TODO: Send push notification to new substitute
             pass
     
-    tab = request.form.get('tab', 'today')
-    return redirect(url_for('substitute.my_assignments', tab=tab))
+    return_to = request.form.get('return_to', '/')
+    return redirect(return_to)
 
 
 @substitute_bp.route('/log/<absence_id>')
