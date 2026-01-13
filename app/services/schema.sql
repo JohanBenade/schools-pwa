@@ -442,3 +442,90 @@ VALUES (3, 'Substitute allocation - periods, timetable, config, audit log');
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (4, 'Decline flow + Multi-day absence support');
+
+-- ============================================
+-- MIGRATION 005: Terrain Duty + My Daily Schedule (Jan 2026)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS terrain_area (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    area_code TEXT NOT NULL,
+    area_name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_terrain_area_tenant ON terrain_area(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_terrain_area_sort ON terrain_area(tenant_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS school_calendar (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    cycle_day INTEGER,
+    day_type TEXT NOT NULL,
+    day_name TEXT,
+    weekday TEXT NOT NULL,
+    bell_schedule TEXT NOT NULL,
+    is_school_day INTEGER DEFAULT 1,
+    term INTEGER,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tenant_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_school_calendar_tenant_date ON school_calendar(tenant_id, date);
+CREATE INDEX IF NOT EXISTS idx_school_calendar_school_day ON school_calendar(tenant_id, is_school_day, date);
+
+CREATE TABLE IF NOT EXISTS bell_schedule (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    schedule_type TEXT NOT NULL,
+    slot_type TEXT NOT NULL,
+    slot_number INTEGER,
+    slot_name TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    is_teaching INTEGER DEFAULT 0,
+    is_break INTEGER DEFAULT 0,
+    sort_order INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_bell_schedule_tenant_type ON bell_schedule(tenant_id, schedule_type);
+CREATE INDEX IF NOT EXISTS idx_bell_schedule_breaks ON bell_schedule(tenant_id, is_break);
+
+CREATE TABLE IF NOT EXISTS teacher_meeting (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,
+    meeting_date TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT,
+    title TEXT NOT NULL,
+    meeting_type TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_teacher_meeting_staff ON teacher_meeting(staff_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_meeting_date ON teacher_meeting(tenant_id, meeting_date);
+
+CREATE TABLE IF NOT EXISTS terrain_config (
+    tenant_id TEXT PRIMARY KEY,
+    pointer_index INTEGER DEFAULT 0,
+    pointer_updated_at TEXT,
+    morning_duty_time TEXT DEFAULT '07:15',
+    reminder_evening_time TEXT DEFAULT '18:00',
+    reminder_morning_time TEXT DEFAULT '06:30',
+    reminder_before_minutes INTEGER DEFAULT 15,
+    days_to_generate INTEGER DEFAULT 5,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (5, 'Terrain duty + My Daily Schedule - areas, calendar, bell schedules, meetings, config');
