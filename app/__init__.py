@@ -158,9 +158,9 @@ def create_app():
             <div class="icon-box bg-blue">&#128203;</div>
             <span class="app-label">Roll Call</span>
         </a>
-        <a href="/substitute/" class="app-icon">
-            <div class="icon-box bg-orange">&#128260;</div>
-            <span class="app-label">Substitutes</span>
+        <a href="/substitute/report" class="app-icon">
+            <div class="icon-box bg-orange">✋</div>
+            <span class="app-label">Report Absence</span>
         </a>
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">&#128694;</div>
