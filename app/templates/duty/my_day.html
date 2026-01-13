@@ -48,6 +48,19 @@
         .empty-schedule { text-align: center; padding: 40px 20px; opacity: 0.7; }
         .sport-event-link { text-decoration: none; color: inherit; display: block; }
         .sport-event-link:hover .slot { background: rgba(20, 184, 166, 0.3); }
+        .decline-link {
+            font-size: 12px;
+            color: #ef4444;
+            text-decoration: none;
+            padding: 4px 8px;
+            border: 1px solid #ef4444;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        .decline-link:hover {
+            background: #ef4444;
+            color: white;
+        }
         .affects-notice { font-size: 10px; color: #a78bfa; margin-top: 4px; }
     </style>
 </head>
@@ -130,6 +143,9 @@
                 </div>
                 {% if slot.badge %}
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
+                {% endif %}
+                {% if slot.is_sub and slot.request_id %}
+                <a href="/substitute/my-assignments" class="decline-link">✕ Decline</a>
                 {% endif %}
             </div>
             {% endif %}
