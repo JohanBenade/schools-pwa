@@ -127,6 +127,18 @@ def my_day():
             WHERE mg.mentor_id = ?
         """, (staff_id,))
         mentor_row = cursor.fetchone()
+
+        # Check if this teacher is absent on target date
+        cursor.execute("""
+            SELECT absence_type, status FROM absence
+            WHERE staff_id = ? AND tenant_id = ?
+            AND absence_date <= ? AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
+            AND status IN ('Reported', 'Covered', 'Partial')
+            LIMIT 1
+        """, (staff_id, TENANT_ID, target_date_str, target_date_str))
+        absence_row = cursor.fetchone()
+        is_absent = absence_row is not None
+        absence_type = absence_row['absence_type'] if absence_row else None
         mentor_group = dict(mentor_row) if mentor_row else None
         
         schedule = []
@@ -260,4 +272,4 @@ def my_day():
                           sport_duties=sport_duties,
                           nav_header=nav_header,
                           nav_styles=nav_styles,
-                          current_tab=tab)
+                          current_tab=tab,                          is_absent=is_absent,                          absence_type=absence_type)

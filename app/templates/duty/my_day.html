@@ -62,6 +62,10 @@
             color: white;
         }
         .affects-notice { font-size: 10px; color: #a78bfa; margin-top: 4px; }
+        .absent-banner { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+        .absent-banner h3 { font-size: 16px; margin-bottom: 4px; }
+        .absent-banner p { font-size: 13px; opacity: 0.9; }
+        .schedule.greyed { opacity: 0.5; }
         .modal-overlay {
             display: none;
             position: fixed;
@@ -128,6 +132,12 @@
             <div class="cycle">{{ day_type|replace('_', ' ')|title }}</div>
             {% endif %}
         </div>
+        {% if is_absent %}
+        <div class="absent-banner">
+            <h3>⚠️ You are marked absent</h3>
+            <p>{{ absence_type|replace("_", " ")|title }} Leave</p>
+        </div>
+        {% endif %}
         {% if day_type in ['weekend', 'holiday', 'public_holiday'] %}
         <div class="no-school">
             <div class="no-school-icon">🏖️</div>
@@ -161,7 +171,7 @@
             {% endif %}
         </div>
         {% endif %}
-        <div class="schedule">
+        <div class="schedule{% if is_absent %} greyed{% endif %}">
             {% for slot in schedule %}
             {% if slot.is_sport %}
             <a href="/sport/event/{{ slot.event_id }}" class="sport-event-link">
