@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Sport Events | SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    {{ nav_styles|safe }}
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; min-height: 100vh; color: white; }
+        .container { max-width: 600px; margin: 0 auto; padding: 0 16px 100px; }
+        
+        /* Filter tabs */
+        .filter-tabs { display: flex; gap: 8px; margin: 20px 0; overflow-x: auto; padding-bottom: 8px; }
+        .filter-tab { padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); text-decoration: none; white-space: nowrap; transition: all 0.2s; }
+        .filter-tab.active { background: #3b82f6; color: white; }
+        .filter-tab:hover { background: rgba(255,255,255,0.2); }
+        .filter-tab.active:hover { background: #2563eb; }
+        
+        /* Stats */
+        .stats { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+        .stats-number { font-size: 32px; font-weight: 700; color: #3b82f6; }
+        .stats-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        
+        /* Date group */
+        .date-group { margin-bottom: 24px; }
+        .date-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .date-badge { background: #1e293b; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 60px; }
+        .date-badge.today { background: #3b82f6; }
+        .date-badge.tomorrow { background: #6366f1; }
+        .date-day { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+        .date-badge.today .date-day,
+        .date-badge.tomorrow .date-day { color: rgba(255,255,255,0.8); }
+        .date-num { font-size: 16px; font-weight: 600; margin-top: 2px; }
+        .date-title { font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.9); }
+        
+        /* Event card */
+        .event-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; transition: transform 0.1s, background 0.2s; }
+        .event-card:active { transform: scale(0.98); }
+        .event-card:hover { background: #263548; }
+        
+        .event-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .event-name { font-size: 16px; font-weight: 600; color: white; }
+        .event-sport { font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 12px; color: rgba(255,255,255,0.7); }
+        
+        .event-details { display: flex; gap: 16px; flex-wrap: wrap; }
+        .event-detail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255,255,255,0.6); }
+        .event-detail-icon { font-size: 14px; }
+        
+        .location-home { color: #22c55e; }
+        .location-away { color: #f97316; }
+        
+        /* Affects timetable badge */
+        .affects-badge { display: inline-flex; align-items: center; gap: 4px; background: #7c3aed; padding: 4px 8px; border-radius: 6px; font-size: 11px; color: white; margin-top: 8px; }
+        
+        /* Empty state */
+        .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.5); }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state-text { font-size: 15px; }
+    </style>
+</head>
+<body>
+    {{ nav_header|safe }}
+    
+    <div class="container">
+        <!-- Filter tabs -->
+        <div class="filter-tabs">
+            <a href="/sport/events?filter=this_week" class="filter-tab {{ 'active' if filter_type == 'this_week' else '' }}">This Week</a>
+            <a href="/sport/events?filter=upcoming" class="filter-tab {{ 'active' if filter_type == 'upcoming' else '' }}">Next 30 Days</a>
+            <a href="/sport/events?filter=this_month" class="filter-tab {{ 'active' if filter_type == 'this_month' else '' }}">This Month</a>
+            <a href="/sport/events?filter=all" class="filter-tab {{ 'active' if filter_type == 'all' else '' }}">All</a>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stats-number">{{ total_events }}</div>
+            <div class="stats-label">{{ filter_label }}</div>
+        </div>
+        
+        {% if grouped_events %}
+            {% for group in grouped_events %}
+            <div class="date-group">
+                <div class="date-header">
+                    <div class="date-badge {{ 'today' if group.is_today else 'tomorrow' if group.is_tomorrow else '' }}">
+                        <div class="date-day">{{ group.day_name[:3] }}</div>
+                        <div class="date-num">{{ group.date_display }}</div>
+                    </div>
+                    <div class="date-title">
+                        {% if group.is_today %}Today{% elif group.is_tomorrow %}Tomorrow{% else %}{{ group.day_name }}{% endif %}
+                    </div>
+                </div>
+                
+                {% for event in group.events %}
+                <a href="/sport/event/{{ event.id }}" class="event-card">
+                    <div class="event-top">
+                        <div class="event-name">{{ event.event_name }}</div>
+                        <div class="event-sport">{{ event.sport_type }}</div>
+                    </div>
+                    <div class="event-details">
+                        <div class="event-detail">
+                            <span class="event-detail-icon">🕐</span>
+                            {{ event.time_display }}
+                        </div>
+                        <div class="event-detail {{ 'location-home' if event.location_type == 'Home' else 'location-away' }}">
+                            <span class="event-detail-icon">📍</span>
+                            {{ event.venue_name or event.location_type }}
+                        </div>
+                    </div>
+                    {% if event.affects_timetable %}
+                    <div class="affects-badge">
+                        <span>📅</span> Affects Timetable
+                    </div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🏆</div>
+                <div class="empty-state-text">No events in this period</div>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
