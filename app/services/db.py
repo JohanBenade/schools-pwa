@@ -817,6 +817,12 @@ def run_pending_migrations():
         apply_migration_005()
     except Exception as e:
         print(f"Migration 005 check: {e}")
+    
+    try:
+        from app.services.seed_calendar_2026 import seed_calendar
+        seed_calendar()
+    except Exception as e:
+        print(f"Calendar seed check: {e}")
 
 # Auto-run on module load
 run_pending_migrations()
