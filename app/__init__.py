@@ -28,6 +28,7 @@ def create_app():
     from app.routes.push import push_bp
     from app.routes.substitute import substitute_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.duty import duty_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
@@ -36,6 +37,7 @@ def create_app():
     app.register_blueprint(push_bp)
     app.register_blueprint(substitute_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(duty_bp)
     
     @app.before_request
     def check_password_gate():
@@ -158,6 +160,10 @@ def create_app():
             <div class="icon-box bg-orange">&#128260;</div>
             <span class="app-label">Substitutes</span>
         </a>
+        <a href="/duty/my-day" class="app-icon">
+            <div class="icon-box bg-green">&#128694;</div>
+            <span class="app-label">My Day</span>
+        </a>
         '''
         
         if show_dashboard:
@@ -177,10 +183,6 @@ def create_app():
         '''
         
         icons_html += '''
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-green">&#128694;</div>
-            <span class="app-label">Duty</span>
-        </a>
         <a href="#" class="app-icon coming-soon" onclick="return false;">
             <div class="icon-box bg-purple">&#128196;</div>
             <span class="app-label">Documents</span>
