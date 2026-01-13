@@ -829,6 +829,12 @@ def run_pending_migrations():
         apply_migration_006()
     except Exception as e:
         print(f"Migration 006 check: {e}")
+    
+    try:
+        from app.services.apply_migration_007 import apply_migration as apply_migration_007
+        apply_migration_007()
+    except Exception as e:
+        print(f"Migration 007 check: {e}")
 
 # Auto-run on module load
 run_pending_migrations()
