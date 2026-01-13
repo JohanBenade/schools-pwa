@@ -27,53 +27,8 @@ def get_back_url_for_user():
 
 @substitute_bp.route('/')
 def index():
-    """Substitute home - links to report absence or view assignments."""
-    staff_id = session.get('staff_id')
-    display_name = session.get('display_name', 'Teacher')
-    back_url, back_label = get_back_url_for_user()
-    nav_header = get_nav_header("Substitutes", back_url, back_label)
-    nav_styles = get_nav_styles()
-    
-    return f'''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Substitutes - SchoolOps</title>
-    <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }}
-        .container {{ max-width: 500px; margin: 0 auto; }}
-        {nav_styles}
-        .menu {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
-        .menu-item {{ display: block; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: white; }}
-        .menu-item:hover {{ background: rgba(255,255,255,0.15); }}
-        .menu-item h3 {{ font-size: 18px; margin-bottom: 4px; }}
-        .menu-item p {{ font-size: 14px; opacity: 0.7; }}
-        .menu-icon {{ font-size: 24px; margin-bottom: 8px; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        {nav_header}
-        <div class="menu">
-            <a href="/substitute/report" class="menu-item">
-                <div class="menu-icon">🤒</div>
-                <h3>Report Absence</h3>
-                <p>I'm sick and need cover today</p>
-            </a>
-            <a href="/substitute/my-assignments" class="menu-item">
-                <div class="menu-icon">📋</div>
-                <h3>My Assignments</h3>
-                <p>View my substitute duties</p>
-            </a>
-            {f'<a href="/substitute/mission-control" class="menu-item"><div class="menu-icon">🎛️</div><h3>Mission Control</h3><p>Manage all absences and coverage</p></a>' if session.get('role') in ['principal', 'deputy', 'admin'] else ''}
-        </div>
-    </div>
-</body>
-</html>
-'''
+    """Redirect to report form."""
+    return redirect('/substitute/report')
 
 
 @substitute_bp.route('/report', methods=['GET', 'POST'])
