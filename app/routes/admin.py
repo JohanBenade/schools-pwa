@@ -526,3 +526,48 @@ def add_deputies():
             results['added'].append({'name': staff['display_name'], 'magic_link': f"https://schoolops.co.za/?u={dep['magic_code']}"})
         conn.commit()
     return jsonify(results)
+
+
+@admin_bp.route('/generate-duties')
+def generate_duties():
+    """Generate terrain and homework duties for the next 5 school days."""
+    from app.services.duty_generator import generate_all_duties
+    result = generate_all_duties(TENANT_ID, days=5)
+    return jsonify(result)
+
+
+@admin_bp.route('/view-duties')
+def view_duties():
+    """View generated duties."""
+    from datetime import timedelta
+    today = date.today()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get terrain duties for next 7 days
+        cursor.execute('''
+            SELECT dr.duty_date, dr.duty_type, s.display_name, ta.area_name
+            FROM duty_roster dr
+            JOIN staff s ON dr.staff_id = s.id
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.tenant_id = ? AND dr.duty_date >= ?
+            ORDER BY dr.duty_date ASC, dr.duty_type ASC, ta.sort_order ASC
+        ''', (TENANT_ID, today.isoformat()))
+        
+        duties = [dict(row) for row in cursor.fetchall()]
+        
+        # Get pointers
+        cursor.execute('SELECT pointer_index, homework_pointer_index FROM terrain_config WHERE tenant_id = ?', (TENANT_ID,))
+        config = cursor.fetchone()
+        
+        # Get staff count for context
+        cursor.execute('SELECT COUNT(*) FROM staff WHERE tenant_id = ? AND is_active = 1 AND can_do_duty = 1', (TENANT_ID,))
+        staff_count = cursor.fetchone()[0]
+    
+    return jsonify({
+        'duties': duties,
+        'terrain_pointer': config['pointer_index'] if config else 0,
+        'homework_pointer': config['homework_pointer_index'] if config else 0,
+        'eligible_staff_count': staff_count
+    })
