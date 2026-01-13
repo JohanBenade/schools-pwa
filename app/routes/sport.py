@@ -64,14 +64,23 @@ def events():
                 ORDER BY event_date ASC, start_time ASC
             """, (TENANT_ID, start_of_month.isoformat(), end_of_month.isoformat()))
             filter_label = today.strftime("%B %Y")
-        else:
-            # All events
+        elif filter_type == 'past':
+            # Past 30 days
+            start_date = today - timedelta(days=30)
             cursor.execute("""
                 SELECT * FROM sport_event 
-                WHERE tenant_id = ? AND event_date >= ?
+                WHERE tenant_id = ? AND event_date < ? AND event_date >= ?
+                ORDER BY event_date DESC, start_time ASC
+            """, (TENANT_ID, today.isoformat(), start_date.isoformat()))
+            filter_label = "Past 30 Days"
+        else:
+            # All events (past + future)
+            cursor.execute("""
+                SELECT * FROM sport_event 
+                WHERE tenant_id = ?
                 ORDER BY event_date ASC, start_time ASC
-            """, (TENANT_ID, today.isoformat()))
-            filter_label = "All Upcoming"
+            """, (TENANT_ID,))
+            filter_label = "All Events"
         
         events_raw = cursor.fetchall()
         
