@@ -847,6 +847,18 @@ def run_pending_migrations():
         apply_migration_008b()
     except Exception as e:
         print(f"Migration 008b check: {e}")
+    
+    try:
+        from app.services.apply_migration_009 import apply_migration as apply_migration_009
+        apply_migration_009()
+    except Exception as e:
+        print(f"Migration 009 check: {e}")
+    
+    try:
+        from app.services.seed_sport_events import seed_sport_events
+        seed_sport_events()
+    except Exception as e:
+        print(f"Sport events seed check: {e}")
 
 # Auto-run on module load
 run_pending_migrations()
