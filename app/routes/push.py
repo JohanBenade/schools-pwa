@@ -173,7 +173,7 @@ def send_emergency_alert_push(alert_type, location, triggered_by):
         cursor.execute('''
             SELECT id, token FROM push_token 
             WHERE tenant_id = ?
-        ''', (TENANT_ID,))
+        ''', (TENANT_ID, substitute_id))
         tokens = cursor.fetchall()
     
     if not tokens:
@@ -240,7 +240,7 @@ def send_all_clear_push(alert_type, location, resolved_by):
         cursor.execute('''
             SELECT id, token FROM push_token 
             WHERE tenant_id = ?
-        ''', (TENANT_ID,))
+        ''', (TENANT_ID, substitute_id))
         tokens = cursor.fetchall()
     
     if not tokens:
@@ -402,14 +402,14 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
     
     with get_connection() as conn:
         cursor = conn.cursor()
-        # For now, send to ALL devices (demo mode) - filter by staff_id later
+        # Send to specific substitute only
         cursor.execute('''
             SELECT pt.token FROM push_token pt
-            WHERE pt.tenant_id = ?
-        ''', (TENANT_ID,))
+            WHERE pt.tenant_id = ? AND pt.staff_id = ?
+        ''', (TENANT_ID, substitute_id))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens (broadcast mode)")
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens for substitute")
     if not tokens:
         return 0
     
@@ -459,6 +459,56 @@ def send_absence_covered_push(absent_staff_id, covered_count, total_count, date_
             row['token'], title, body,
             data={'type': 'absence_confirmed', 'link': '/substitute/my-assignments'}
         ):
+            success_count += 1
+    
+    return success_count
+
+
+def send_absence_reported_push(absent_teacher_name, date_str, period_count):
+    """
+    Send push to principal when any teacher reports absence.
+    """
+    print(f"PUSH DEBUG: send_absence_reported_push for {absent_teacher_name}")
+    access_token = get_access_token()
+    if not access_token:
+        print("PUSH DEBUG: No access token")
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Get Pierre's staff_id via magic link
+        cursor.execute('''
+            SELECT s.id FROM staff s
+            JOIN user_session us ON s.id = us.staff_id
+            WHERE us.tenant_id = ? AND us.magic_link = 'pierre'
+        ''', (TENANT_ID, substitute_id))
+        pierre = cursor.fetchone()
+        
+        if not pierre:
+            print("PUSH DEBUG: Pierre not found")
+            return 0
+        
+        pierre_id = pierre['id']
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, pierre_id))
+        tokens = cursor.fetchall()
+    
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens for Pierre")
+    if not tokens:
+        return 0
+    
+    title = "📋 Absence Reported"
+    body = f"{absent_teacher_name} • {date_str} • {period_count} periods need cover"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'absence_reported', 'link': '/substitute/mission-control'}
+        ):
+            print(f"PUSH DEBUG: Absence notification sent to Pierre")
             success_count += 1
     
     return success_count
