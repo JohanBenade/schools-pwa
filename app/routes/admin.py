@@ -860,3 +860,32 @@ def add_jean():
         conn.commit()
     
     return '<h1>Done</h1><p>Jean added. <a href="/admin/import-timetable">Re-run import</a></p>'
+
+
+@admin_bp.route('/cycle-day-check')
+def cycle_day_check():
+    """Debug: Show cycle day calculations."""
+    from datetime import date, timedelta
+    from app.services.substitute_engine import get_cycle_day
+    
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT cycle_start_date, cycle_length FROM substitute_config WHERE tenant_id = 'MARAGON'")
+        config = cursor.fetchone()
+    
+    return f'''
+    <html><head><title>Cycle Day Check</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; }}</style></head>
+    <body>
+    <h1>Cycle Day Check</h1>
+    <p><strong>Config start date:</strong> {config['cycle_start_date'] if config else 'Not set'}</p>
+    <p><strong>Cycle length:</strong> {config['cycle_length'] if config else 'Not set'}</p>
+    <hr>
+    <p><strong>Today ({today.strftime('%a %d %b')}):</strong> Day {get_cycle_day(today)}</p>
+    <p><strong>Tomorrow ({tomorrow.strftime('%a %d %b')}):</strong> Day {get_cycle_day(tomorrow)}</p>
+    <p><a href="/admin/">Back</a></p>
+    </body></html>
+    '''
