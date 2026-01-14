@@ -90,16 +90,6 @@ def get_access_token():
 def send_push_notification(token, title, body, data=None, badge_url=None):
     """
     Send push notification to a single device using FCM V1 API
-    
-    Args:
-        token: FCM device token
-        title: Notification title
-        body: Notification body
-        data: Optional dict of custom data
-        badge_url: Optional URL for notification icon
-    
-    Returns:
-        True if successful, False otherwise
     """
     access_token = get_access_token()
     if not access_token:
@@ -145,7 +135,6 @@ def send_push_notification(token, title, body, data=None, badge_url=None):
         if response.status_code == 200:
             return True
         elif response.status_code == 404 or 'NOT_FOUND' in response.text:
-            # Token is invalid/expired - should be removed from database
             print(f"Invalid token (will be cleaned): {token[:20]}...")
             return False
         else:
@@ -160,27 +149,24 @@ def send_push_notification(token, title, body, data=None, badge_url=None):
 def send_emergency_alert_push(alert_type, location, triggered_by):
     """
     Send emergency alert to all registered devices for the tenant.
-    Called when an emergency is triggered.
     """
     access_token = get_access_token()
     if not access_token:
         print("WARNING: Push notifications not configured - skipping")
         return 0
     
-    # Get all tokens for this tenant
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, token FROM push_token 
             WHERE tenant_id = ?
-        ''', (TENANT_ID, substitute_id))
+        ''', (TENANT_ID,))
         tokens = cursor.fetchall()
     
     if not tokens:
         print("No push tokens registered")
         return 0
     
-    # Emoji for alert type
     type_emoji = {
         'Medical': '🏥',
         'Security': '🔒',
@@ -198,7 +184,6 @@ def send_emergency_alert_push(alert_type, location, triggered_by):
         token_id, token = token_row['id'], token_row['token']
         if send_push_notification(token, title, body, data={'type': 'emergency', 'alert_type': alert_type}):
             success_count += 1
-            # Update last_used_at
             with get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
@@ -206,10 +191,8 @@ def send_emergency_alert_push(alert_type, location, triggered_by):
                 ''', (now_iso(), token_id))
                 conn.commit()
         else:
-            # Check if we should remove this token
             invalid_tokens.append(token_id)
     
-    # Clean up invalid tokens
     if invalid_tokens:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -222,25 +205,21 @@ def send_emergency_alert_push(alert_type, location, triggered_by):
     return success_count
 
 
-
-
 def send_all_clear_push(alert_type, location, resolved_by):
     """
     Send 'All Clear' notification to all registered devices.
-    Called when an emergency is resolved.
     """
     access_token = get_access_token()
     if not access_token:
         print("WARNING: Push notifications not configured - skipping")
         return 0
     
-    # Get all tokens for this tenant
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, token FROM push_token 
             WHERE tenant_id = ?
-        ''', (TENANT_ID, substitute_id))
+        ''', (TENANT_ID,))
         tokens = cursor.fetchall()
     
     if not tokens:
@@ -259,6 +238,7 @@ def send_all_clear_push(alert_type, location, resolved_by):
     print(f"All Clear push sent to {success_count}/{len(tokens)} devices")
     return success_count
 
+
 @push_bp.route('/register', methods=['POST'])
 def register_token():
     """Register a device token for push notifications"""
@@ -274,19 +254,16 @@ def register_token():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Check if token already exists
         cursor.execute('SELECT id FROM push_token WHERE token = ?', (token,))
         existing = cursor.fetchone()
         
         if existing:
-            # Update existing token
             cursor.execute('''
                 UPDATE push_token 
                 SET staff_id = ?, device_info = ?, last_used_at = ?
                 WHERE token = ?
             ''', (staff_id, device_info, now_iso(), token))
         else:
-            # Insert new token
             cursor.execute('''
                 INSERT INTO push_token (id, tenant_id, staff_id, token, device_info, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -322,7 +299,6 @@ def test_push():
     if not staff_id:
         return jsonify({'error': 'Not logged in'}), 401
     
-    # Check if push is configured
     if not get_service_account_info():
         return jsonify({'error': 'Push notifications not configured'}), 503
     
@@ -358,7 +334,6 @@ def push_status():
     """Check if push notifications are configured"""
     configured = get_service_account_info() is not None
     
-    # Count registered tokens
     token_count = 0
     if configured:
         with get_connection() as conn:
@@ -387,12 +362,6 @@ def test_all_clear():
 def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_info, date_str, venue):
     """
     Send push to substitute teacher when assigned.
-    Args:
-        substitute_id: staff_id of substitute
-        absent_teacher_name: name of absent teacher
-        period_info: e.g., "Period 1" or "Roll Call"
-        date_str: e.g., "Thu 15 Jan"
-        venue: room code
     """
     print(f"PUSH DEBUG: send_substitute_assigned_push called for {substitute_id}")
     access_token = get_access_token()
@@ -402,7 +371,6 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
     
     with get_connection() as conn:
         cursor = conn.cursor()
-        # Send to specific substitute only
         cursor.execute('''
             SELECT pt.token FROM push_token pt
             WHERE pt.tenant_id = ? AND pt.staff_id = ?
@@ -459,56 +427,6 @@ def send_absence_covered_push(absent_staff_id, covered_count, total_count, date_
             row['token'], title, body,
             data={'type': 'absence_confirmed', 'link': '/substitute/my-assignments'}
         ):
-            success_count += 1
-    
-    return success_count
-
-
-def send_absence_reported_push(absent_teacher_name, date_str, period_count):
-    """
-    Send push to principal when any teacher reports absence.
-    """
-    print(f"PUSH DEBUG: send_absence_reported_push for {absent_teacher_name}")
-    access_token = get_access_token()
-    if not access_token:
-        print("PUSH DEBUG: No access token")
-        return 0
-    
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        # Get Pierre's staff_id via magic link
-        cursor.execute('''
-            SELECT s.id FROM staff s
-            JOIN user_session us ON s.id = us.staff_id
-            WHERE us.tenant_id = ? AND us.magic_code = 'pierre'
-        ''', (TENANT_ID, substitute_id))
-        pierre = cursor.fetchone()
-        
-        if not pierre:
-            print("PUSH DEBUG: Pierre not found")
-            return 0
-        
-        pierre_id = pierre['id']
-        cursor.execute('''
-            SELECT token FROM push_token
-            WHERE tenant_id = ? AND staff_id = ?
-        ''', (TENANT_ID, pierre_id))
-        tokens = cursor.fetchall()
-    
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for Pierre")
-    if not tokens:
-        return 0
-    
-    title = "📋 Absence Reported"
-    body = f"{absent_teacher_name} • {date_str} • {period_count} periods need cover"
-    
-    success_count = 0
-    for row in tokens:
-        if send_push_notification(
-            row['token'], title, body,
-            data={'type': 'absence_reported', 'link': '/substitute/mission-control'}
-        ):
-            print(f"PUSH DEBUG: Absence notification sent to Pierre")
             success_count += 1
     
     return success_count
