@@ -402,13 +402,14 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
     
     with get_connection() as conn:
         cursor = conn.cursor()
+        # For now, send to ALL devices (demo mode) - filter by staff_id later
         cursor.execute('''
             SELECT pt.token FROM push_token pt
-            WHERE pt.tenant_id = ? AND pt.staff_id = ?
-        ''', (TENANT_ID, substitute_id))
+            WHERE pt.tenant_id = ?
+        ''', (TENANT_ID,))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for staff {substitute_id}")
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens (broadcast mode)")
     if not tokens:
         return 0
     
