@@ -84,6 +84,7 @@ def get_teacher_schedule(staff_id, cycle_day):
 def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
     """
     Find all teachers who are FREE during a specific period.
+    Now includes room blocking: if teacher's home room is occupied, they can't sub.
     Returns list sorted by surname (A-Z).
     """
     exclude_staff_ids = exclude_staff_ids or []
@@ -108,14 +109,44 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
         """, (TENANT_ID, cycle_day, period_id))
         busy_teachers = {row['staff_id'] for row in cursor.fetchall()}
         
-        # Free = can substitute AND not teaching AND not excluded
+        # Get home room assignments (staff_id -> venue_id)
+        cursor.execute("""
+            SELECT staff_id, venue_id FROM staff_venue WHERE tenant_id = ?
+        """, (TENANT_ID,))
+        home_rooms = {row['staff_id']: row['venue_id'] for row in cursor.fetchall()}
+        
+        # Get rooms occupied by OTHER teachers this period
+        cursor.execute("""
+            SELECT DISTINCT venue_id 
+            FROM timetable_slot 
+            WHERE tenant_id = ? AND cycle_day = ? AND period_id = ? AND venue_id IS NOT NULL
+        """, (TENANT_ID, cycle_day, period_id))
+        occupied_rooms = {row['venue_id'] for row in cursor.fetchall()}
+        
+        # Free = can substitute AND not teaching AND not excluded AND room not blocked
         free_teachers = []
         for teacher in all_teachers:
-            if (teacher['id'] not in busy_teachers and 
-                teacher['id'] not in exclude_staff_ids):
-                free_teachers.append(dict(teacher))
+            teacher_id = teacher['id']
+            
+            # Skip if teaching
+            if teacher_id in busy_teachers:
+                continue
+            
+            # Skip if explicitly excluded
+            if teacher_id in exclude_staff_ids:
+                continue
+            
+            # Check room blocking (only for teachers with home rooms)
+            home_room = home_rooms.get(teacher_id)
+            if home_room and home_room in occupied_rooms:
+                # Teacher's home room is occupied by someone else - can't sub
+                continue
+            
+            # Floaters (no home room) or room is free - available!
+            free_teachers.append(dict(teacher))
         
         return free_teachers
+
 
 
 def get_teachers_assigned_on_date(target_date):
