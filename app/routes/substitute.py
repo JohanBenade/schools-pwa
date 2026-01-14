@@ -530,8 +530,36 @@ def decline_assignment(request_id):
         new_sub = reassign_declined_request(request_id, staff_id)
         
         if new_sub:
-            # TODO: Send push notification to new substitute
-            pass
+            # Send push notification to new substitute
+            try:
+                from app.routes.push import send_substitute_assigned_push
+                
+                # Get absence details for the notification
+                cursor.execute("""
+                    SELECT a.absence_date, s.display_name as absent_teacher
+                    FROM absence a
+                    JOIN staff s ON a.staff_id = s.id
+                    WHERE a.id = ?
+                """, (req['absence_id'],))
+                absence_info = cursor.fetchone()
+                
+                if absence_info:
+                    from datetime import datetime
+                    try:
+                        date_display = datetime.strptime(absence_info['absence_date'], '%Y-%m-%d').strftime('%a %d %b')
+                    except:
+                        date_display = absence_info['absence_date']
+                    
+                    send_substitute_assigned_push(
+                        new_sub['id'],
+                        absence_info['absent_teacher'],
+                        req['period_name'] or 'Roll Call',
+                        date_display,
+                        req.get('venue_name', 'TBC')
+                    )
+                    print(f"PUSH: Sent reassignment notification to {new_sub['display_name']}")
+            except Exception as e:
+                print(f"Push error on reassignment: {e}")
     
     return_to = request.form.get('return_to', '/')
     return redirect(return_to)
