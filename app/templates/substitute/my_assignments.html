@@ -208,7 +208,7 @@
                     {% if period.is_substitute %}
                         <h3>🟠 {{ period.class_name }}</h3>
                         <p>{{ period.subject }} • {{ period.venue }}</p>
-                        <div class="sub-note">Covering for {{ period.absent_teacher }}</div>
+                        <div class="sub-note">Covering for {{ period.absent_teacher }}{% if period.absence_reason %} ({{ period.absence_reason }}){% endif %}</div>
                     {% elif period.is_free %}
                         <h3>Free Period</h3>
                         <p>—</p>

@@ -353,7 +353,7 @@ def my_assignments():
         
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   a.staff_id as absent_staff_id, s.display_name as absent_teacher
+                   a.staff_id as absent_staff_id, s.display_name as absent_teacher, a.absence_type as absence_reason
             FROM substitute_request sr
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
