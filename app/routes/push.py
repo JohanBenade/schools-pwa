@@ -394,8 +394,10 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
         date_str: e.g., "Thu 15 Jan"
         venue: room code
     """
+    print(f"PUSH DEBUG: send_substitute_assigned_push called for {substitute_id}")
     access_token = get_access_token()
     if not access_token:
+        print("PUSH DEBUG: No access token")
         return 0
     
     with get_connection() as conn:
@@ -406,6 +408,7 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
         ''', (TENANT_ID, substitute_id))
         tokens = cursor.fetchall()
     
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens for staff {substitute_id}")
     if not tokens:
         return 0
     
