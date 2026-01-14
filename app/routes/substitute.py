@@ -120,8 +120,11 @@ def report_absence():
         
         for day in results.get('days', []):
             date_display = day.get('date_display', '')
+            print(f"DEBUG: Day {date_display} has {len(day.get('periods', []))} periods")
             for period in day.get('periods', []):
+                print(f"DEBUG: Period {period.get('period_name')} sub_id={period.get('substitute_id')}")
                 if period.get('substitute_id'):
+                    print(f"DEBUG: Sending push to {period.get('substitute_id')}")
                     send_substitute_assigned_push(
                         period['substitute_id'],
                         results['sick_teacher']['name'],
