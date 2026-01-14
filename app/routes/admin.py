@@ -889,3 +889,52 @@ def cycle_day_check():
     <p><a href="/admin/">Back</a></p>
     </body></html>
     '''
+
+
+@admin_bp.route('/fix-cycle-start')
+def fix_cycle_start():
+    """Fix cycle start date to Jan 14."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE substitute_config 
+            SET cycle_start_date = '2026-01-14' 
+            WHERE tenant_id = 'MARAGON'
+        """)
+        conn.commit()
+    return '<h1>Fixed!</h1><p>Cycle start date set to 2026-01-14</p><p><a href="/admin/cycle-day-check">Check cycle days</a></p>'
+
+
+@admin_bp.route('/cycle-days-range')
+def cycle_days_range():
+    """Show cycle days for Jan 14-24."""
+    from datetime import date, timedelta
+    from app.services.substitute_engine import get_cycle_day
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT cycle_start_date, cycle_length FROM substitute_config WHERE tenant_id = 'MARAGON'")
+        config = cursor.fetchone()
+    
+    rows = ''
+    start = date(2026, 1, 14)
+    for i in range(10):
+        d = start + timedelta(days=i)
+        day_name = d.strftime('%a')
+        if d.weekday() < 5:  # Weekday
+            cycle = get_cycle_day(d)
+            rows += f'<tr><td>{d.strftime("%d %b")}</td><td>{day_name}</td><td><strong>Day {cycle}</strong></td></tr>'
+        else:
+            rows += f'<tr style="color:#999"><td>{d.strftime("%d %b")}</td><td>{day_name}</td><td>Weekend</td></tr>'
+    
+    return f'''
+    <html><head><title>Cycle Days</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; }}
+    table {{ border-collapse: collapse; }} td, th {{ padding: 8px 16px; border: 1px solid #ddd; }}</style></head>
+    <body>
+    <h1>Cycle Days: Jan 14-23</h1>
+    <p>Config start: {config['cycle_start_date'] if config else 'Not set'}</p>
+    <table><tr><th>Date</th><th>Day</th><th>Cycle</th></tr>{rows}</table>
+    <p><a href="/admin/fix-cycle-start">Fix to Jan 14</a> | <a href="/admin/">Back</a></p>
+    </body></html>
+    '''
