@@ -382,3 +382,79 @@ def test_all_clear():
     
     count = send_all_clear_push('Medical', 'Test Location', 'Test User')
     return jsonify({'success': True, 'sent_to': count})
+
+
+def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_info, date_str, venue):
+    """
+    Send push to substitute teacher when assigned.
+    Args:
+        substitute_id: staff_id of substitute
+        absent_teacher_name: name of absent teacher
+        period_info: e.g., "Period 1" or "Roll Call"
+        date_str: e.g., "Thu 15 Jan"
+        venue: room code
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT pt.token FROM push_token pt
+            WHERE pt.tenant_id = ? AND pt.staff_id = ?
+        ''', (TENANT_ID, substitute_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    title = f"📚 Sub Duty: {period_info}"
+    body = f"Cover for {absent_teacher_name}\n{date_str} • {venue}"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'substitute', 'link': '/duty/my-day?tab=tomorrow'}
+        ):
+            success_count += 1
+    
+    return success_count
+
+
+def send_absence_covered_push(absent_staff_id, covered_count, total_count, date_range):
+    """
+    Send push to absent teacher confirming coverage.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, absent_staff_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    if covered_count == total_count:
+        title = "✅ All Classes Covered"
+        body = f"{covered_count} periods covered for {date_range}"
+    else:
+        title = "⚠️ Partial Coverage"
+        body = f"{covered_count}/{total_count} periods covered for {date_range}"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'absence_confirmed', 'link': '/substitute/my-assignments'}
+        ):
+            success_count += 1
+    
+    return success_count

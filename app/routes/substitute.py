@@ -112,6 +112,35 @@ def report_absence():
     
     results = process_absence(absence_id)
     
+    # Send push notifications to substitutes and absent teacher
+    try:
+        from app.routes.push import send_substitute_assigned_push, send_absence_covered_push
+        
+        for day in results.get('days', []):
+            date_display = day.get('date_display', '')
+            for period in day.get('periods', []):
+                if period.get('substitute_id'):
+                    send_substitute_assigned_push(
+                        period['substitute_id'],
+                        results['sick_teacher']['name'],
+                        period['period_name'],
+                        date_display,
+                        period.get('venue', 'TBC')
+                    )
+        
+        date_range = results.get('date_range', {})
+        range_str = date_range.get('start', '')[:10]
+        if date_range.get('end') and date_range.get('end') != date_range.get('start'):
+            range_str += ' - ' + date_range.get('end', '')[:10]
+        send_absence_covered_push(
+            staff_id,
+            results.get('covered_count', 0),
+            results.get('total_count', 0),
+            range_str
+        )
+    except Exception as e:
+        print(f'Substitute push error: {e}')
+    
     return redirect(url_for('substitute.absence_status', absence_id=absence_id))
 
 
