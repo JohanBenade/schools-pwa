@@ -1007,3 +1007,31 @@ def fix_all_sub_eligibility():
     <p><a href="/admin/reset-substitute-test">Reset and retest</a></p>
     </body></html>
     '''
+
+
+@admin_bp.route('/fix-chelsea-left')
+def fix_chelsea_left():
+    """Chelsea Abrahams left - mark inactive. Jean Labuschagne replaced her."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Mark Chelsea as inactive
+        cursor.execute("""
+            UPDATE staff SET is_active = 0, can_substitute = 0 
+            WHERE surname = 'Abrahams' AND first_name = 'Chelsea' AND tenant_id = 'MARAGON'
+        """)
+        chelsea_updated = cursor.rowcount
+        
+        # Ensure Jean can substitute
+        cursor.execute("""
+            UPDATE staff SET can_substitute = 1, is_active = 1
+            WHERE surname = 'Labuschagne' AND first_name = 'Jean' AND tenant_id = 'MARAGON'
+        """)
+        jean_updated = cursor.rowcount
+        
+        conn.commit()
+    
+    return f'''<h1>Done</h1>
+    <p>Chelsea Abrahams: is_active=0 (rows: {chelsea_updated})</p>
+    <p>Jean Labuschagne: can_substitute=1 (rows: {jean_updated})</p>
+    <p><a href="/admin/fix-all-sub-eligibility-v2">Run full eligibility fix</a></p>'''
