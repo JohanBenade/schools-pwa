@@ -609,3 +609,116 @@ def add_test_users():
         conn.commit()
     
     return jsonify({'added': added, 'message': f'Added {len(added)} test users'})
+
+
+@admin_bp.route('/import-timetable')
+def import_timetable():
+    """Import timetable data from timetable_data.py"""
+    from app.services.timetable_data import STAFF_HOME_ROOMS, TIMETABLE_SLOTS
+    import uuid
+    
+    results = {
+        'home_rooms_set': 0,
+        'slots_imported': 0,
+        'errors': []
+    }
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for magic_code, home_room in STAFF_HOME_ROOMS.items():
+            if not home_room:
+                continue
+            
+            cursor.execute(
+                "SELECT staff_id FROM user_session WHERE magic_code = ? AND tenant_id = 'MARAGON'",
+                (magic_code,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                results['errors'].append(f"No user_session for {magic_code}")
+                continue
+            staff_id = row['staff_id']
+            
+            cursor.execute(
+                "SELECT id FROM venue WHERE venue_code = ? AND tenant_id = 'MARAGON'",
+                (home_room,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                results['errors'].append(f"No venue {home_room} for {magic_code}")
+                continue
+            venue_id = row['id']
+            
+            cursor.execute(
+                "DELETE FROM staff_venue WHERE staff_id = ? AND tenant_id = 'MARAGON'",
+                (staff_id,)
+            )
+            cursor.execute(
+                "INSERT INTO staff_venue (staff_id, venue_id, tenant_id) VALUES (?, ?, 'MARAGON')",
+                (staff_id, venue_id)
+            )
+            results['home_rooms_set'] += 1
+        
+        cursor.execute("DELETE FROM timetable_slot WHERE tenant_id = 'MARAGON'")
+        
+        for magic_code, slots in TIMETABLE_SLOTS.items():
+            cursor.execute(
+                "SELECT staff_id FROM user_session WHERE magic_code = ? AND tenant_id = 'MARAGON'",
+                (magic_code,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                continue
+            staff_id = row['staff_id']
+            
+            for day, period, subject, grade, class_code, venue in slots:
+                cursor.execute(
+                    "SELECT id FROM period WHERE period_number = ? AND tenant_id = 'MARAGON'",
+                    (period,)
+                )
+                period_row = cursor.fetchone()
+                if not period_row:
+                    continue
+                period_id = period_row['id']
+                
+                venue_id = None
+                if venue:
+                    cursor.execute(
+                        "SELECT id FROM venue WHERE venue_code = ? AND tenant_id = 'MARAGON'",
+                        (venue,)
+                    )
+                    venue_row = cursor.fetchone()
+                    if venue_row:
+                        venue_id = venue_row['id']
+                
+                class_name = f"Gr{grade} {class_code}"
+                
+                cursor.execute('''
+                    INSERT INTO timetable_slot 
+                    (id, tenant_id, staff_id, cycle_day, period_id, class_name, subject, venue_id)
+                    VALUES (?, 'MARAGON', ?, ?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), staff_id, day, period_id, class_name, subject, venue_id))
+                
+                results['slots_imported'] += 1
+        
+        conn.commit()
+    
+    errors_html = ''
+    if results['errors']:
+        errors_html = '<div class="errors"><h3>Errors</h3><ul>' + ''.join(f'<li>{e}</li>' for e in results['errors']) + '</ul></div>'
+    
+    return f'''
+    <html><head><title>Timetable Import</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+    .success {{ background: #d4edda; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+    .errors {{ background: #f8d7da; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+    a {{ color: #007AFF; }}</style></head>
+    <body><h1>Timetable Import Complete</h1>
+    <div class="success">
+        <p>Home rooms set: {results['home_rooms_set']}</p>
+        <p>Timetable slots imported: {results['slots_imported']}</p>
+    </div>
+    {errors_html}
+    <p><a href="/admin/">Back to Admin</a></p></body></html>
+    '''
