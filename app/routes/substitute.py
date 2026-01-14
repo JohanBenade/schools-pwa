@@ -115,6 +115,8 @@ def report_absence():
     # Send push notifications to substitutes and absent teacher
     try:
         from app.routes.push import send_substitute_assigned_push, send_absence_covered_push
+        print(f"DEBUG: Starting push notifications for absence")
+        print(f"DEBUG: Results days: {len(results.get('days', []))}")
         
         for day in results.get('days', []):
             date_display = day.get('date_display', '')
