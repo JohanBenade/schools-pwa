@@ -1089,21 +1089,21 @@ def fix_all_sub_eligibility_v2():
 
 @admin_bp.route('/clear-safari-tokens')
 def clear_safari_tokens():
-    """Remove Safari push subscriptions that wake up Safari when emergencies are sent"""
+    """Remove Safari push tokens that wake up Safari when emergencies are sent"""
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Find Safari tokens
+        # Find Safari tokens in push_token table (device_info contains user agent)
         cursor.execute("""
-            SELECT id, user_agent FROM push_subscription 
-            WHERE user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'
+            SELECT id, device_info FROM push_token 
+            WHERE device_info LIKE '%Safari%' AND device_info NOT LIKE '%Chrome%'
         """)
         safari_tokens = cursor.fetchall()
         
         # Delete them
         cursor.execute("""
-            DELETE FROM push_subscription 
-            WHERE user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'
+            DELETE FROM push_token 
+            WHERE device_info LIKE '%Safari%' AND device_info NOT LIKE '%Chrome%'
         """)
         deleted = cursor.rowcount
         conn.commit()
