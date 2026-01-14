@@ -826,3 +826,37 @@ def add_all_teachers():
     <p><a href="/admin/import-timetable">Re-run Timetable Import</a></p>
     <p><a href="/admin/">Back to Admin</a></p></body></html>
     '''
+
+
+@admin_bp.route('/add-jean')
+def add_jean():
+    """Add Jean Labuschagne user session."""
+    import uuid
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Find Jean by surname Labuschagne (not Pierre)
+        cursor.execute("SELECT id, display_name FROM staff WHERE surname = 'Labuschagne' AND first_name != 'Pierre' AND tenant_id = 'MARAGON'")
+        staff = cursor.fetchone()
+        
+        if not staff:
+            # Try adding the staff record
+            staff_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO staff (id, tenant_id, title, first_name, surname, display_name, staff_type, can_substitute, is_active)
+                VALUES (?, 'MARAGON', 'Mr', 'Jean', 'Labuschagne', 'Mr Jean', 'Teacher', 1, 1)
+            """, (staff_id,))
+        else:
+            staff_id = staff['id']
+        
+        # Create user_session
+        cursor.execute("DELETE FROM user_session WHERE magic_code = 'jean'")
+        cursor.execute("""
+            INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+            VALUES (?, 'MARAGON', ?, 'jean', 'Mr Jean', 'teacher', 0)
+        """, (str(uuid.uuid4()), staff_id))
+        
+        conn.commit()
+    
+    return '<h1>Done</h1><p>Jean added. <a href="/admin/import-timetable">Re-run import</a></p>'
