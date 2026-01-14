@@ -1085,3 +1085,27 @@ def fix_all_sub_eligibility_v2():
     <p><strong>Not found:</strong> {', '.join(results['not_found']) or 'None'}</p>
     <hr><p><strong>Teachers who CAN substitute: {can_sub_count}</strong></p>
     <p><a href="/admin/reset-substitute-test">Reset and retest</a></p></body></html>'''
+
+
+@admin_bp.route('/clear-safari-tokens')
+def clear_safari_tokens():
+    """Remove Safari push subscriptions that wake up Safari when emergencies are sent"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Find Safari tokens
+        cursor.execute("""
+            SELECT id, user_agent FROM push_subscription 
+            WHERE user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'
+        """)
+        safari_tokens = cursor.fetchall()
+        
+        # Delete them
+        cursor.execute("""
+            DELETE FROM push_subscription 
+            WHERE user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'
+        """)
+        deleted = cursor.rowcount
+        conn.commit()
+        
+    return f"Found {len(safari_tokens)} Safari tokens. Deleted {deleted}."
