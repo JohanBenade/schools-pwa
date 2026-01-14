@@ -112,6 +112,16 @@ def report_absence():
     
     results = process_absence(absence_id)
     
+    # Send push notification to principal (Pierre)
+    try:
+        from app.routes.push import send_absence_reported_push
+        staff_name = results.get('sick_teacher', {}).get('name', 'A teacher')
+        total_periods = sum(len(day.get('periods', [])) for day in results.get('days', []))
+        date_display = ', '.join(day.get('date_display', '') for day in results.get('days', []))
+        send_absence_reported_push(staff_name, date_display, total_periods)
+    except Exception as e:
+        print(f'Pierre push error: {e}')
+    
     # Send push notifications to substitutes and absent teacher
     try:
         from app.routes.push import send_substitute_assigned_push, send_absence_covered_push
