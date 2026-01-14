@@ -480,7 +480,7 @@ def send_absence_reported_push(absent_teacher_name, date_str, period_count):
         cursor.execute('''
             SELECT s.id FROM staff s
             JOIN user_session us ON s.id = us.staff_id
-            WHERE us.tenant_id = ? AND us.url_code = 'pierre'
+            WHERE us.tenant_id = ? AND us.magic_code = 'pierre'
         ''', (TENANT_ID, substitute_id))
         pierre = cursor.fetchone()
         
@@ -529,7 +529,7 @@ def send_absence_reported_push(absent_teacher_name, date_str, period_count):
         cursor.execute('''
             SELECT s.id FROM staff s
             JOIN user_session us ON s.id = us.staff_id
-            WHERE us.tenant_id = ? AND us.url_code = 'pierre'
+            WHERE us.tenant_id = ? AND us.magic_code = 'pierre'
         ''', (TENANT_ID,))
         pierre = cursor.fetchone()
         
