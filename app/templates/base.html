@@ -57,6 +57,13 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Emergency Banner (polls every 6 seconds) -->
+    <div id="emergency-banner" 
+         hx-get="/emergency/banner" 
+         hx-trigger="load, every 6s"
+         hx-swap="innerHTML">
+    </div>
+
     {% if not nav_header %}
     <!-- Fixed Home Button (legacy - shown when no nav_header) -->
     <a href="/" class="fixed top-4 right-4 z-50 p-2 bg-white shadow-lg rounded-full hover:bg-gray-100">
