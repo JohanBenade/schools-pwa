@@ -98,7 +98,7 @@ def my_day():
         
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   s.display_name as absent_teacher, sr.venue_name
+                   s.display_name as absent_teacher, sr.venue_name, a.absence_type as absence_reason
             FROM substitute_request sr
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
@@ -216,7 +216,7 @@ def my_day():
                     sub = sub_by_period[p_num]
                     venue = sub.get('venue_name') or 'TBC'
                     item['content'] = f"{sub.get('class_name', '')} {sub.get('subject', '')} • {venue}"
-                    item['badge'] = f"SUB for {sub['absent_teacher']}"
+                    item['badge'] = f"SUB for {sub['absent_teacher']}" + (f" ({sub.get('absence_reason')})" if sub.get('absence_reason') else "")
                     item['badge_color'] = 'orange'
                     item['is_sub'] = True
                     item['request_id'] = sub['id']
