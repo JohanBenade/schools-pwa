@@ -966,3 +966,44 @@ def fix_sub_eligibility():
         conn.commit()
     
     return f'<h1>Fixed</h1><p>Set can_substitute=0 for: {", ".join(fixed) or "None needed"}</p><p><a href="/admin/reset-substitute-test">Reset and retest</a></p>'
+
+
+@admin_bp.route('/fix-all-sub-eligibility')
+def fix_all_sub_eligibility():
+    """Comprehensive fix for substitute eligibility."""
+    
+    # Cannot substitute - admin/management staff
+    cannot_sub = [
+        ('Hibbert', 'Delene'),      # Sports Manager
+        ('Labuschagne', 'Pierre'),  # Principal
+        ('Abrahams', 'Chelsea'),    # Teacher but no timetable yet
+    ]
+    
+    results = {'fixed': [], 'not_found': []}
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for surname, first_name in cannot_sub:
+            cursor.execute("""
+                UPDATE staff SET can_substitute = 0 
+                WHERE surname = ? AND first_name = ? AND tenant_id = 'MARAGON'
+            """, (surname, first_name))
+            
+            if cursor.rowcount > 0:
+                results['fixed'].append(f"{first_name} {surname}")
+            else:
+                results['not_found'].append(f"{first_name} {surname}")
+        
+        conn.commit()
+    
+    return f'''
+    <html><head><title>Fix Sub Eligibility</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; }}</style></head>
+    <body>
+    <h1>Substitute Eligibility Fixed</h1>
+    <p><strong>Set can_substitute=0:</strong> {', '.join(results['fixed']) or 'None'}</p>
+    <p><strong>Not found:</strong> {', '.join(results['not_found']) or 'None'}</p>
+    <p><a href="/admin/reset-substitute-test">Reset and retest</a></p>
+    </body></html>
+    '''
