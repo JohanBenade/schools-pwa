@@ -544,7 +544,6 @@ def decline_assignment(request_id):
                 absence_info = cursor.fetchone()
                 
                 if absence_info:
-                    from datetime import datetime
                     try:
                         date_display = datetime.strptime(absence_info['absence_date'], '%Y-%m-%d').strftime('%a %d %b')
                     except:
