@@ -938,3 +938,31 @@ def cycle_days_range():
     <p><a href="/admin/fix-cycle-start">Fix to Jan 14</a> | <a href="/admin/">Back</a></p>
     </body></html>
     '''
+
+
+@admin_bp.route('/fix-sub-eligibility')
+def fix_sub_eligibility():
+    """Set can_substitute=0 for non-teaching staff."""
+    non_teachers = [
+        'Tsewana',      # Andiswa - Lab Assistant
+        'Munyai',       # Rebecca - Receptionist
+        'Croeser',      # Annette - Bursar
+        'Willemse',     # Janine - HR/PA
+        'Letsoalo',     # Junior - STASY Admin
+        'Ndimande',     # Njabulo - IT Support
+        'Hibbard',      # Tamika - Ed Psychologist
+    ]
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        fixed = []
+        for surname in non_teachers:
+            cursor.execute("""
+                UPDATE staff SET can_substitute = 0 
+                WHERE surname = ? AND tenant_id = 'MARAGON' AND can_substitute = 1
+            """, (surname,))
+            if cursor.rowcount > 0:
+                fixed.append(surname)
+        conn.commit()
+    
+    return f'<h1>Fixed</h1><p>Set can_substitute=0 for: {", ".join(fixed) or "None needed"}</p><p><a href="/admin/reset-substitute-test">Reset and retest</a></p>'
