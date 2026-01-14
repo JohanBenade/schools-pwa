@@ -722,3 +722,107 @@ def import_timetable():
     {errors_html}
     <p><a href="/admin/">Back to Admin</a></p></body></html>
     '''
+
+
+@admin_bp.route('/add-all-teachers')
+def add_all_teachers():
+    """Create user_sessions for all teachers in timetable_data."""
+    from app.services.timetable_data import STAFF_HOME_ROOMS
+    import uuid
+    
+    # Map magic_code to display name and surname for lookup
+    TEACHER_INFO = {
+        "athanathi": ("Ms Athanathi", "Maweni"),
+        "muvo": ("Mr Muvo", "Hlongwana"),
+        "smangaliso": ("Mr Smangaliso", "Mdluli"),
+        "victor": ("Mr Victor", "Nyoni"),
+        "alecia": ("Ms Alecia", "Green"),
+        "anel": ("Ms Anel", "Meiring"),
+        "anike": ("Ms Anike", "Conradie"),
+        "beatrix": ("Ms Beatrix", "du Toit"),
+        "bongi": ("Ms Bongi", "Mochabe"),
+        "caelynne": ("Ms Caelynne", "Prinsloo"),
+        "carina": ("Ms Carina", "Engelbrecht"),
+        "carla": ("Ms Carla", "van der Walt"),
+        "caroline": ("Ms Caroline", "Shiell"),
+        "claire": ("Ms Claire", "Patrick"),
+        "daleen": ("Ms Daleen", "Coetzee"),
+        "dominique": ("Ms Dominique", "Viljoen"),
+        "eugeni": ("Ms Eugeni", "Piek"),
+        "jacqueline": ("Ms Jacqueline", "Sekhula"),
+        "krisna": ("Ms Krisna", "Els"),
+        "mamello": ("Ms Mamello", "Makgalemele"),
+        "matti": ("Mr Matti", "van Wyk"),
+        "nadia": ("Ms Nadia", "Stoltz"),
+        "nathi": ("Mr Nathi", "Qwelane"),
+        "nonhlanhla": ("Ms Nonhlanhla", "Maswanganyi"),
+        "rianette": ("Ms Rianette", "van Vollenstee"),
+        "rika": ("Ms Rika", "Badenhorst"),
+        "robin": ("Ms Robin", "Harle"),
+        "rochelle": ("Ms Rochelle", "Maass"),
+        "rowena": ("Ms Rowena", "Kraamwinkel"),
+        "teal": ("Ms Teal", "Mittendorf"),
+        "thycha": ("Ms Thycha", "Aucamp"),
+        "tsholofelo": ("Ms Tsholofelo", "Ramphomane"),
+        "tyla": ("Ms Tyla", "Polayya"),
+        "wendyann": ("Ms Wendyann", "van den Heever"),
+        "zaudi": ("Ms Zaudi", "Pretorius"),
+        "jean": ("Mr Jean", "Oosthuizen"),
+        "ntando": ("Mr Ntando", "Mkunjulwa"),
+        "kea": ("Ms Kea", "Mogapi"),
+        "marielouise": ("Ms Marie-Louise", "Korb"),
+        "mariska": ("Ms Mariska", "du Plessis"),
+        "sinqobile": ("Ms Sinqobile", "Mchunu"),
+    }
+    
+    results = {'created': [], 'existing': [], 'not_found': []}
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for magic_code in STAFF_HOME_ROOMS.keys():
+            # Check if session already exists
+            cursor.execute("SELECT id FROM user_session WHERE magic_code = ? AND tenant_id = 'MARAGON'", (magic_code,))
+            if cursor.fetchone():
+                results['existing'].append(magic_code)
+                continue
+            
+            # Get teacher info
+            if magic_code not in TEACHER_INFO:
+                results['not_found'].append(magic_code)
+                continue
+            
+            display_name, surname = TEACHER_INFO[magic_code]
+            
+            # Find staff by surname
+            cursor.execute("SELECT id FROM staff WHERE surname = ? AND tenant_id = 'MARAGON'", (surname,))
+            staff = cursor.fetchone()
+            
+            if not staff:
+                results['not_found'].append(f"{magic_code} (no staff: {surname})")
+                continue
+            
+            # Create user_session
+            cursor.execute("""
+                INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+                VALUES (?, 'MARAGON', ?, ?, ?, 'teacher', 0)
+            """, (str(uuid.uuid4()), staff['id'], magic_code, display_name))
+            
+            results['created'].append(magic_code)
+        
+        conn.commit()
+    
+    return f'''
+    <html><head><title>Add All Teachers</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+    .success {{ background: #d4edda; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+    .info {{ background: #cce5ff; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+    .warning {{ background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+    a {{ color: #007AFF; }}</style></head>
+    <body><h1>Add All Teachers</h1>
+    <div class="success"><h3>Created: {len(results['created'])}</h3><p>{', '.join(results['created']) or 'None'}</p></div>
+    <div class="info"><h3>Already existed: {len(results['existing'])}</h3><p>{', '.join(results['existing']) or 'None'}</p></div>
+    <div class="warning"><h3>Not found: {len(results['not_found'])}</h3><p>{', '.join(results['not_found']) or 'None'}</p></div>
+    <p><a href="/admin/import-timetable">Re-run Timetable Import</a></p>
+    <p><a href="/admin/">Back to Admin</a></p></body></html>
+    '''
