@@ -1035,3 +1035,53 @@ def fix_chelsea_left():
     <p>Chelsea Abrahams: is_active=0 (rows: {chelsea_updated})</p>
     <p>Jean Labuschagne: can_substitute=1 (rows: {jean_updated})</p>
     <p><a href="/admin/fix-all-sub-eligibility-v2">Run full eligibility fix</a></p>'''
+
+
+@admin_bp.route('/fix-all-sub-eligibility-v2')
+def fix_all_sub_eligibility_v2():
+    """Comprehensive fix for ALL substitute eligibility issues."""
+    
+    cannot_sub = [
+        ('Labuschagne', 'Pierre', 'Principal'),
+        ('Mogapi', 'Kea', 'Deputy Principal'),
+        ('Korb', 'Marie-Louise', 'Deputy Principal'),
+        ('Hibbert', 'Delene', 'Sports Manager'),
+        ('Croeser', 'Annette', 'Bursar'),
+        ('Willemse', 'Janine', 'HR & PA'),
+        ('Ndimande', 'Njabulo', 'IT Support'),
+        ('Munyai', 'Rebecca', 'Receptionist'),
+        ('Letsoalo', 'Junior', 'STASY Admin'),
+        ('Hibbard', 'Tamika', 'Ed Psychologist'),
+        ('Tsewana', 'Andiswa', 'Lab Assistant'),
+    ]
+    
+    results = {'fixed': [], 'already': [], 'not_found': []}
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for surname, first_name, reason in cannot_sub:
+            cursor.execute("SELECT can_substitute FROM staff WHERE surname = ? AND first_name = ? AND tenant_id = 'MARAGON'", (surname, first_name))
+            row = cursor.fetchone()
+            
+            if not row:
+                results['not_found'].append(f"{first_name} {surname}")
+            elif row['can_substitute'] == 0:
+                results['already'].append(f"{first_name} {surname}")
+            else:
+                cursor.execute("UPDATE staff SET can_substitute = 0 WHERE surname = ? AND first_name = ? AND tenant_id = 'MARAGON'", (surname, first_name))
+                results['fixed'].append(f"{first_name} {surname} ({reason})")
+        
+        conn.commit()
+        
+        cursor.execute("SELECT COUNT(*) as cnt FROM staff WHERE tenant_id = 'MARAGON' AND is_active = 1 AND can_substitute = 1")
+        can_sub_count = cursor.fetchone()['cnt']
+    
+    return f'''<html><head><title>Fix Eligibility</title>
+    <style>body {{ font-family: -apple-system, sans-serif; padding: 2rem; }}</style></head>
+    <body><h1>Substitute Eligibility Fixed</h1>
+    <p><strong>Fixed now:</strong> {', '.join(results['fixed']) or 'None'}</p>
+    <p><strong>Already correct:</strong> {', '.join(results['already']) or 'None'}</p>
+    <p><strong>Not found:</strong> {', '.join(results['not_found']) or 'None'}</p>
+    <hr><p><strong>Teachers who CAN substitute: {can_sub_count}</strong></p>
+    <p><a href="/admin/reset-substitute-test">Reset and retest</a></p></body></html>'''
