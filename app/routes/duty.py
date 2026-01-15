@@ -14,6 +14,42 @@ duty_bp = Blueprint('duty', __name__, url_prefix='/duty')
 TENANT_ID = "MARAGON"
 
 
+def get_school_days():
+    """
+    Returns (day1, day1_label, day2, day2_label) for Today/Tomorrow tabs.
+    Skips weekends - if today is Sat/Sun, day1 = Monday.
+    """
+    today = date.today()
+    weekday = today.weekday()  # Mon=0, Tue=1, ..., Fri=4, Sat=5, Sun=6
+    
+    # Find first school day (day1)
+    if weekday == 5:  # Saturday
+        day1 = today + timedelta(days=2)  # Monday
+    elif weekday == 6:  # Sunday
+        day1 = today + timedelta(days=1)  # Monday
+    else:
+        day1 = today
+    
+    # Find second school day (day2)
+    if day1.weekday() == 4:  # Friday
+        day2 = day1 + timedelta(days=3)  # Monday
+    else:
+        day2 = day1 + timedelta(days=1)
+    
+    # Generate labels
+    if day1 == today:
+        day1_label = f"Today ({day1.strftime('%a %d')})"
+    else:
+        day1_label = day1.strftime('%a %d %b')
+    
+    if day2 == today + timedelta(days=1) and today.weekday() < 4:
+        day2_label = f"Tomorrow ({day2.strftime('%a %d')})"
+    else:
+        day2_label = day2.strftime('%a %d %b')
+    
+    return day1, day1_label, day2, day2_label
+
+
 @duty_bp.route('/my-day')
 def my_day():
     """Teacher's full daily schedule view."""
@@ -21,14 +57,15 @@ def my_day():
     if not staff_id:
         return redirect('/')
     
+    # Get school days (skips weekends)
+    day1, day1_label, day2, day2_label = get_school_days()
+    
     tab = request.args.get('tab', 'today')
-    today_date = date.today()
-    tomorrow_date = today_date + timedelta(days=1)
     
     if tab == 'tomorrow':
-        target_date = tomorrow_date
+        target_date = day2
     else:
-        target_date = today_date
+        target_date = day1
     
     target_date_str = target_date.isoformat()
     weekday = target_date.weekday()
@@ -272,4 +309,8 @@ def my_day():
                           sport_duties=sport_duties,
                           nav_header=nav_header,
                           nav_styles=nav_styles,
-                          current_tab=tab,                          is_absent=is_absent,                          absence_type=absence_type)
+                          current_tab=tab,
+                          tab1_label=day1_label,
+                          tab2_label=day2_label,
+                          is_absent=is_absent,
+                          absence_type=absence_type)

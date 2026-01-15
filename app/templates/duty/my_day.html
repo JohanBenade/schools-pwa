@@ -121,14 +121,14 @@
             <a href="/" class="nav-home">🏠</a>
         </div>
         <div class="tabs">
-            <a href="?tab=today" class="tab {% if current_tab == 'today' %}active{% endif %}">Today</a>
-            <a href="?tab=tomorrow" class="tab {% if current_tab == 'tomorrow' %}active{% endif %}">Tomorrow</a>
+            <a href="?tab=today" class="tab {% if current_tab == 'today' %}active{% endif %}">{{ tab1_label }}</a>
+            <a href="?tab=tomorrow" class="tab {% if current_tab == 'tomorrow' %}active{% endif %}">{{ tab2_label }}</a>
         </div>
         <div class="date-header">
             <h2>{{ display_date }}</h2>
             {% if day_name and day_type == 'academic' %}
             <div class="cycle">{{ day_name }} • Cycle Day {{ cycle_day }}</div>
-            {% elif day_type and day_type != 'academic' %}
+            {% elif day_type and day_type not in ['academic', 'event'] %}
             <div class="cycle">{{ day_type|replace('_', ' ')|title }}</div>
             {% endif %}
         </div>
