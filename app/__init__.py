@@ -162,9 +162,9 @@ def create_app():
             <div class="icon-box bg-orange">✋</div>
             <span class="app-label">Report Absence</span>
         </a>
-        <a href="/substitute/my-assignments" class="app-icon">
+        <a href="/substitute/sub-duties" class="app-icon">
             <div class="icon-box bg-cyan">📅</div>
-            <span class="app-label">My Schedule</span>
+            <span class="app-label">Sub Duties</span>
         </a>
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">&#128694;</div>

@@ -416,123 +416,6 @@ def mission_control():
                           tab2_label=day2_label)
 
 
-@substitute_bp.route('/my-assignments')
-def my_assignments():
-    """Substitute teacher's view - their schedule with sub duties."""
-    staff_id = session.get('staff_id')
-    if not staff_id:
-        return redirect('/')
-    
-    # Get school days (skips weekends)
-    day1, day1_label, day2, day2_label = get_school_days()
-    
-    # Handle Today/Tomorrow tabs
-    tab = request.args.get('tab', 'today')
-    
-    if tab == 'tomorrow':
-        target_date = day2
-    else:
-        target_date = day1
-    
-    target_date_str = target_date.isoformat()
-    
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Get cycle day for target date
-        cursor.execute("SELECT cycle_start_date, cycle_length FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
-        config_row = cursor.fetchone()
-        
-        if config_row and config_row['cycle_start_date']:
-            start = datetime.strptime(config_row['cycle_start_date'], '%Y-%m-%d').date()
-            cycle_length = config_row['cycle_length'] or 7
-            days_diff = (target_date - start).days
-            cycle_day = (days_diff % cycle_length) + 1
-        else:
-            cycle_day = 1
-        
-        cursor.execute("""
-            SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   v.venue_code
-            FROM timetable_slot t
-            JOIN period p ON t.period_id = p.id
-            LEFT JOIN venue v ON t.venue_id = v.id
-            WHERE t.staff_id = ? AND t.cycle_day = ?
-            ORDER BY p.sort_order
-        """, (staff_id, cycle_day))
-        normal_schedule = {row['period_number']: dict(row) for row in cursor.fetchall()}
-        
-        cursor.execute("""
-            SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   a.staff_id as absent_staff_id, s.display_name as absent_teacher, a.absence_type as absence_reason
-            FROM substitute_request sr
-            JOIN absence a ON sr.absence_id = a.id
-            JOIN staff s ON a.staff_id = s.id
-            LEFT JOIN period p ON sr.period_id = p.id
-            WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
-            ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
-        """, (staff_id, target_date_str))
-        assignments = [dict(row) for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT period_number, period_name, start_time, end_time
-            FROM period
-            WHERE tenant_id = ? AND is_teaching = 1
-            ORDER BY sort_order
-        """, (TENANT_ID,))
-        all_periods = [dict(row) for row in cursor.fetchall()]
-        
-        schedule = []
-        assignment_periods = {a['period_number']: a for a in assignments if a['period_number']}
-        
-        for period in all_periods:
-            p_num = period['period_number']
-            entry = {
-                'period_number': p_num,
-                'period_name': period['period_name'],
-                'start_time': period['start_time'],
-                'end_time': period['end_time'],
-                'is_substitute': False,
-                'is_free': True
-            }
-            
-            if p_num in assignment_periods:
-                a = assignment_periods[p_num]
-                entry['is_substitute'] = True
-                entry['is_free'] = False
-                entry['class_name'] = a['class_name']
-                entry['subject'] = a['subject']
-                entry['venue'] = a['venue_name']
-                entry['absent_teacher'] = a['absent_teacher']
-                entry['request_id'] = a['id']
-            elif p_num in normal_schedule:
-                n = normal_schedule[p_num]
-                entry['is_free'] = False
-                entry['class_name'] = n['class_name']
-                entry['subject'] = n['subject']
-                entry['venue'] = n['venue_code']
-            
-            schedule.append(entry)
-        
-        mentor_duty = next((a for a in assignments if a['is_mentor_duty']), None)
-    
-    back_url, back_label = get_back_url_for_user()
-    nav_header = get_nav_header("My Schedule", "/", "Home")
-    nav_styles = get_nav_styles()
-    
-    return render_template('substitute/my_assignments.html',
-                          schedule=schedule,
-                          mentor_duty=mentor_duty,
-                          display_date=target_date.strftime('%a %d %b'),
-                          cycle_day=cycle_day,
-                          sub_count=len(assignments),
-                          nav_header=nav_header,
-                          nav_styles=nav_styles,
-                          current_tab=tab,
-                          tab1_label=day1_label,
-                          tab2_label=day2_label)
-
-
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
 def decline_assignment(request_id):
     """Substitute declines an assignment - with 30-min cutoff and auto-reassign."""
@@ -648,3 +531,92 @@ def absence_log(absence_id):
         events = [dict(row) for row in cursor.fetchall()]
     
     return render_template('substitute/partials/event_log.html', events=events)
+
+
+@substitute_bp.route('/sub-duties')
+def sub_duties():
+    """View all upcoming substitute assignments for the logged-in teacher."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    today = date.today().isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get all future sub assignments for this teacher
+        cursor.execute("""
+            SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
+                   s.display_name as absent_teacher, a.absence_type as absence_reason,
+                   sr.request_date
+            FROM substitute_request sr
+            JOIN absence a ON sr.absence_id = a.id
+            JOIN staff s ON a.staff_id = s.id
+            LEFT JOIN period p ON sr.period_id = p.id
+            WHERE sr.substitute_id = ? 
+              AND sr.status = 'Assigned'
+              AND sr.request_date >= ?
+            ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
+        """, (staff_id, today))
+        
+        all_assignments = [dict(row) for row in cursor.fetchall()]
+        
+        # Get cycle days for each unique date
+        cursor.execute("SELECT cycle_start_date, cycle_length FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
+        config_row = cursor.fetchone()
+        cycle_start = None
+        cycle_length = 7
+        if config_row and config_row['cycle_start_date']:
+            cycle_start = datetime.strptime(config_row['cycle_start_date'], '%Y-%m-%d').date()
+            cycle_length = config_row['cycle_length'] or 7
+        
+        # Group assignments by date
+        assignments_by_date = []
+        current_date = None
+        current_group = None
+        
+        for assignment in all_assignments:
+            req_date = assignment['request_date']
+            if req_date != current_date:
+                if current_group:
+                    assignments_by_date.append(current_group)
+                
+                # Calculate cycle day
+                cycle_day = None
+                if cycle_start:
+                    try:
+                        d = datetime.strptime(req_date, '%Y-%m-%d').date()
+                        days_diff = (d - cycle_start).days
+                        if days_diff >= 0:
+                            cycle_day = (days_diff % cycle_length) + 1
+                    except:
+                        pass
+                
+                # Format display date
+                try:
+                    d = datetime.strptime(req_date, '%Y-%m-%d')
+                    display_date = d.strftime('%A, %d %b')
+                except:
+                    display_date = req_date
+                
+                current_group = {
+                    'date': req_date,
+                    'display_date': display_date,
+                    'cycle_day': cycle_day,
+                    'assignments': []
+                }
+                current_date = req_date
+            
+            current_group['assignments'].append(assignment)
+        
+        if current_group:
+            assignments_by_date.append(current_group)
+    
+    total_count = len(all_assignments)
+    days_count = len(assignments_by_date)
+    
+    return render_template('substitute/sub_duties.html',
+                          assignments_by_date=assignments_by_date,
+                          total_count=total_count,
+                          days_count=days_count)
