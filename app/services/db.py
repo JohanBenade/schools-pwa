@@ -516,12 +516,15 @@ if not get_db_path().exists():
 # ============================================
 
 def get_mentor_groups_sqlite(tenant_id: str = "MARAGON") -> list:
-    """Get all mentor groups from SQLite."""
+    """Get all mentor groups from SQLite with mentor name."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, group_name, mentor_id, grade_id, venue_id
-            FROM mentor_group WHERE tenant_id = ? ORDER BY group_name
+            SELECT mg.id, mg.group_name, mg.mentor_id, mg.grade_id, mg.venue_id,
+                   s.display_name as mentor_name
+            FROM mentor_group mg
+            LEFT JOIN staff s ON mg.mentor_id = s.id
+            WHERE mg.tenant_id = ? ORDER BY mg.group_name
         ''', (tenant_id,))
         rows = cursor.fetchall()
     return [dict(row) for row in rows]

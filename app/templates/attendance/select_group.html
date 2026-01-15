@@ -27,7 +27,8 @@
         <a href="{{ url_for('attendance.roll_call', mentor_group_id=group.id) }}"
            class="relative bg-white p-3 rounded-lg shadow-sm border text-center hover:bg-gray-50 active:bg-gray-100
                   {% if group.submitted %}border-green-300{% else %}border-gray-200{% endif %}">
-            <span class="text-lg font-bold text-gray-800">{{ group.group_name }}</span>
+            <span class="text-lg font-bold text-gray-800 block">{{ group.group_name }}</span>
+            <span class="text-xs text-gray-500 block truncate">{{ group.mentor_name or 'TBC' }}</span>
             {% if group.submitted %}
             <span class="absolute top-1 right-1 text-green-600 text-xs">✓</span>
             {% endif %}
