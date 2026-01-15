@@ -162,6 +162,10 @@ def create_app():
             <div class="icon-box bg-orange">✋</div>
             <span class="app-label">Report Absence</span>
         </a>
+        <a href="/substitute/my-assignments" class="app-icon">
+            <div class="icon-box bg-cyan">📅</div>
+            <span class="app-label">My Schedule</span>
+        </a>
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">&#128694;</div>
             <span class="app-label">My Day</span>
@@ -237,6 +241,7 @@ def create_app():
         .bg-gray {{ background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }}
         .bg-teal {{ background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }}
         .bg-indigo {{ background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }}
+        .bg-cyan {{ background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }}
         .coming-soon .icon-box {{ opacity: 0.4; }}
         .coming-soon .app-label {{ opacity: 0.6; }}
         .footer {{ text-align: center; margin-top: 50px; color: #1E293B; opacity: 0.7; font-size: 12px; }}
