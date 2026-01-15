@@ -169,8 +169,8 @@
         {{ nav_header|safe }}
         
         <div class="tabs">
-            <a href="?tab=today" class="tab {{ 'active' if current_tab == 'today' else '' }}">Today</a>
-            <a href="?tab=tomorrow" class="tab {{ 'active' if current_tab == 'tomorrow' else '' }}">Tomorrow</a>
+            <a href="?tab=today" class="tab {{ 'active' if current_tab == 'today' else '' }}">{{ tab1_label }}</a>
+            <a href="?tab=tomorrow" class="tab {{ 'active' if current_tab == 'tomorrow' else '' }}">{{ tab2_label }}</a>
         </div>
         
         <div class="header">

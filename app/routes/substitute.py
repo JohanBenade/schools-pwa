@@ -17,6 +17,42 @@ substitute_bp = Blueprint('substitute', __name__, url_prefix='/substitute')
 TENANT_ID = "MARAGON"
 
 
+def get_school_days():
+    """
+    Returns (day1, day1_label, day2, day2_label) for Today/Tomorrow tabs.
+    Skips weekends - if today is Sat/Sun, day1 = Monday.
+    """
+    today = date.today()
+    weekday = today.weekday()  # Mon=0, Tue=1, ..., Fri=4, Sat=5, Sun=6
+    
+    # Find first school day (day1)
+    if weekday == 5:  # Saturday
+        day1 = today + timedelta(days=2)  # Monday
+    elif weekday == 6:  # Sunday
+        day1 = today + timedelta(days=1)  # Monday
+    else:
+        day1 = today
+    
+    # Find second school day (day2)
+    if day1.weekday() == 4:  # Friday
+        day2 = day1 + timedelta(days=3)  # Monday
+    else:
+        day2 = day1 + timedelta(days=1)
+    
+    # Generate labels
+    if day1 == today:
+        day1_label = f"Today ({day1.strftime('%a %d')})"
+    else:
+        day1_label = day1.strftime('%a %d %b')
+    
+    if day2 == today + timedelta(days=1) and today.weekday() < 4:
+        day2_label = f"Tomorrow ({day2.strftime('%a %d')})"
+    else:
+        day2_label = day2.strftime('%a %d %b')
+    
+    return day1, day1_label, day2, day2_label
+
+
 def get_back_url_for_user():
     """Get appropriate back URL based on user role."""
     role = session.get('role', 'teacher')
@@ -275,15 +311,16 @@ def mission_control():
     if role not in ['principal', 'deputy', 'admin']:
         return "Access denied", 403
     
+    # Get school days (skips weekends)
+    day1, day1_label, day2, day2_label = get_school_days()
     today = date.today()
-    tomorrow = today + timedelta(days=1)
     tab = request.args.get('tab', 'today')
     
     # Calculate date range based on tab
     if tab == 'tomorrow':
-        filter_start = tomorrow
-        filter_end = tomorrow
-        filter_dates = [tomorrow.isoformat()]
+        filter_start = day2
+        filter_end = day2
+        filter_dates = [day2.isoformat()]
     elif tab == 'week':
         # Monday to Friday of current week
         monday = today - timedelta(days=today.weekday())
@@ -292,9 +329,9 @@ def mission_control():
         filter_end = friday
         filter_dates = [(monday + timedelta(days=i)).isoformat() for i in range(5)]
     else:  # today
-        filter_start = today
-        filter_end = today
-        filter_dates = [today.isoformat()]
+        filter_start = day1
+        filter_end = day1
+        filter_dates = [day1.isoformat()]
     
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -354,7 +391,9 @@ def mission_control():
                           nav_styles=nav_styles,
                           current_tab=tab,
                           filter_start=filter_start.strftime('%a %d %b'),
-                          filter_end=filter_end.strftime('%a %d %b'))
+                          filter_end=filter_end.strftime('%a %d %b'),
+                          tab1_label=day1_label,
+                          tab2_label=day2_label)
 
 
 @substitute_bp.route('/my-assignments')
@@ -364,25 +403,33 @@ def my_assignments():
     if not staff_id:
         return redirect('/')
     
+    # Get school days (skips weekends)
+    day1, day1_label, day2, day2_label = get_school_days()
+    
     # Handle Today/Tomorrow tabs
     tab = request.args.get('tab', 'today')
-    today_date = date.today()
-    tomorrow_date = today_date + timedelta(days=1)
     
     if tab == 'tomorrow':
-        target_date = tomorrow_date
+        target_date = day2
     else:
-        target_date = today_date
+        target_date = day1
     
     target_date_str = target_date.isoformat()
     
-    # Get cycle day - use today's and adjust for tomorrow
-    cycle_day = get_cycle_day()
-    if tab == 'tomorrow':
-        cycle_day = (cycle_day % 7) + 1  # Next cycle day (1-7)
-    
     with get_connection() as conn:
         cursor = conn.cursor()
+        
+        # Get cycle day for target date
+        cursor.execute("SELECT cycle_start_date, cycle_length FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
+        config_row = cursor.fetchone()
+        
+        if config_row and config_row['cycle_start_date']:
+            start = datetime.strptime(config_row['cycle_start_date'], '%Y-%m-%d').date()
+            cycle_length = config_row['cycle_length'] or 7
+            days_diff = (target_date - start).days
+            cycle_day = (days_diff % cycle_length) + 1
+        else:
+            cycle_day = 1
         
         cursor.execute("""
             SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
@@ -461,7 +508,9 @@ def my_assignments():
                           sub_count=len(assignments),
                           nav_header=nav_header,
                           nav_styles=nav_styles,
-                          current_tab=tab)
+                          current_tab=tab,
+                          tab1_label=day1_label,
+                          tab2_label=day2_label)
 
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
