@@ -54,19 +54,19 @@
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-number">{{ stats.total }}</div>
-                <div class="stat-label">Absences</div>
+                <div class="stat-label">Periods</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number stat-green">{{ stats.covered }}</div>
                 <div class="stat-label">Covered</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number stat-yellow">{{ stats.partial }}</div>
-                <div class="stat-label">Partial</div>
+                <div class="stat-number stat-red">{{ stats.pending }}</div>
+                <div class="stat-label">Pending</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number stat-red">{{ stats.escalated }}</div>
-                <div class="stat-label">Escalated</div>
+                <div class="stat-number">{{ stats.absences }}</div>
+                <div class="stat-label">Absences</div>
             </div>
         </div>
         

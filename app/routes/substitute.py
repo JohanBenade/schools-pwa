@@ -383,6 +383,18 @@ def mission_control():
         fully_covered = sum(1 for a in absences if a['status'] == 'Covered')
         partial = sum(1 for a in absences if a['status'] == 'Partial')
         escalated = sum(1 for a in absences if a['status'] == 'Escalated')
+        
+        # Period-level stats for the filtered view
+        total_periods = 0
+        covered_periods = 0
+        pending_periods = 0
+        for absence in absences:
+            for req in absence.get('requests', []):
+                total_periods += 1
+                if req.get('substitute_id'):
+                    covered_periods += 1
+                else:
+                    pending_periods += 1
     
     # Build navigation
     nav_header = get_nav_header("Mission Control", "/dashboard/", "Dashboard")
@@ -393,8 +405,8 @@ def mission_control():
                           config=config,
                           cycle_day=get_cycle_day(),
                           today=today.strftime('%a %d %b'),
-                          stats={'total': total_absences, 'covered': fully_covered, 
-                                 'partial': partial, 'escalated': escalated},
+                          stats={'total': total_periods, 'covered': covered_periods, 
+                                 'pending': pending_periods, 'absences': total_absences},
                           nav_header=nav_header,
                           nav_styles=nav_styles,
                           current_tab=tab,
