@@ -328,6 +328,14 @@ def mission_control():
         filter_start = monday
         filter_end = friday
         filter_dates = [(monday + timedelta(days=i)).isoformat() for i in range(5)]
+    elif tab == 'nextweek':
+        # Monday to Friday of next week
+        days_until_next_monday = 7 - today.weekday() if today.weekday() != 0 else 7
+        next_monday = today + timedelta(days=days_until_next_monday)
+        next_friday = next_monday + timedelta(days=4)
+        filter_start = next_monday
+        filter_end = next_friday
+        filter_dates = [(next_monday + timedelta(days=i)).isoformat() for i in range(5)]
     else:  # today
         filter_start = day1
         filter_end = day1
