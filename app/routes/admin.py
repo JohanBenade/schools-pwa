@@ -1109,3 +1109,17 @@ def clear_safari_tokens():
         conn.commit()
         
     return f"Found {len(safari_tokens)} Safari tokens. Deleted {deleted}."
+
+
+@admin_bp.route('/fix-cycle-to-jan19')
+def fix_cycle_to_jan19():
+    """Fix cycle start date to Jan 19 (first real teaching day)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE substitute_config 
+            SET cycle_start_date = '2026-01-19' 
+            WHERE tenant_id = 'MARAGON'
+        """)
+        conn.commit()
+    return '<h1>Fixed!</h1><p>Cycle start date set to 2026-01-19 (Day 1)</p><p>Mon 19 Jan = Day 1, Tue 20 Jan = Day 2, Wed 21 Jan = Day 3</p><p><a href="/admin/cycle-day-check">Check cycle days</a></p>'
