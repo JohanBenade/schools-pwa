@@ -1123,3 +1123,36 @@ def fix_cycle_to_jan19():
         """)
         conn.commit()
     return '<h1>Fixed!</h1><p>Cycle start date set to 2026-01-19 (Day 1)</p><p>Mon 19 Jan = Day 1, Tue 20 Jan = Day 2, Wed 21 Jan = Day 3</p><p><a href="/admin/cycle-day-check">Check cycle days</a></p>'
+
+
+@admin_bp.route('/reset-attendance-today')
+def reset_attendance_today():
+    """Clear all attendance records for today - demo reset."""
+    from datetime import date
+    today = date.today().isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get attendance IDs for today
+        cursor.execute("SELECT id FROM attendance WHERE attendance_date = ?", (today,))
+        attendance_ids = [row['id'] for row in cursor.fetchall()]
+        
+        # Delete entries
+        for att_id in attendance_ids:
+            cursor.execute("DELETE FROM attendance_entry WHERE attendance_id = ?", (att_id,))
+        
+        # Delete attendance records
+        cursor.execute("DELETE FROM attendance WHERE attendance_date = ?", (today,))
+        deleted_count = cursor.rowcount
+        
+        # Clear pending marks
+        cursor.execute("DELETE FROM pending_attendance")
+        pending_count = cursor.rowcount
+        
+        conn.commit()
+    
+    return f'''<h1>Attendance Reset</h1>
+<p>Cleared {deleted_count} attendance records for {today}</p>
+<p>Cleared {pending_count} pending marks</p>
+<p><a href="/admin/">Back to Admin</a></p>'''
