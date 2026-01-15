@@ -14,6 +14,7 @@
         .tab:hover { background: rgba(255,255,255,0.15); }
         .tab.active { background: #3b82f6; }
         .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .stats-context { text-align: center; font-size: 14px; opacity: 0.8; margin-bottom: 12px; }
         .stat-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; }
         .stat-number { font-size: 32px; font-weight: 700; }
         .stat-label { font-size: 12px; opacity: 0.7; margin-top: 4px; }
@@ -51,6 +52,7 @@
             <a href="?tab=nextweek" class="tab {{ 'active' if current_tab == 'nextweek' else '' }}">Next Week</a>
         </div>
         
+        <div class="stats-context">📊 Periods for {% if filter_start == filter_end %}{{ filter_start }}{% else %}{{ filter_start }} - {{ filter_end }}{% endif %}</div>
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-number">{{ stats.total }}</div>
