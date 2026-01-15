@@ -169,8 +169,6 @@ def create_app():
         <a href="/substitute/sub-duties" class="app-icon">
             <div class="icon-box bg-cyan">📅</div>
             <span class="app-label">Sub Duties</span>
-            <div class="icon-box bg-green">&#128694;</div>
-            <span class="app-label">My Day</span>
         </a>
         <a href="/sport/events" class="app-icon">
             <div class="icon-box bg-teal">&#127942;</div>
