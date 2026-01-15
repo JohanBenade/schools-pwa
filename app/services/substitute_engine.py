@@ -446,9 +446,23 @@ def process_absence(absence_id):
                     pointer = new_pointer
                     
                 else:
+                    # Create a Pending request so it shows in Mission Control
+                    request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         class_name, subject, venue_id, venue_name, request_date)
+                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?)
+                    """, (request_id, TENANT_ID, absence_id, slot['period_id'],
+                          slot['class_name'], slot['subject'],
+                          slot['venue_id'], slot['venue_code'], target_date_str))
+                    conn.commit()
+                    
                     log_event(absence_id, 'no_cover', None,
-                             f"[{target_date_str}] {slot['period_name']}: No substitute available")
+                             f"[{target_date_str}] {slot['period_name']}: No substitute available",
+                             request_id)
                     period_result['status'] = 'no_cover'
+                    period_result['request_id'] = request_id
                 
                 day_result['periods'].append(period_result)
             
