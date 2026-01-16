@@ -124,7 +124,7 @@
                 <div class="date-label">{{ day.display_date }}{% if day.cycle_day %} • Day {{ day.cycle_day }}{% endif %}</div>
                 {% for assignment in day.assignments %}
                 <div class="slot">
-                    <div class="slot-time">{{ assignment.start_time or 'AM' }}</div>
+                    <div class="slot-time">P{{ assignment.period_number or 'RC' }}</div>
                     <div class="slot-content">
                         <div class="slot-name">{{ assignment.period_name or 'Roll Call' }}</div>
                         <div class="slot-detail">{{ assignment.class_name }} {{ assignment.subject }} • {{ assignment.venue_name or 'TBC' }}</div>
