@@ -124,10 +124,24 @@
                 <div class="date-label">{{ day.display_date }}{% if day.cycle_day %} • Day {{ day.cycle_day }}{% endif %}</div>
                 {% for assignment in day.assignments %}
                 <div class="slot">
-                    <div class="slot-time">{{ assignment.start_time or 'P' ~ assignment.period_number }}</div>
+                    <div class="slot-time">
+                        {% if assignment.start_time %}
+                            {{ assignment.start_time }}
+                        {% elif assignment.period_number %}
+                            P{{ assignment.period_number }}
+                        {% else %}
+                            07:30
+                        {% endif %}
+                    </div>
                     <div class="slot-content">
                         <div class="slot-name">{{ assignment.period_name or 'Roll Call' }}</div>
-                        <div class="slot-detail">{{ assignment.class_name }} {{ assignment.subject }} • {{ assignment.venue_name or 'TBC' }}</div>
+                        <div class="slot-detail">
+                            {% if assignment.is_mentor_duty %}
+                                {{ assignment.class_name or 'Mentor Group' }} • {{ assignment.venue_name or 'TBC' }}
+                            {% else %}
+                                {{ assignment.class_name or '' }}{% if assignment.subject %} {{ assignment.subject }}{% endif %}{% if assignment.class_name or assignment.subject %} • {% endif %}{{ assignment.venue_name or 'TBC' }}
+                            {% endif %}
+                        </div>
                         <div class="slot-sub-info">Covering for {{ assignment.absent_teacher }}{% if assignment.absence_reason %} ({{ assignment.absence_reason }}){% endif %}</div>
                     </div>
                     <button class="decline-btn" onclick="openDecline('{{ assignment.id }}', '{{ assignment.period_name or "Roll Call" }}', '{{ assignment.absent_teacher }}', '{{ day.display_date }}')">✕ Decline</button>
