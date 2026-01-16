@@ -137,6 +137,14 @@
                         <span>Responders: {{ alert.responder_count }}</span>
                         <span class="alert-status {{ alert.status }}">{{ alert.status }}</span>
                     </div>
+                    {% if alert.status == 'Resolved' %}
+                    <div class="alert-resolved" style="margin-top: 8px; font-size: 13px; opacity: 0.8;">
+                        <span>Resolved by: {{ alert.resolved_by_name or 'Unknown' }}</span>
+                        {% if alert.resolution_notes %}
+                        <div style="margin-top: 4px; font-style: italic;">📝 {{ alert.resolution_notes }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             {% else %}
