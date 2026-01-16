@@ -1185,3 +1185,74 @@ def fix_period_times():
         conn.commit()
     
     return f"<h2>Period Times Updated</h2><p>Updated {len(period_times)} periods to Mon/Wed times.</p><a href='/'>Home</a>"
+
+
+@admin_bp.route('/dashboard-content')
+def dashboard_content():
+    """HTMX partial - returns just the stats and class list."""
+    today = date.today()
+    today_str = today.isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                mg.id,
+                mg.group_name,
+                g.grade_name,
+                g.grade_number,
+                s.display_name as mentor_name,
+                a.id as attendance_id,
+                a.submitted_at,
+                (SELECT COUNT(*) FROM learner l WHERE l.mentor_group_id = mg.id AND l.is_active = 1) as total_learners,
+                (SELECT COUNT(*) FROM attendance_entry ae 
+                 JOIN attendance att ON ae.attendance_id = att.id 
+                 WHERE att.mentor_group_id = mg.id AND att.date = ? AND ae.status = 'Present') as present_count,
+                (SELECT COUNT(*) FROM attendance_entry ae 
+                 JOIN attendance att ON ae.attendance_id = att.id 
+                 WHERE att.mentor_group_id = mg.id AND att.date = ? AND ae.status = 'Absent') as absent_count,
+                (SELECT COUNT(*) FROM attendance_entry ae 
+                 JOIN attendance att ON ae.attendance_id = att.id 
+                 WHERE att.mentor_group_id = mg.id AND att.date = ? AND ae.status = 'Absent' AND ae.stasy_captured = 1) as captured_count,
+                (SELECT COUNT(*) FROM attendance_entry ae 
+                 JOIN attendance att ON ae.attendance_id = att.id 
+                 WHERE att.mentor_group_id = mg.id AND att.date = ? AND ae.status = 'Late') as late_count
+            FROM mentor_group mg
+            LEFT JOIN grade g ON mg.grade_id = g.id
+            LEFT JOIN staff s ON mg.mentor_id = s.id
+            LEFT JOIN attendance a ON mg.id = a.mentor_group_id AND a.date = ?
+            ORDER BY g.grade_number, mg.group_name
+        ''', (today_str, today_str, today_str, today_str, today_str))
+        
+        groups = [dict(row) for row in cursor.fetchall()]
+        
+        total_groups = len(groups)
+        submitted_count = sum(1 for g in groups if g['attendance_id'])
+        pending_count = total_groups - submitted_count
+        
+        def sort_key(g):
+            absent = g['absent_count'] or 0
+            captured = g['captured_count'] or 0
+            is_fully_captured = g['attendance_id'] and absent > 0 and captured == absent
+            is_all_present = g['attendance_id'] and absent == 0
+            is_done = is_fully_captured or is_all_present
+            is_submitted_needs_action = g['attendance_id'] and absent > 0 and captured < absent
+            is_pending = not g['attendance_id']
+            
+            if is_submitted_needs_action:
+                priority = 0
+            elif is_pending:
+                priority = 1
+            else:
+                priority = 2
+            
+            return (priority, g['grade_number'] or 99, g['group_name'])
+        
+        groups = sorted(groups, key=sort_key)
+    
+    return render_template('admin/partials/dashboard_content.html',
+                          groups=groups,
+                          total_groups=total_groups,
+                          submitted_count=submitted_count,
+                          pending_count=pending_count)

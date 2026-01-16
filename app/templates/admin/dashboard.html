@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; min-height: 100vh; }
@@ -28,8 +29,6 @@
         .status-pending { background: #fef3c7; color: #b45309; }
         .status-submitted { background: #d1fae5; color: #047857; }
         .status-action { background: #fee2e2; color: #b91c1c; }
-        .refresh-btn { display: block; width: 100%; padding: 16px; background: white; border: none; border-radius: 12px; font-size: 16px; color: #64748b; cursor: pointer; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .refresh-btn:hover { background: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -38,39 +37,43 @@
         
         <div class="date-display">{{ today_display }}</div>
         
-        <div class="stats-row">
-            <div class="stat-card">
-                <h3>{{ submitted_count }}/{{ total_groups }}</h3>
-                <p>Submitted</p>
-            </div>
-            <div class="stat-card highlight">
-                <h3>{{ pending_count }}</h3>
-                <p>Pending</p>
-            </div>
-        </div>
-        
-        <div class="class-list">
-            {% for group in groups %}
-            <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% else %}#{% endif %}" 
-               class="class-row" style="text-decoration: none;">
-                <div class="class-info">
-                    <span class="class-code">{{ group.group_name }}</span>
-                    <span class="class-mentor">{{ group.mentor_name or 'No mentor' }}</span>
+        <div id="dashboard-content"
+             hx-get="/admin/dashboard-content"
+             hx-trigger="load, every 10s"
+             hx-swap="innerHTML">
+            <!-- Initial content -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>{{ submitted_count }}/{{ total_groups }}</h3>
+                    <p>Submitted</p>
                 </div>
-                <span class="class-status {% if not group.attendance_id %}status-pending{% elif group.absent_count and group.absent_count > group.captured_count %}status-action{% else %}status-submitted{% endif %}">
-                    {% if not group.attendance_id %}
-                        ⏳ Pending
-                    {% elif group.absent_count and group.absent_count > group.captured_count %}
-                        🔴 {{ group.absent_count - group.captured_count }} to capture
-                    {% else %}
-                        ✓ Done
-                    {% endif %}
-                </span>
-            </a>
-            {% endfor %}
+                <div class="stat-card highlight">
+                    <h3>{{ pending_count }}</h3>
+                    <p>Pending</p>
+                </div>
+            </div>
+            
+            <div class="class-list">
+                {% for group in groups %}
+                <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% else %}#{% endif %}" 
+                   class="class-row" style="text-decoration: none;">
+                    <div class="class-info">
+                        <span class="class-code">{{ group.group_name }}</span>
+                        <span class="class-mentor">{{ group.mentor_name or 'No mentor' }}</span>
+                    </div>
+                    <span class="class-status {% if not group.attendance_id %}status-pending{% elif group.absent_count and group.absent_count > group.captured_count %}status-action{% else %}status-submitted{% endif %}">
+                        {% if not group.attendance_id %}
+                            ⏳ Pending
+                        {% elif group.absent_count and group.absent_count > group.captured_count %}
+                            🔴 {{ group.absent_count - group.captured_count }} to capture
+                        {% else %}
+                            ✓ Done
+                        {% endif %}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
         </div>
-        
-        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Dashboard</button>
     </div>
 </body>
 </html>

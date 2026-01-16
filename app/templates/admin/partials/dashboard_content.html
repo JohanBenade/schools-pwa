@@ -1,0 +1,31 @@
+<div class="stats-row">
+    <div class="stat-card">
+        <h3>{{ submitted_count }}/{{ total_groups }}</h3>
+        <p>Submitted</p>
+    </div>
+    <div class="stat-card highlight">
+        <h3>{{ pending_count }}</h3>
+        <p>Pending</p>
+    </div>
+</div>
+
+<div class="class-list">
+    {% for group in groups %}
+    <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% else %}#{% endif %}" 
+       class="class-row" style="text-decoration: none;">
+        <div class="class-info">
+            <span class="class-code">{{ group.group_name }}</span>
+            <span class="class-mentor">{{ group.mentor_name or 'No mentor' }}</span>
+        </div>
+        <span class="class-status {% if not group.attendance_id %}status-pending{% elif group.absent_count and group.absent_count > group.captured_count %}status-action{% else %}status-submitted{% endif %}">
+            {% if not group.attendance_id %}
+                ⏳ Pending
+            {% elif group.absent_count and group.absent_count > group.captured_count %}
+                🔴 {{ group.absent_count - group.captured_count }} to capture
+            {% else %}
+                ✓ Done
+            {% endif %}
+        </span>
+    </a>
+    {% endfor %}
+</div>
