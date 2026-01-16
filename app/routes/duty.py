@@ -117,6 +117,30 @@ def my_day():
             """, (staff_id, cycle_day))
             teaching_slots = {row['period_number']: dict(row) for row in cursor.fetchall()}
         
+        # Get teacher's home room
+        cursor.execute("""
+            SELECT v.id as venue_id, v.venue_code
+            FROM staff_venue sv
+            JOIN venue v ON sv.venue_id = v.id
+            WHERE sv.staff_id = ? AND sv.tenant_id = ?
+        """, (staff_id, TENANT_ID))
+        home_room_row = cursor.fetchone()
+        home_room_id = home_room_row['venue_id'] if home_room_row else None
+        home_room_code = home_room_row['venue_code'] if home_room_row else None
+        
+        # Get roving teachers using this teacher's room (for free period display)
+        room_occupants = {}
+        if home_room_id and cycle_day:
+            cursor.execute("""
+                SELECT t.cycle_day, p.period_number, s.display_name as occupant_name
+                FROM timetable_slot t
+                JOIN period p ON t.period_id = p.id
+                JOIN staff s ON t.staff_id = s.id
+                WHERE t.venue_id = ? AND t.cycle_day = ? AND t.staff_id != ?
+            """, (home_room_id, cycle_day, staff_id))
+            for row in cursor.fetchall():
+                room_occupants[row['period_number']] = row['occupant_name']
+        
         cursor.execute("""
             SELECT dr.*, ta.area_name, ta.area_code
             FROM duty_roster dr
@@ -193,6 +217,8 @@ def my_day():
                 'is_duty': False,
                 'is_sub': False,
                 'is_free': False,
+                'is_free_occupied': False,
+                'room_occupant': None,
                 'is_sport': True,
                 'request_id': None,
                 'event_id': sport['event_id'],
@@ -211,6 +237,8 @@ def my_day():
                 'is_duty': True,
                 'is_sub': False,
                 'is_free': False,
+                'is_free_occupied': False,
+                'room_occupant': None,
                 'is_sport': False,
                 'request_id': None
             })
@@ -227,6 +255,8 @@ def my_day():
                 'is_duty': False,
                 'is_sub': False,
                 'is_free': False,
+                'is_free_occupied': False,
+                'room_occupant': None,
                 'is_sport': False,
                 'request_id': None
             }
@@ -250,6 +280,7 @@ def my_day():
                 p_num = slot['slot_number']
                 
                 if p_num and p_num in sub_by_period:
+                    # Sub duty takes priority
                     sub = sub_by_period[p_num]
                     venue = sub.get('venue_name') or 'TBC'
                     item['content'] = f"{sub.get('class_name', '')} {sub.get('subject', '')} • {venue}"
@@ -258,12 +289,19 @@ def my_day():
                     item['is_sub'] = True
                     item['request_id'] = sub['id']
                 elif p_num and p_num in teaching_slots:
+                    # Normal teaching
                     ts = teaching_slots[p_num]
                     venue = ts.get('venue_code') or 'TBC'
                     item['content'] = f"{ts.get('class_name', '')} {ts.get('subject', '')} • {venue}"
                 else:
-                    item['content'] = "Free"
-                    item['is_free'] = True
+                    # Free period - check if room is occupied
+                    if p_num and p_num in room_occupants:
+                        item['content'] = room_occupants[p_num]
+                        item['is_free_occupied'] = True
+                        item['room_occupant'] = room_occupants[p_num]
+                    else:
+                        item['content'] = "Free"
+                        item['is_free'] = True
             
             elif slot['slot_type'] == 'break':
                 if terrain_duty:
