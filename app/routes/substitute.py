@@ -354,7 +354,7 @@ def mission_control():
             WHERE a.tenant_id = ?
               AND a.absence_date <= ?
               AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
-            ORDER BY a.absence_date DESC, a.reported_at DESC
+            ORDER BY a.absence_date ASC, a.reported_at ASC
         """, (TENANT_ID, filter_end.isoformat(), filter_start.isoformat()))
         absences = [dict(row) for row in cursor.fetchall()]
         
