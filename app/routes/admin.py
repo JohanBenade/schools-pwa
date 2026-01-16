@@ -1277,3 +1277,18 @@ def check_teacher_slots():
         slots = [dict(r) for r in cursor.fetchall()]
     
     return jsonify({'teacher': name, 'day': day, 'teaching_periods': slots})
+
+
+@admin_bp.route('/check-sub-status')
+def check_sub_status():
+    """Check can_substitute status for specific teachers."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT first_name, surname, can_substitute 
+            FROM staff 
+            WHERE tenant_id = 'MARAGON' 
+            AND LOWER(first_name) IN ('kea', 'marie-louise', 'pierre')
+        """)
+        results = [dict(r) for r in cursor.fetchall()]
+    return jsonify(results)
