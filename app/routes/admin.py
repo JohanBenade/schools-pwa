@@ -1156,3 +1156,32 @@ def reset_attendance_today():
 <p>Cleared {deleted_count} attendance records for {today}</p>
 <p>Cleared {pending_count} pending marks</p>
 <p><a href="/admin/">Back to Admin</a></p>'''
+
+
+@admin_bp.route('/fix-period-times')
+def fix_period_times():
+    """Update period table with correct Mon/Wed (type_a) times."""
+    from app.services.db import get_connection
+    
+    # Mon/Wed times from bell schedule
+    period_times = {
+        1: ('08:20', '09:05'),
+        2: ('09:05', '09:50'),
+        3: ('10:10', '10:55'),
+        4: ('10:55', '11:40'),
+        5: ('11:40', '12:25'),
+        6: ('12:45', '13:30'),
+        7: ('13:30', '14:15'),
+    }
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        for period_num, (start, end) in period_times.items():
+            cursor.execute("""
+                UPDATE period 
+                SET start_time = ?, end_time = ?
+                WHERE tenant_id = 'MARAGON' AND period_number = ?
+            """, (start, end, period_num))
+        conn.commit()
+    
+    return f"<h2>Period Times Updated</h2><p>Updated {len(period_times)} periods to Mon/Wed times.</p><a href='/'>Home</a>"
