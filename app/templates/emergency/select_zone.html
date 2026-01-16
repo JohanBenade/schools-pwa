@@ -97,6 +97,13 @@
             content: '›';
             font-size: 20px;
             opacity: 0.5;
+            transition: transform 0.2s;
+        }
+        .zone-btn.active::after {
+            transform: rotate(90deg);
+        }
+        .venue-container {
+            overflow: hidden;
         }
         .venue-list {
             background: rgba(0,0,0,0.2);
@@ -156,11 +163,7 @@
         
         <div class="zone-list">
             {% for zone_id, zone_name in zones %}
-            <button type="button" class="zone-btn" 
-                    hx-get="/emergency/venues/{{ zone_id }}"
-                    hx-target="#venues-{{ zone_id }}"
-                    hx-swap="innerHTML"
-                    onclick="toggleZone(this, 'venues-{{ zone_id }}')">
+            <button type="button" class="zone-btn" data-zone="{{ zone_id }}" onclick="toggleZone(this)">
                 {{ zone_name }}
             </button>
             <div id="venues-{{ zone_id }}" class="venue-container"></div>
@@ -169,16 +172,14 @@
     </div>
 
     <script>
-    function toggleZone(btn, targetId) {
-        const target = document.getElementById(targetId);
+    function toggleZone(btn) {
+        const zoneId = btn.dataset.zone;
+        const target = document.getElementById('venues-' + zoneId);
+        
         if (btn.classList.contains('active')) {
-            // Already open - close it
+            // Close this zone
             btn.classList.remove('active');
             target.innerHTML = '';
-            // Cancel the HTMX request
-            event.preventDefault();
-            event.stopPropagation();
-            return false;
         } else {
             // Close all other zones first
             document.querySelectorAll('.zone-btn.active').forEach(b => {
@@ -189,6 +190,8 @@
             });
             // Open this one
             btn.classList.add('active');
+            // Fetch venues via HTMX
+            htmx.ajax('GET', '/emergency/venues/' + zoneId, {target: target, swap: 'innerHTML'});
         }
     }
     </script>
