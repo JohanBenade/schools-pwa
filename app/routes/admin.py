@@ -1256,3 +1256,24 @@ def dashboard_content():
                           total_groups=total_groups,
                           submitted_count=submitted_count,
                           pending_count=pending_count)
+
+
+@admin_bp.route('/check-teacher-slots')
+def check_teacher_slots():
+    """Debug: Show what periods a teacher has in timetable_slot for a given day."""
+    name = request.args.get('name', '')
+    day = request.args.get('day', 1, type=int)
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ts.period_id, p.period_number, ts.subject, ts.class_name
+            FROM timetable_slot ts
+            JOIN period p ON ts.period_id = p.id
+            JOIN staff s ON ts.staff_id = s.id
+            WHERE LOWER(s.first_name) LIKE ? AND ts.cycle_day = ?
+            ORDER BY p.period_number
+        """, (f'%{name.lower()}%', day))
+        slots = [dict(r) for r in cursor.fetchall()]
+    
+    return jsonify({'teacher': name, 'day': day, 'teaching_periods': slots})
