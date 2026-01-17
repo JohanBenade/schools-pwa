@@ -63,7 +63,7 @@
             </div>
             <div class="learner-stats">
                 <div class="days-count {{ 'high' if learner.consecutive_days >= 3 else '' }}">{{ learner.consecutive_days }}</div>
-                <div class="days-label">days</div>
+                <div class="days-label">{{ "day" if learner.consecutive_days == 1 else "days" }}</div>
                 <div class="absent-since">Since {{ learner.absent_since }}</div>
             </div>
         </div>
