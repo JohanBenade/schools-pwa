@@ -63,10 +63,10 @@
         
         <div class="teacher-list" id="teacherList">
             {% for teacher in teachers %}
-            <a href="/duty/my-day?staff={{ teacher.id }}" class="teacher-item" data-name="{{ teacher.display_name|lower }}">
+            <a href="/duty/my-day?staff={{ teacher.id }}" class="teacher-item" data-name="{{ teacher.display_name|lower }}" data-firstname="{{ teacher.sort_name|lower }}">
                 <div>
                     <div class="teacher-name">{{ teacher.display_name }}</div>
-                    <div class="teacher-role">{{ teacher.role }}</div>
+                    <div class="teacher-role">{{ teacher.role or 'Staff' }}</div>
                 </div>
                 <span class="arrow">→</span>
             </a>
@@ -90,8 +90,9 @@
             let visibleCount = 0;
             
             teacherItems.forEach(item => {
-                const name = item.dataset.name;
-                if (query === '' || name.includes(query)) {
+                const firstname = item.dataset.firstname;
+                // Match if first name STARTS with query
+                if (query === '' || firstname.startsWith(query)) {
                     item.classList.remove('hidden');
                     visibleCount++;
                 } else {
