@@ -397,7 +397,7 @@ def mission_control():
                     pending_periods += 1
     
     # Build navigation
-    nav_header = get_nav_header("Mission Control", "/dashboard/", "Dashboard")
+    nav_header = get_nav_header("Mission Control", "/", "Home")
     nav_styles = get_nav_styles()
     
     return render_template('substitute/mission_control.html',
