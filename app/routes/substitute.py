@@ -405,7 +405,10 @@ def mission_control():
                     pending_periods += 1
     
     # Build navigation
-    nav_header = get_nav_header("Substitute Overview", "/", "Home")
+    if staff_filter:
+        nav_header = get_nav_header("Substitute Overview", "/absences/teachers", "Back")
+    else:
+        nav_header = get_nav_header("Substitute Overview", "/", "Home")
     nav_styles = get_nav_styles()
     
     return render_template('substitute/mission_control.html',
