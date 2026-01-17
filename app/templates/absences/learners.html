@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Learner Absences - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px 20px 100px; color: white; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-top: 10px; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 14px; }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .summary { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .summary-stat { text-align: center; }
+        .summary-stat .number { font-size: 28px; font-weight: 700; color: #f87171; }
+        .summary-stat .label { font-size: 12px; opacity: 0.7; }
+        .as-of { font-size: 12px; opacity: 0.6; text-align: right; margin-bottom: 12px; }
+        .learner-list { display: flex; flex-direction: column; gap: 8px; }
+        .learner-card { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+        .learner-info { min-width: 0; }
+        .learner-name { font-size: 15px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .learner-details { font-size: 12px; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .learner-stats { text-align: right; }
+        .days-count { font-size: 24px; font-weight: 700; color: #fbbf24; }
+        .days-count.high { color: #f87171; }
+        .days-label { font-size: 10px; opacity: 0.6; }
+        .absent-since { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
+        .empty-state p { font-size: 16px; margin-bottom: 8px; }
+        .empty-state span { font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/absences/" class="back-link">← Back</a>
+        <h1>🎒 Learner Absences</h1>
+    </div>
+    
+    {% if as_of_date %}
+    <div class="summary">
+        <div class="summary-stat">
+            <div class="number">{{ total_absent }}</div>
+            <div class="label">Absent</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number" style="color: #fbbf24;">{{ learners|selectattr('consecutive_days', 'ge', 2)|list|length }}</div>
+            <div class="label">2+ Days</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number" style="color: #f87171;">{{ learners|selectattr('consecutive_days', 'ge', 3)|list|length }}</div>
+            <div class="label">3+ Days</div>
+        </div>
+    </div>
+    
+    <div class="as-of">As of {{ as_of_date }}</div>
+    
+    <div class="learner-list">
+        {% for learner in learners %}
+        <div class="learner-card">
+            <div class="learner-info">
+                <div class="learner-name">{{ learner.surname }}, {{ learner.first_name }}</div>
+                <div class="learner-details">{{ learner.mentor_group }} • {{ learner.mentor_teacher }}</div>
+            </div>
+            <div class="learner-stats">
+                <div class="days-count {{ 'high' if learner.consecutive_days >= 3 else '' }}">{{ learner.consecutive_days }}</div>
+                <div class="days-label">days</div>
+                <div class="absent-since">Since {{ learner.absent_since }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No attendance data yet</p>
+        <span>Roll call submissions will appear here</span>
+    </div>
+    {% endif %}
+</body>
+</html>
