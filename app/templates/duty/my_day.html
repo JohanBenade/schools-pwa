@@ -162,6 +162,9 @@
         </div>
         
         <div class="date-header">
+            {% if viewing_other %}
+            <div style="background: rgba(6,182,212,0.2); border: 1px solid #06b6d4; border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; font-size: 14px;">Viewing: {{ viewing_name }}</div>
+            {% endif %}
             <h2>{{ display_date }}</h2>
             {% if day_name and day_type == 'academic' %}
             <div class="cycle">{{ day_name }} • Cycle Day {{ cycle_day }}</div>

@@ -31,6 +31,7 @@ def create_app():
     from app.routes.duty import duty_bp
     from app.routes.sport import sport_bp
     from app.routes.absences import absences_bp
+    from app.routes.timetables import timetables_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
@@ -42,6 +43,7 @@ def create_app():
     app.register_blueprint(duty_bp)
     app.register_blueprint(sport_bp)
     app.register_blueprint(absences_bp)
+    app.register_blueprint(timetables_bp)
     
     @app.before_request
     def check_password_gate():

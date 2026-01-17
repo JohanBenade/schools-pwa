@@ -56,9 +56,26 @@ def get_school_days_extended():
 @duty_bp.route('/my-day')
 def my_day():
     """Teacher's full daily schedule view."""
-    staff_id = session.get('staff_id')
-    if not staff_id:
-        return redirect('/')
+    # Check for staff override (leadership viewing another teacher)
+    staff_override = request.args.get('staff')
+    viewing_other = False
+    viewing_name = None
+    
+    if staff_override:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, display_name FROM staff WHERE id = ? AND tenant_id = ?", (staff_override, TENANT_ID))
+            row = cursor.fetchone()
+            if row:
+                staff_id = row['id']
+                viewing_other = True
+                viewing_name = row['display_name']
+            else:
+                return redirect('/timetables/')
+    else:
+        staff_id = session.get('staff_id')
+        if not staff_id:
+            return redirect('/')
     
     # Get 7 school days
     school_days = get_school_days_extended()
@@ -343,7 +360,10 @@ def my_day():
     duty_count = (1 if terrain_duty else 0) + (1 if homework_duty else 0)
     sport_count = len(sport_duties)
     
-    nav_header = get_nav_header("My Day", "/", "Home")
+    if viewing_other:
+        nav_header = get_nav_header("My Day", "/timetables/", "Back")
+    else:
+        nav_header = get_nav_header("My Day", "/", "Home")
     nav_styles = get_nav_styles()
     
     return render_template('duty/my_day.html',
@@ -363,4 +383,6 @@ def my_day():
                           current_tab=tab,
                           school_days=school_days,
                           is_absent=is_absent,
-                          absence_type=absence_type)
+                          absence_type=absence_type,
+                          viewing_other=viewing_other,
+                          viewing_name=viewing_name)
