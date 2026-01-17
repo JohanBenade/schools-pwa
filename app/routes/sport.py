@@ -384,3 +384,134 @@ def release_event(event_id):
         conn.commit()
     
     return redirect(request.referrer or '/sport/coordination')
+
+
+@sport_bp.route('/coordination/event/<event_id>')
+def manage_event(event_id):
+    """Manage duties for a specific event."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get event
+        cursor.execute("""
+            SELECT se.*, c.display_name as coordinator_name
+            FROM sport_event se
+            LEFT JOIN staff c ON se.coordinator_id = c.id
+            WHERE se.id = ? AND se.tenant_id = ?
+        """, (event_id, TENANT_ID))
+        row = cursor.fetchone()
+        
+        if not row:
+            return "Event not found", 404
+        
+        event = dict(row)
+        
+        # Check if current user is coordinator
+        is_coordinator = event.get('coordinator_id') == staff_id
+        
+        # Parse date for display
+        dt = datetime.strptime(event['event_date'], '%Y-%m-%d')
+        event['day_name'] = dt.strftime('%A')
+        event['date_display'] = dt.strftime('%a %d %b %Y')
+        
+        # Format times
+        if event['start_time'] and event['end_time']:
+            event['time_display'] = f"{event['start_time']} - {event['end_time']}"
+        else:
+            event['time_display'] = event['start_time'] or "TBC"
+        
+        # Get existing duties
+        cursor.execute("""
+            SELECT sd.*, s.display_name, s.first_name
+            FROM sport_duty sd
+            JOIN staff s ON sd.staff_id = s.id
+            WHERE sd.event_id = ? AND sd.tenant_id = ?
+            ORDER BY sd.duty_type, s.display_name
+        """, (event_id, TENANT_ID))
+        duties = [dict(row) for row in cursor.fetchall()]
+        
+        # Get all staff for assignment dropdown
+        cursor.execute("""
+            SELECT id, display_name FROM staff
+            WHERE tenant_id = ? AND is_active = 1
+            ORDER BY display_name
+        """, (TENANT_ID,))
+        all_staff = [dict(row) for row in cursor.fetchall()]
+        
+        # Get duty types for this sport
+        duty_types = get_duty_types_for_sport(event.get('sport_type', ''))
+    
+    nav_header = get_nav_header("Manage Event", "/sport/coordination", "Back")
+    nav_styles = get_nav_styles()
+    
+    return render_template('sport/manage_event.html',
+                          event=event,
+                          duties=duties,
+                          all_staff=all_staff,
+                          duty_types=duty_types,
+                          is_coordinator=is_coordinator,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
+
+
+@sport_bp.route('/coordination/event/<event_id>/add-duty', methods=['POST'])
+def add_duty(event_id):
+    """Add a duty assignment to an event."""
+    import uuid
+    
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    assigned_staff_id = request.form.get('staff_id')
+    duty_type = request.form.get('duty_type')
+    duty_type_other = request.form.get('duty_type_other', '').strip()
+    start_time = request.form.get('start_time', '').strip() or None
+    end_time = request.form.get('end_time', '').strip() or None
+    location = request.form.get('location', '').strip() or None
+    notes = request.form.get('notes', '').strip() or None
+    
+    # Use "Other" text if selected
+    if duty_type == 'Other' and duty_type_other:
+        duty_type = duty_type_other
+    
+    if not assigned_staff_id or not duty_type:
+        return redirect(f'/sport/coordination/event/{event_id}')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        duty_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO sport_duty (id, tenant_id, event_id, staff_id, duty_type, duty_role, start_time, end_time, location, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (duty_id, TENANT_ID, event_id, assigned_staff_id, duty_type, None, start_time, end_time, location, notes))
+        conn.commit()
+    
+    return redirect(f'/sport/coordination/event/{event_id}')
+
+
+@sport_bp.route('/coordination/duty/<duty_id>/remove', methods=['POST'])
+def remove_duty(duty_id):
+    """Remove a duty assignment."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get event_id before deleting
+        cursor.execute("SELECT event_id FROM sport_duty WHERE id = ?", (duty_id,))
+        row = cursor.fetchone()
+        event_id = row['event_id'] if row else None
+        
+        cursor.execute("DELETE FROM sport_duty WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+        conn.commit()
+    
+    if event_id:
+        return redirect(f'/sport/coordination/event/{event_id}')
+    return redirect('/sport/coordination')

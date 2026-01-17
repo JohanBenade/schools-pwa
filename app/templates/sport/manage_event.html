@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Event - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 600px; margin: 0 auto; }
+        {{ nav_styles }}
+        
+        .event-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .event-name { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .event-meta { font-size: 14px; color: rgba(255,255,255,0.7); }
+        .event-meta span { margin-right: 16px; }
+        .event-sport { display: inline-block; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-top: 8px; }
+        
+        .section-title { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; margin: 24px 0 12px; }
+        
+        .add-form { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .form-row { margin-bottom: 12px; }
+        .form-row label { display: block; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+        .form-row select, .form-row input { width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; }
+        .form-row select option { background: #1e293b; color: white; }
+        .form-row input::placeholder { color: rgba(255,255,255,0.4); }
+        .form-row-half { display: flex; gap: 12px; }
+        .form-row-half > div { flex: 1; }
+        
+        .other-input { display: none; margin-top: 8px; }
+        .other-input.show { display: block; }
+        
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; }
+        .btn-primary { background: #14b8a6; color: white; width: 100%; }
+        .btn-danger { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 6px 12px; font-size: 12px; }
+        .btn-danger:hover { background: #ef4444; color: white; }
+        
+        .duty-list { display: flex; flex-direction: column; gap: 8px; }
+        .duty-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 16px; }
+        .duty-info { flex: 1; }
+        .duty-type { font-size: 12px; color: #14b8a6; font-weight: 600; }
+        .duty-teacher { font-size: 14px; font-weight: 500; margin-top: 2px; }
+        .duty-details { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        
+        .empty-state { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; color: rgba(255,255,255,0.5); }
+        
+        .search-input { width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; margin-bottom: 8px; }
+        .search-input::placeholder { color: rgba(255,255,255,0.4); }
+        .staff-dropdown { max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+        
+        <div class="event-card">
+            <div class="event-name">{{ event.event_name }}</div>
+            <div class="event-meta">
+                <span>📅 {{ event.date_display }}</span>
+                <span>🕐 {{ event.time_display }}</span>
+            </div>
+            <div class="event-meta">
+                <span>📍 {{ event.venue_name or event.location_type or 'TBC' }}</span>
+            </div>
+            <div class="event-sport">{{ event.sport_type }}</div>
+        </div>
+        
+        {% if is_coordinator %}
+        <div class="section-title">Add Duty Assignment</div>
+        <form class="add-form" action="/sport/coordination/event/{{ event.id }}/add-duty" method="POST">
+            <div class="form-row">
+                <label>Teacher *</label>
+                <input type="text" id="staffSearch" class="search-input" placeholder="Search by name..." autocomplete="off">
+                <select name="staff_id" id="staffSelect" required>
+                    <option value="">Select teacher...</option>
+                    {% for staff in all_staff %}
+                    <option value="{{ staff.id }}">{{ staff.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label>Duty Type *</label>
+                <select name="duty_type" id="dutyType" required onchange="toggleOther()">
+                    <option value="">Select duty...</option>
+                    {% for dt in duty_types %}
+                    <option value="{{ dt }}">{{ dt }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="duty_type_other" id="dutyTypeOther" class="other-input" placeholder="Specify duty type...">
+            </div>
+            <div class="form-row-half">
+                <div class="form-row">
+                    <label>Start Time</label>
+                    <input type="time" name="start_time">
+                </div>
+                <div class="form-row">
+                    <label>End Time</label>
+                    <input type="time" name="end_time">
+                </div>
+            </div>
+            <div class="form-row">
+                <label>Location</label>
+                <input type="text" name="location" placeholder="e.g. A-field, Pool deck">
+            </div>
+            <div class="form-row">
+                <label>Notes</label>
+                <input type="text" name="notes" placeholder="e.g. Bring whistle">
+            </div>
+            <button type="submit" class="btn btn-primary">+ Add Duty</button>
+        </form>
+        {% endif %}
+        
+        <div class="section-title">Assigned Duties ({{ duties|length }})</div>
+        
+        {% if duties %}
+        <div class="duty-list">
+            {% for duty in duties %}
+            <div class="duty-item">
+                <div class="duty-info">
+                    <div class="duty-type">{{ duty.duty_type }}</div>
+                    <div class="duty-teacher">{{ duty.display_name }}</div>
+                    {% if duty.start_time or duty.location or duty.notes %}
+                    <div class="duty-details">
+                        {% if duty.start_time %}{{ duty.start_time }}{% if duty.end_time %} - {{ duty.end_time }}{% endif %}{% endif %}
+                        {% if duty.location %}• {{ duty.location }}{% endif %}
+                        {% if duty.notes %}• {{ duty.notes }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% if is_coordinator %}
+                <form action="/sport/coordination/duty/{{ duty.id }}/remove" method="POST" onsubmit="return confirm('Remove this duty?')">
+                    <button type="submit" class="btn-danger">Remove</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No duties assigned yet</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Staff search filter
+        const searchInput = document.getElementById('staffSearch');
+        const staffSelect = document.getElementById('staffSelect');
+        const options = Array.from(staffSelect.options);
+        
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            staffSelect.innerHTML = '';
+            
+            options.forEach(opt => {
+                if (opt.value === '' || opt.text.toLowerCase().includes(query)) {
+                    staffSelect.appendChild(opt.cloneNode(true));
+                }
+            });
+        });
+        
+        // Show "Other" input when selected
+        function toggleOther() {
+            const select = document.getElementById('dutyType');
+            const otherInput = document.getElementById('dutyTypeOther');
+            if (select.value === 'Other') {
+                otherInput.classList.add('show');
+                otherInput.required = true;
+            } else {
+                otherInput.classList.remove('show');
+                otherInput.required = false;
+            }
+        }
+    </script>
+</body>
+</html>
