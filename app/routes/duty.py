@@ -14,40 +14,43 @@ duty_bp = Blueprint('duty', __name__, url_prefix='/duty')
 TENANT_ID = "MARAGON"
 
 
-def get_school_days():
+def get_school_days_extended():
     """
-    Returns (day1, day1_label, day2, day2_label) for Today/Tomorrow tabs.
-    Skips weekends - if today is Sat/Sun, day1 = Monday.
+    Returns list of 7 school days starting from today (or Monday if weekend).
+    Each item: {'date': date_obj, 'label': str, 'tab_id': str}
+    Skips weekends automatically.
     """
     today = date.today()
-    weekday = today.weekday()  # Mon=0, Tue=1, ..., Fri=4, Sat=5, Sun=6
+    weekday = today.weekday()  # Mon=0 ... Sun=6
     
-    # Find first school day (day1)
+    # Start from Monday if today is weekend
     if weekday == 5:  # Saturday
-        day1 = today + timedelta(days=2)  # Monday
+        start = today + timedelta(days=2)
     elif weekday == 6:  # Sunday
-        day1 = today + timedelta(days=1)  # Monday
+        start = today + timedelta(days=1)
     else:
-        day1 = today
+        start = today
     
-    # Find second school day (day2)
-    if day1.weekday() == 4:  # Friday
-        day2 = day1 + timedelta(days=3)  # Monday
-    else:
-        day2 = day1 + timedelta(days=1)
+    days = []
+    current = start
+    while len(days) < 7:
+        if current.weekday() < 5:  # Mon-Fri only
+            # Generate label
+            if current == today:
+                label = "Today"
+            elif current == today + timedelta(days=1):
+                label = "Tmrw"
+            else:
+                label = current.strftime('%a %d')  # "Wed 21"
+            
+            days.append({
+                'date': current,
+                'label': label,
+                'tab_id': current.isoformat()  # "2026-01-19"
+            })
+        current += timedelta(days=1)
     
-    # Generate labels
-    if day1 == today:
-        day1_label = f"Today ({day1.strftime('%a %d')})"
-    else:
-        day1_label = day1.strftime('%a %d %b')
-    
-    if day2 == today + timedelta(days=1) and today.weekday() < 4:
-        day2_label = f"Tomorrow ({day2.strftime('%a %d')})"
-    else:
-        day2_label = day2.strftime('%a %d %b')
-    
-    return day1, day1_label, day2, day2_label
+    return days
 
 
 @duty_bp.route('/my-day')
@@ -57,15 +60,25 @@ def my_day():
     if not staff_id:
         return redirect('/')
     
-    # Get school days (skips weekends)
-    day1, day1_label, day2, day2_label = get_school_days()
+    # Get 7 school days
+    school_days = get_school_days_extended()
     
-    tab = request.args.get('tab', 'today')
+    tab = request.args.get('tab', '')
     
-    if tab == 'tomorrow':
-        target_date = day2
+    # Backward compat + default handling
+    if tab == 'today' or tab == '':
+        target_date = school_days[0]['date']
+        tab = school_days[0]['tab_id']
+    elif tab == 'tomorrow':
+        target_date = school_days[1]['date']
+        tab = school_days[1]['tab_id']
     else:
-        target_date = day1
+        # Tab is a date string like "2026-01-21"
+        try:
+            target_date = date.fromisoformat(tab)
+        except ValueError:
+            target_date = school_days[0]['date']
+            tab = school_days[0]['tab_id']
     
     target_date_str = target_date.isoformat()
     weekday = target_date.weekday()
@@ -348,7 +361,6 @@ def my_day():
                           nav_header=nav_header,
                           nav_styles=nav_styles,
                           current_tab=tab,
-                          tab1_label=day1_label,
-                          tab2_label=day2_label,
+                          school_days=school_days,
                           is_absent=is_absent,
                           absence_type=absence_type)

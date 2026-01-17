@@ -12,9 +12,37 @@
         .nav-back { color: #60a5fa; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 8px; }
         .nav-title { font-size: 18px; font-weight: 600; color: white; }
         .nav-home { font-size: 20px; text-decoration: none; padding: 8px 12px; border-radius: 8px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 16px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 4px; }
-        .tab { flex: 1; padding: 12px; text-align: center; border-radius: 10px; text-decoration: none; color: rgba(255,255,255,0.6); font-weight: 500; transition: all 0.2s; }
+        
+        /* Scrollable tabs */
+        .tabs-wrapper { 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 16px;
+            scrollbar-width: none;
+        }
+        .tabs-wrapper::-webkit-scrollbar { display: none; }
+        .tabs { 
+            display: flex; 
+            gap: 6px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 12px; 
+            padding: 4px;
+            min-width: max-content;
+        }
+        .tab { 
+            padding: 10px 14px; 
+            text-align: center; 
+            border-radius: 10px; 
+            text-decoration: none; 
+            color: rgba(255,255,255,0.6); 
+            font-weight: 500; 
+            font-size: 13px;
+            white-space: nowrap;
+            transition: all 0.2s; 
+        }
         .tab.active { background: rgba(255,255,255,0.2); color: white; }
+        .tab:hover { color: white; }
+        
         .date-header { text-align: center; margin-bottom: 16px; }
         .date-header h2 { font-size: 20px; font-weight: 600; }
         .date-header .cycle { font-size: 14px; opacity: 0.7; margin-top: 4px; }
@@ -124,10 +152,15 @@
             <span class="nav-title">My Day</span>
             <a href="/" class="nav-home">🏠</a>
         </div>
-        <div class="tabs">
-            <a href="?tab=today" class="tab {% if current_tab == 'today' %}active{% endif %}">{{ tab1_label }}</a>
-            <a href="?tab=tomorrow" class="tab {% if current_tab == 'tomorrow' %}active{% endif %}">{{ tab2_label }}</a>
+        
+        <div class="tabs-wrapper">
+            <div class="tabs">
+                {% for day in school_days %}
+                <a href="?tab={{ day.tab_id }}" class="tab {% if current_tab == day.tab_id %}active{% endif %}">{{ day.label }}</a>
+                {% endfor %}
+            </div>
         </div>
+        
         <div class="date-header">
             <h2>{{ display_date }}</h2>
             {% if day_name and day_type == 'academic' %}
