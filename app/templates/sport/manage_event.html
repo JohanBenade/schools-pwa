@@ -143,30 +143,39 @@
     </div>
     
     <script>
-        // Staff search filter - uses data-firstname attribute, rebuilds options for Safari compatibility
+        // Staff search filter - rebuilds options for Safari compatibility
         const searchInput = document.getElementById('staffSearch');
         const staffSelect = document.getElementById('staffSelect');
-        const allOptions = Array.from(staffSelect.querySelectorAll('option[data-firstname]')).map(opt => ({
-            value: opt.value,
-            text: opt.text,
-            firstname: opt.dataset.firstname
-        }));
+        
+        // Cache all staff options on load
+        const allOptions = [];
+        staffSelect.querySelectorAll('option').forEach(opt => {
+            if (opt.value) {
+                allOptions.push({
+                    value: opt.value,
+                    text: opt.text,
+                    searchName: opt.dataset.firstname || opt.text.toLowerCase()
+                });
+            }
+        });
+        console.log('Staff options loaded:', allOptions.length);
         
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
+            console.log('Search query:', query, 'Options:', allOptions.length);
             
             // Clear all except placeholder
             while (staffSelect.options.length > 1) {
                 staffSelect.remove(1);
             }
             
-            // Re-add matching options
+            // Re-add matching options (matches START of first name)
             allOptions.forEach(opt => {
-                if (query === '' || opt.firstname.startsWith(query)) {
+                const firstName = opt.searchName.split(' ')[0];
+                if (query === '' || firstName.startsWith(query)) {
                     const option = document.createElement('option');
                     option.value = opt.value;
                     option.text = opt.text;
-                    option.dataset.firstname = opt.firstname;
                     staffSelect.add(option);
                 }
             });
