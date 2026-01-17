@@ -276,7 +276,7 @@ def my_day():
             
             if slot['slot_type'] == 'register':
                 if mentor_sub:
-                    item['content'] = f"Covering for {mentor_sub['absent_teacher']}"
+                    item['content'] = f"Covering for {mentor_sub['absent_teacher']}" + (f" • {mentor_sub['venue_name']}" if mentor_sub.get('venue_name') else "")
                     item['badge'] = 'SUB'
                     item['badge_color'] = 'orange'
                     item['is_sub'] = True
