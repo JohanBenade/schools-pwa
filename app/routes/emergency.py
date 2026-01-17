@@ -31,7 +31,7 @@ def get_nav_for_user(user, current_page='emergency'):
     
     if current_page in ['emergency-active', 'emergency-resolve', 'emergency-resolved']:
         if user_role in leadership_roles:
-            return '/dashboard/', 'Dashboard'
+            return '/', 'Home'
         return '/', 'Home'
     elif current_page == 'history':
         return '/emergency/', 'Emergency'
