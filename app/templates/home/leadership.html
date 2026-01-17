@@ -17,18 +17,17 @@
         .header { text-align: center; margin-bottom: 40px; padding-top: 20px; }
         .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
         .header p { font-size: 14px; opacity: 0.7; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 340px; margin: 0 auto; }
-        @media (min-width: 768px) { .grid { grid-template-columns: repeat(4, 1fr); max-width: 450px; gap: 24px; } }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 380px; margin: 0 auto; }
+        @media (min-width: 768px) { .grid { max-width: 450px; gap: 24px; } }
         .app-icon { display: flex; flex-direction: column; align-items: center; text-decoration: none; -webkit-tap-highlight-color: transparent; }
         .app-icon:active .icon-box { transform: scale(0.92); }
         .icon-box { width: 70px; height: 70px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 8px; transition: transform 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         @media (min-width: 768px) { .icon-box { width: 80px; height: 80px; border-radius: 18px; font-size: 36px; } }
         .app-label { font-size: 12px; color: rgba(255,255,255,0.9); text-align: center; max-width: 80px; }
-        .bg-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
         .bg-orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
         .bg-green { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
         .bg-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-        .bg-gray { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+        .bg-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
         .footer { text-align: center; margin-top: 50px; opacity: 0.5; font-size: 12px; }
         .emergency-pulse { animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0%, 100% { box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.8); } }
@@ -37,21 +36,17 @@
 <body>
     <div class="user-bar">
         <span>🏛️ {{ user_name }}</span>
-        <a href="/admin/">Admin</a>
+        <span style="opacity: 0.5;">Leadership</span>
     </div>
     <div id="alert-banner" hx-get="/emergency/banner" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
     <div class="header">
-        <h1>Leadership</h1>
+        <h1>SchoolOps</h1>
         <p>Maragon Mooikloof</p>
     </div>
     <div class="grid">
         <a href="/emergency/" class="app-icon">
             <div class="icon-box bg-red {{ 'emergency-pulse' if active_alert else '' }}">🚨</div>
             <span class="app-label">Emergency</span>
-        </a>
-        <a href="/attendance/" class="app-icon">
-            <div class="icon-box bg-blue">📊</div>
-            <span class="app-label">Attendance</span>
         </a>
         <a href="/substitute/mission-control" class="app-icon">
             <div class="icon-box bg-orange">🔄</div>
@@ -62,8 +57,8 @@
             <span class="app-label">My Day</span>
         </a>
         <a href="/admin/" class="app-icon">
-            <div class="icon-box bg-gray">⚙️</div>
-            <span class="app-label">Admin</span>
+            <div class="icon-box bg-amber">📒</div>
+            <span class="app-label">Registers</span>
         </a>
     </div>
     <div class="footer">Term 1 2026 Pilot</div>
