@@ -81,7 +81,7 @@ def get_back_url(user_role, current_page):
     dashboard_children = ['admin', 'mission-control', 'emergency-detail', 'absentees', 'class-detail']
     
     if user_role in leadership_roles and current_page in dashboard_children:
-        return '/dashboard/', 'Dashboard'
+        return '/', 'Home'
     
     # Default: go home
     return '/', 'Home'
