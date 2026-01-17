@@ -211,7 +211,7 @@
         <div class="schedule{% if is_absent %} greyed{% endif %}">
             {% for slot in schedule %}
             {% if slot.is_sport %}
-            <a href="/sport/event/{{ slot.event_id }}" class="sport-event-link">
+            <a href="/sport/event/{{ slot.event_id }}?from=my-day&tab={{ current_tab }}" class="sport-event-link">
                 <div class="slot is-sport">
                     <div class="slot-time">{{ slot.start_time }}</div>
                     <div class="slot-content">

@@ -241,7 +241,7 @@ def my_day():
                 'slot_name': sport['event_name'],
                 'start_time': sport['event_start'] or '08:00',
                 'end_time': sport['event_end'],
-                'content': f"{sport['duty_type']}: {sport['duty_role'] or 'Assigned'}",
+                'content': f"{sport['duty_type']}" + (f": {sport['notes']}" if sport.get('notes') else ''),
                 'badge': sport['sport_type'],
                 'badge_color': 'teal',
                 'is_duty': False,

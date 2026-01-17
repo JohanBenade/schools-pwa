@@ -209,7 +209,12 @@ def event_detail(event_id):
         
         duties = [{'type': k, 'staff': v} for k, v in sorted(duties_by_type.items())]
     
-    nav_header = get_nav_header(event['event_name'], '/sport/events', 'Events')
+    from_page = request.args.get('from')
+    from_tab = request.args.get('tab', '')
+    if from_page == 'my-day':
+        nav_header = get_nav_header(event['event_name'], f'/duty/my-day?tab={from_tab}', 'My Day')
+    else:
+        nav_header = get_nav_header(event['event_name'], '/sport/events', 'Events')
     nav_styles = get_nav_styles()
     
     return render_template('sport/event_detail.html',
