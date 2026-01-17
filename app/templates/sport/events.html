@@ -66,15 +66,12 @@
         .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.5); }
         .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
         .empty-state-text { font-size: 15px; }
+        {{ nav_styles }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-header">
-            <a href="/" class="nav-back">← Home</a>
-            <span class="nav-title">Sport Events 🏆</span>
-            <a href="/" class="nav-home">🏠</a>
-        </div>
+        {{ nav_header|safe }}
         
         <!-- Filter tabs -->
         <div class="filter-tabs">

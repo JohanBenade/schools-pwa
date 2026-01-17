@@ -42,15 +42,12 @@
         .affects-notice { background: rgba(124, 58, 237, 0.2); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; align-items: flex-start; gap: 12px; }
         .affects-notice-icon { font-size: 20px; }
         .affects-notice-text { font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.5; }
+        {{ nav_styles }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-header">
-            <a href="/sport/events" class="nav-back">← Events</a>
-            <span class="nav-title">{{ event.event_name }} 🏆</span>
-            <a href="/" class="nav-home">🏠</a>
-        </div>
+        {{ nav_header|safe }}
         <div class="event-header">
             <div class="event-sport-badge">{{ event.sport_type }}</div>
             <h1 class="event-title">{{ event.event_name }}</h1>

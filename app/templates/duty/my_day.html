@@ -143,15 +143,12 @@
         }
         .btn-cancel { background: rgba(255,255,255,0.1); color: #94a3b8; }
         .btn-confirm { background: #dc2626; color: white; }
+        {{ nav_styles }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-header">
-            <a href="/" class="nav-back">← Home</a>
-            <span class="nav-title">My Day</span>
-            <a href="/" class="nav-home">🏠</a>
-        </div>
+        {{ nav_header|safe }}
         
         <div class="tabs-wrapper">
             <div class="tabs">

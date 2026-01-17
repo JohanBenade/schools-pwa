@@ -627,7 +627,12 @@ def sub_duties():
     total_count = len(all_assignments)
     days_count = len(assignments_by_date)
     
+    nav_header = get_nav_header("Sub Duties", "/", "Home")
+    nav_styles = get_nav_styles()
+    
     return render_template('substitute/sub_duties.html',
                           assignments_by_date=assignments_by_date,
                           total_count=total_count,
-                          days_count=days_count)
+                          days_count=days_count,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
