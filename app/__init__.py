@@ -1,7 +1,7 @@
 """
 SchoolOps Flask Application
 """
-from flask import Flask, session, request, redirect
+from flask import Flask, session, request, redirect, render_template
 from dotenv import load_dotenv
 import os
 
@@ -145,6 +145,10 @@ def create_app():
         user_name = session.get('display_name', '')
         user_logged_in = 'staff_id' in session
         user_role = session.get('role', 'teacher')
+        
+        # Leadership gets their own home page
+        if user_role in ['principal', 'deputy']:
+            return render_template('home/leadership.html', user_name=user_name, active_alert=active_alert)
         
         show_dashboard = user_role in ['principal', 'deputy', 'admin']
         show_admin = user_logged_in  # Dev: all magic link users
