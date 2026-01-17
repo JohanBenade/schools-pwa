@@ -146,23 +146,33 @@
         // Staff search filter - matches name starts with (after Mr/Ms/Mrs)
         const searchInput = document.getElementById('staffSearch');
         const staffSelect = document.getElementById('staffSelect');
-        const options = Array.from(staffSelect.options);
         
         function getFirstName(displayName) {
-            // Remove Mr/Ms/Mrs prefix
             return displayName.replace(/^(Mr|Ms|Mrs)\s+/i, '').toLowerCase();
         }
         
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
-            staffSelect.innerHTML = '';
+            let count = 0;
             
-            options.forEach(opt => {
+            Array.from(staffSelect.options).forEach(opt => {
+                if (opt.value === '') {
+                    opt.style.display = '';
+                    return;
+                }
                 const firstName = getFirstName(opt.text);
-                if (opt.value === '' || query === '' || firstName.startsWith(query)) {
-                    staffSelect.appendChild(opt.cloneNode(true));
+                if (query === '' || firstName.startsWith(query)) {
+                    opt.style.display = '';
+                    count++;
+                } else {
+                    opt.style.display = 'none';
                 }
             });
+            
+            // Reset selection if current selection is hidden
+            if (staffSelect.selectedOptions[0]?.style.display === 'none') {
+                staffSelect.value = '';
+            }
         });
         
         // Show "Other" input when selected
