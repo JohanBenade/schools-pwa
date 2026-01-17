@@ -367,7 +367,6 @@ def mission_control():
         absences = [dict(row) for row in cursor.fetchall()]
         
         for absence in absences:
-        for absence in absences:
             # Get requests only for dates within filter range
             placeholders = ','.join(['?' for _ in filter_dates])
             cursor.execute(f"""
