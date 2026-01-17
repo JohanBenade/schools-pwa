@@ -27,7 +27,7 @@ def events():
     today = date.today()
     
     # Get filter from query param
-    filter_type = request.args.get('filter', 'upcoming')
+    filter_type = request.args.get('filter', 'this_week')
     
     with get_connection() as conn:
         cursor = conn.cursor()
