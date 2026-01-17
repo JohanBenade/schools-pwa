@@ -434,11 +434,18 @@ def manage_event(event_id):
         """, (event_id, TENANT_ID))
         duties = [dict(row) for row in cursor.fetchall()]
         
-        # Get all staff for assignment dropdown
+        # Get all staff for assignment dropdown, sorted by first name
         cursor.execute("""
-            SELECT id, display_name FROM staff
+            SELECT id, display_name,
+                   CASE 
+                       WHEN display_name LIKE 'Mr %' THEN SUBSTR(display_name, 4)
+                       WHEN display_name LIKE 'Ms %' THEN SUBSTR(display_name, 4)
+                       WHEN display_name LIKE 'Mrs %' THEN SUBSTR(display_name, 5)
+                       ELSE display_name
+                   END as sort_name
+            FROM staff
             WHERE tenant_id = ? AND is_active = 1
-            ORDER BY display_name
+            ORDER BY sort_name
         """, (TENANT_ID,))
         all_staff = [dict(row) for row in cursor.fetchall()]
         

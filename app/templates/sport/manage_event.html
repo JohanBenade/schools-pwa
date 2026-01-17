@@ -74,7 +74,7 @@
                 <select name="staff_id" id="staffSelect" required>
                     <option value="">Select teacher...</option>
                     {% for staff in all_staff %}
-                    <option value="{{ staff.id }}">{{ staff.display_name }}</option>
+                    <option value="{{ staff.id }}" data-firstname="{{ staff.sort_name|lower }}">{{ staff.display_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -143,17 +143,18 @@
     </div>
     
     <script>
-        // Staff search filter
+        // Staff search filter - matches first name starts with
         const searchInput = document.getElementById('staffSearch');
         const staffSelect = document.getElementById('staffSelect');
         const options = Array.from(staffSelect.options);
         
         searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase();
+            const query = this.value.toLowerCase().trim();
             staffSelect.innerHTML = '';
             
             options.forEach(opt => {
-                if (opt.value === '' || opt.text.toLowerCase().includes(query)) {
+                const firstname = opt.dataset.firstname || '';
+                if (opt.value === '' || query === '' || firstname.startsWith(query)) {
                     staffSelect.appendChild(opt.cloneNode(true));
                 }
             });
