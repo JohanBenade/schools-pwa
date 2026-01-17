@@ -18,15 +18,21 @@ def index():
     if role not in ['principal', 'deputy', 'admin']:
         return redirect('/')
     
-    # Get all teachers
+    # Get all teachers, sort by name after title (Mr/Ms/Mrs)
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT s.id, s.display_name, us.role
+            SELECT s.id, s.display_name, us.role,
+                   CASE 
+                       WHEN s.display_name LIKE 'Mr %' THEN SUBSTR(s.display_name, 4)
+                       WHEN s.display_name LIKE 'Ms %' THEN SUBSTR(s.display_name, 4)
+                       WHEN s.display_name LIKE 'Mrs %' THEN SUBSTR(s.display_name, 5)
+                       ELSE s.display_name
+                   END as sort_name
             FROM staff s
             LEFT JOIN user_session us ON s.id = us.staff_id AND us.tenant_id = s.tenant_id
             WHERE s.tenant_id = ? AND s.is_active = 1
-            ORDER BY s.display_name
+            ORDER BY sort_name
         """, (TENANT_ID,))
         teachers = [dict(row) for row in cursor.fetchall()]
     
