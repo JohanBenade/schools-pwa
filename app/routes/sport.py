@@ -286,49 +286,107 @@ def coordination():
         return redirect('/')
     
     today = date.today()
-    view = request.args.get('view', 'my')  # 'my' or 'all'
+    view = request.args.get('view', 'all')  # 'my' or 'all' - default to all
     sport_filter = request.args.get('sport', '')  # filter by sport type
+    time_filter = request.args.get('filter', 'this_week')  # time filter
+    
+    # Calculate date ranges based on time filter
+    if time_filter == 'this_week':
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        date_start = start_of_week
+        date_end = end_of_week
+        filter_label = "This Week"
+    elif time_filter == 'this_month':
+        start_of_month = today.replace(day=1)
+        if today.month == 12:
+            end_of_month = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end_of_month = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+        date_start = start_of_month
+        date_end = end_of_month
+        filter_label = today.strftime("%B")
+    elif time_filter == 'upcoming':
+        date_start = today
+        date_end = today + timedelta(days=30)
+        filter_label = "Next 30 Days"
+    elif time_filter == 'past':
+        date_start = today - timedelta(days=30)
+        date_end = today - timedelta(days=1)
+        filter_label = "Past"
+    else:  # 'all'
+        date_start = None
+        date_end = None
+        filter_label = "All"
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Build query based on view
-        if view == 'my':
-            query = """
-                SELECT se.*, c.display_name as coordinator_name,
-                       (SELECT COUNT(*) FROM sport_duty sd WHERE sd.event_id = se.id) as duty_count
-                FROM sport_event se
-                LEFT JOIN staff c ON se.coordinator_id = c.id
-                WHERE se.tenant_id = ? AND se.event_date >= ? AND se.coordinator_id = ?
-            """
-            params = [TENANT_ID, today.isoformat(), staff_id]
-        else:
-            query = """
-                SELECT se.*, c.display_name as coordinator_name,
-                       (SELECT COUNT(*) FROM sport_duty sd WHERE sd.event_id = se.id) as duty_count
-                FROM sport_event se
-                LEFT JOIN staff c ON se.coordinator_id = c.id
-                WHERE se.tenant_id = ? AND se.event_date >= ?
-            """
-            params = [TENANT_ID, today.isoformat()]
+        # Build base query
+        query = """
+            SELECT se.*, c.display_name as coordinator_name,
+                   (SELECT COUNT(*) FROM sport_duty sd WHERE sd.event_id = se.id) as duty_count
+            FROM sport_event se
+            LEFT JOIN staff c ON se.coordinator_id = c.id
+            WHERE se.tenant_id = ?
+        """
+        params = [TENANT_ID]
         
+        # Add date filter
+        if date_start and date_end:
+            query += " AND se.event_date >= ? AND se.event_date <= ?"
+            params.extend([date_start.isoformat(), date_end.isoformat()])
+        
+        # Add view filter (my events only)
+        if view == 'my':
+            query += " AND se.coordinator_id = ?"
+            params.append(staff_id)
+        
+        # Add sport filter
         if sport_filter:
             query += " AND se.sport_type = ?"
             params.append(sport_filter)
         
-        query += " ORDER BY se.event_date ASC, se.start_time ASC"
+        # Sort order: past events descending, future ascending
+        if time_filter == 'past':
+            query += " ORDER BY se.event_date DESC, se.start_time ASC"
+        else:
+            query += " ORDER BY se.event_date ASC, se.start_time ASC"
+        
         cursor.execute(query, params)
         events_raw = cursor.fetchall()
         
-        events = []
+        # Group events by date
+        events_by_date = {}
         for row in events_raw:
             event = dict(row)
-            dt = datetime.strptime(event['event_date'], '%Y-%m-%d')
+            event_date = event['event_date']
+            
+            dt = datetime.strptime(event_date, '%Y-%m-%d')
             event['day_name'] = dt.strftime('%A')
-            event['date_display'] = dt.strftime('%a %d %b')
+            event['date_display'] = dt.strftime('%d %b')
             event['is_mine'] = event.get('coordinator_id') == staff_id
             event['is_unclaimed'] = event.get('coordinator_id') is None
-            events.append(event)
+            event['is_today'] = event_date == today.isoformat()
+            event['has_duties'] = event['duty_count'] > 0
+            
+            if event_date not in events_by_date:
+                events_by_date[event_date] = {
+                    'date': event_date,
+                    'day_name': event['day_name'],
+                    'date_display': event['date_display'],
+                    'is_today': event['is_today'],
+                    'events': []
+                }
+            events_by_date[event_date]['events'].append(event)
+        
+        # Convert to sorted list
+        if time_filter == 'past':
+            grouped_events = sorted(events_by_date.values(), key=lambda x: x['date'], reverse=True)
+        else:
+            grouped_events = sorted(events_by_date.values(), key=lambda x: x['date'])
+        
+        total_events = len(events_raw)
         
         # Get unique sport types for filter
         cursor.execute("""
@@ -338,19 +396,24 @@ def coordination():
         sport_types = [row['sport_type'] for row in cursor.fetchall()]
         
         # Count stats
-        my_count = sum(1 for e in events if e['is_mine']) if view == 'all' else len(events)
-        unclaimed_count = sum(1 for e in events if e['is_unclaimed'])
+        my_count = sum(1 for e in events_raw if e['coordinator_id'] == staff_id)
+        unclaimed_count = sum(1 for e in events_raw if e['coordinator_id'] is None)
+        no_duties_count = sum(1 for e in events_raw if e['duty_count'] == 0)
     
     nav_header = get_nav_header("Sports Coordination", "/", "Home")
     nav_styles = get_nav_styles()
     
     return render_template('sport/coordination.html',
-                          events=events,
+                          grouped_events=grouped_events,
+                          total_events=total_events,
                           view=view,
+                          time_filter=time_filter,
+                          filter_label=filter_label,
                           sport_filter=sport_filter,
                           sport_types=sport_types,
                           my_count=my_count,
                           unclaimed_count=unclaimed_count,
+                          no_duties_count=no_duties_count,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
 
