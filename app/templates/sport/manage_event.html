@@ -143,36 +143,35 @@
     </div>
     
     <script>
-        // Staff search filter - matches name starts with (after Mr/Ms/Mrs)
+        // Staff search filter - uses data-firstname attribute, rebuilds options for Safari compatibility
         const searchInput = document.getElementById('staffSearch');
         const staffSelect = document.getElementById('staffSelect');
-        
-        function getFirstName(displayName) {
-            return displayName.replace(/^(Mr|Ms|Mrs)\s+/i, '').toLowerCase();
-        }
+        const allOptions = Array.from(staffSelect.querySelectorAll('option[data-firstname]')).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            firstname: opt.dataset.firstname
+        }));
         
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
-            let count = 0;
             
-            Array.from(staffSelect.options).forEach(opt => {
-                if (opt.value === '') {
-                    opt.style.display = '';
-                    return;
-                }
-                const firstName = getFirstName(opt.text);
-                if (query === '' || firstName.startsWith(query)) {
-                    opt.style.display = '';
-                    count++;
-                } else {
-                    opt.style.display = 'none';
+            // Clear all except placeholder
+            while (staffSelect.options.length > 1) {
+                staffSelect.remove(1);
+            }
+            
+            // Re-add matching options
+            allOptions.forEach(opt => {
+                if (query === '' || opt.firstname.startsWith(query)) {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.text = opt.text;
+                    option.dataset.firstname = opt.firstname;
+                    staffSelect.add(option);
                 }
             });
             
-            // Reset selection if current selection is hidden
-            if (staffSelect.selectedOptions[0]?.style.display === 'none') {
-                staffSelect.value = '';
-            }
+            staffSelect.value = '';
         });
         
         // Show "Other" input when selected
