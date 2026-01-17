@@ -22,10 +22,11 @@ def index():
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, display_name, role
-            FROM staff
-            WHERE tenant_id = ? AND is_active = 1
-            ORDER BY display_name
+            SELECT s.id, s.display_name, us.role
+            FROM staff s
+            LEFT JOIN user_session us ON s.id = us.staff_id AND us.tenant_id = s.tenant_id
+            WHERE s.tenant_id = ? AND s.is_active = 1
+            ORDER BY s.display_name
         """, (TENANT_ID,))
         teachers = [dict(row) for row in cursor.fetchall()]
     
