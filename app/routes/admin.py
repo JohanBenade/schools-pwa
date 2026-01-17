@@ -16,7 +16,7 @@ def get_back_url_for_user():
     """Get appropriate back URL based on user role."""
     role = session.get('role', 'teacher')
     if role in ['principal', 'deputy', 'admin']:
-        return '/dashboard/', 'Dashboard'
+        return '/', 'Home'
     return '/', 'Home'
 
 
