@@ -3,7 +3,7 @@ Sport Events Routes
 View and manage sport events and duty assignments.
 """
 
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, redirect
 from datetime import date, datetime, timedelta
 from app.services.db import get_connection
 from app.services.nav import get_nav_header, get_nav_styles
@@ -12,12 +12,35 @@ sport_bp = Blueprint('sport', __name__, url_prefix='/sport')
 
 TENANT_ID = "MARAGON"
 
+# Duty types by sport
+DUTY_TYPES = {
+    'common': ['Supervision', 'First Aid', 'Transport', 'Refreshments'],
+    'Athletics': ['Announcer', 'Timekeeper', 'Starter', 'Results', 'Field Judge', 'Track Judge'],
+    'Swimming': ['Announcer', 'Timekeeper', 'Starter', 'Lane Judge', 'Results'],
+    'Rugby': ['Team Manager', 'Scorer'],
+    'Hockey': ['Team Manager', 'Scorer'],
+    'Soccer': ['Team Manager', 'Scorer'],
+    'Netball': ['Team Manager', 'Scorer'],
+    'Softball': ['Team Manager', 'Scorer'],
+    'Cricket': ['Team Manager', 'Scorer', 'Umpire'],
+    'Tennis': ['Umpire', 'Scorer'],
+    'Cross-Country': ['Marshal', 'Water Station', 'Results'],
+    'Multi-Sport': ['Announcer', 'Results'],
+    'Quiz': ['Quiz Master', 'Scorer'],
+}
+
+
+def get_duty_types_for_sport(sport_type):
+    """Get duty types for a specific sport (common + sport-specific + Other)."""
+    types = DUTY_TYPES['common'].copy()
+    if sport_type in DUTY_TYPES:
+        types.extend(DUTY_TYPES[sport_type])
+    types.append('Other')
+    return types
+
 
 def get_back_url_for_user():
     """Get appropriate back URL based on user role."""
-    role = session.get('role', 'teacher')
-    if role in ['principal', 'deputy', 'admin']:
-        return '/', 'Home'
     return '/', 'Home'
 
 
@@ -244,3 +267,120 @@ def my_duties():
                           duties=duties,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
+
+
+# ============================================================
+# SPORTS COORDINATION ROUTES
+# ============================================================
+
+@sport_bp.route('/coordination')
+def coordination():
+    """Sports Coordination home - manage events and assign duties."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    today = date.today()
+    view = request.args.get('view', 'my')  # 'my' or 'all'
+    sport_filter = request.args.get('sport', '')  # filter by sport type
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Build query based on view
+        if view == 'my':
+            query = """
+                SELECT se.*, c.display_name as coordinator_name,
+                       (SELECT COUNT(*) FROM sport_duty sd WHERE sd.event_id = se.id) as duty_count
+                FROM sport_event se
+                LEFT JOIN staff c ON se.coordinator_id = c.id
+                WHERE se.tenant_id = ? AND se.event_date >= ? AND se.coordinator_id = ?
+            """
+            params = [TENANT_ID, today.isoformat(), staff_id]
+        else:
+            query = """
+                SELECT se.*, c.display_name as coordinator_name,
+                       (SELECT COUNT(*) FROM sport_duty sd WHERE sd.event_id = se.id) as duty_count
+                FROM sport_event se
+                LEFT JOIN staff c ON se.coordinator_id = c.id
+                WHERE se.tenant_id = ? AND se.event_date >= ?
+            """
+            params = [TENANT_ID, today.isoformat()]
+        
+        if sport_filter:
+            query += " AND se.sport_type = ?"
+            params.append(sport_filter)
+        
+        query += " ORDER BY se.event_date ASC, se.start_time ASC"
+        cursor.execute(query, params)
+        events_raw = cursor.fetchall()
+        
+        events = []
+        for row in events_raw:
+            event = dict(row)
+            dt = datetime.strptime(event['event_date'], '%Y-%m-%d')
+            event['day_name'] = dt.strftime('%A')
+            event['date_display'] = dt.strftime('%a %d %b')
+            event['is_mine'] = event.get('coordinator_id') == staff_id
+            event['is_unclaimed'] = event.get('coordinator_id') is None
+            events.append(event)
+        
+        # Get unique sport types for filter
+        cursor.execute("""
+            SELECT DISTINCT sport_type FROM sport_event 
+            WHERE tenant_id = ? ORDER BY sport_type
+        """, (TENANT_ID,))
+        sport_types = [row['sport_type'] for row in cursor.fetchall()]
+        
+        # Count stats
+        my_count = sum(1 for e in events if e['is_mine']) if view == 'all' else len(events)
+        unclaimed_count = sum(1 for e in events if e['is_unclaimed'])
+    
+    nav_header = get_nav_header("Sports Coordination", "/", "Home")
+    nav_styles = get_nav_styles()
+    
+    return render_template('sport/coordination.html',
+                          events=events,
+                          view=view,
+                          sport_filter=sport_filter,
+                          sport_types=sport_types,
+                          my_count=my_count,
+                          unclaimed_count=unclaimed_count,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
+
+
+@sport_bp.route('/coordination/claim/<event_id>', methods=['POST'])
+def claim_event(event_id):
+    """Take ownership of an event."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE sport_event SET coordinator_id = ? WHERE id = ? AND tenant_id = ?
+        """, (staff_id, event_id, TENANT_ID))
+        conn.commit()
+    
+    return redirect(request.referrer or '/sport/coordination')
+
+
+@sport_bp.route('/coordination/release/<event_id>', methods=['POST'])
+def release_event(event_id):
+    """Release ownership of an event."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Only release if current user owns it
+        cursor.execute("""
+            UPDATE sport_event SET coordinator_id = NULL 
+            WHERE id = ? AND tenant_id = ? AND coordinator_id = ?
+        """, (event_id, TENANT_ID, staff_id))
+        conn.commit()
+    
+    return redirect(request.referrer or '/sport/coordination')

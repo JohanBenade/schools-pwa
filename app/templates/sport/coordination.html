@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Coordination - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 600px; margin: 0 auto; }
+        {{ nav_styles }}
+        
+        .view-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .view-tab { flex: 1; padding: 12px; text-align: center; background: rgba(255,255,255,0.1); border-radius: 10px; text-decoration: none; color: rgba(255,255,255,0.7); font-weight: 500; font-size: 14px; }
+        .view-tab.active { background: #3b82f6; color: white; }
+        
+        .filter-row { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; }
+        .filter-btn { padding: 8px 14px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); text-decoration: none; white-space: nowrap; }
+        .filter-btn.active { background: #14b8a6; color: white; }
+        
+        .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        .stat-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; }
+        .stat-value.teal { color: #14b8a6; }
+        .stat-value.amber { color: #f59e0b; }
+        .stat-label { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+        
+        .event-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+        .event-card.unclaimed { border-left: 4px solid #f59e0b; }
+        .event-card.mine { border-left: 4px solid #14b8a6; }
+        
+        .event-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .event-name { font-size: 16px; font-weight: 600; }
+        .event-sport { font-size: 11px; background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 12px; }
+        
+        .event-meta { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+        .event-meta span { margin-right: 12px; }
+        
+        .event-footer { display: flex; justify-content: space-between; align-items: center; }
+        .coordinator { font-size: 12px; color: rgba(255,255,255,0.5); }
+        .coordinator.unclaimed { color: #f59e0b; }
+        
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; }
+        .btn-claim { background: #14b8a6; color: white; }
+        .btn-manage { background: #3b82f6; color: white; }
+        .btn-release { background: transparent; border: 1px solid #ef4444; color: #ef4444; font-size: 12px; padding: 6px 12px; }
+        
+        .duty-badge { font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 8px; }
+        
+        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+        
+        <div class="view-tabs">
+            <a href="/sport/coordination?view=my{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="view-tab {{ 'active' if view == 'my' else '' }}">My Events</a>
+            <a href="/sport/coordination?view=all{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="view-tab {{ 'active' if view == 'all' else '' }}">All Events</a>
+        </div>
+        
+        <div class="filter-row">
+            <a href="/sport/coordination?view={{ view }}" class="filter-btn {{ 'active' if not sport_filter else '' }}">All Sports</a>
+            {% for sport in sport_types %}
+            <a href="/sport/coordination?view={{ view }}&sport={{ sport }}" class="filter-btn {{ 'active' if sport_filter == sport else '' }}">{{ sport }}</a>
+            {% endfor %}
+        </div>
+        
+        {% if view == 'all' %}
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-value teal">{{ my_count }}</div>
+                <div class="stat-label">My Events</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value amber">{{ unclaimed_count }}</div>
+                <div class="stat-label">Unclaimed</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if events %}
+            {% for event in events %}
+            <div class="event-card {{ 'unclaimed' if event.is_unclaimed else 'mine' if event.is_mine else '' }}">
+                <div class="event-header">
+                    <div class="event-name">{{ event.event_name }}</div>
+                    <div class="event-sport">{{ event.sport_type }}</div>
+                </div>
+                <div class="event-meta">
+                    <span>📅 {{ event.date_display }}</span>
+                    <span>📍 {{ event.venue_name or event.location_type }}</span>
+                </div>
+                <div class="event-footer">
+                    {% if event.is_unclaimed %}
+                        <span class="coordinator unclaimed">⚠️ Unclaimed</span>
+                        <form action="/sport/coordination/claim/{{ event.id }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-claim">Take Ownership</button>
+                        </form>
+                    {% elif event.is_mine %}
+                        <span class="duty-badge">{{ event.duty_count }} duties</span>
+                        <div>
+                            <a href="/sport/coordination/event/{{ event.id }}" class="btn btn-manage">Manage →</a>
+                        </div>
+                    {% else %}
+                        <span class="coordinator">👤 {{ event.coordinator_name }}</span>
+                        <span class="duty-badge">{{ event.duty_count }} duties</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🏆</div>
+                <p>{% if view == 'my' %}You haven't claimed any events yet. Switch to "All Events" to find events to manage.{% else %}No upcoming events found.{% endif %}</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
