@@ -30,7 +30,7 @@ def create_app():
     from app.routes.dashboard import dashboard_bp
     from app.routes.duty import duty_bp
     from app.routes.sport import sport_bp
-from app.routes.absences import absences_bp
+    from app.routes.absences import absences_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
