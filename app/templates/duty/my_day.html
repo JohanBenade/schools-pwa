@@ -156,7 +156,7 @@
         <div class="tabs-wrapper">
             <div class="tabs">
                 {% for day in school_days %}
-                <a href="?tab={{ day.tab_id }}" class="tab {% if current_tab == day.tab_id %}active{% endif %}">{{ day.label }}</a>
+                <a href="?tab={{ day.tab_id }}{% if viewing_other %}&staff={{ request.args.get('staff') }}{% endif %}" class="tab {% if current_tab == day.tab_id %}active{% endif %}">{{ day.label }}</a>
                 {% endfor %}
             </div>
         </div>
