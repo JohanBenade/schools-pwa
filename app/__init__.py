@@ -191,8 +191,8 @@ def create_app():
         if show_admin:
             icons_html += '''
         <a href="/admin/" class="app-icon">
-            <div class="icon-box bg-gray">&#128202;</div>
-            <span class="app-label">Admin</span>
+            <div class="icon-box bg-amber">📒</div>
+            <span class="app-label">Registers</span>
         </a>
         '''
         
