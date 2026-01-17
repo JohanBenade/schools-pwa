@@ -33,7 +33,7 @@ def get_school_days_extended():
     
     days = []
     current = start
-    while len(days) < 7:
+    while len(days) < 5:
         if current.weekday() < 5:  # Mon-Fri only
             # Generate label
             if current == today:
