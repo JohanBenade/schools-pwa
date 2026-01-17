@@ -120,5 +120,41 @@ def learners():
 
 @absences_bp.route('/teachers')
 def teachers():
-    """Teacher absence list - placeholder for now."""
-    return render_template('absences/teachers.html')
+    """Teacher absence list with coverage status."""
+    today = date.today()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get current/upcoming absences (today onwards, or open-ended)
+        cursor.execute("""
+            SELECT a.*, s.display_name as teacher_name, s.surname,
+                   mg.group_name as mentor_class
+            FROM absence a
+            JOIN staff s ON a.staff_id = s.id
+            LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
+            WHERE a.tenant_id = ?
+              AND (
+                  COALESCE(a.end_date, a.absence_date) >= ?
+                  OR a.is_open_ended = 1
+              )
+            ORDER BY a.absence_date ASC
+        """, (TENANT_ID, today.isoformat()))
+        
+        absences = []
+        for row in cursor.fetchall():
+            absence = dict(row)
+            
+            # Format dates for display
+            start_date = datetime.strptime(absence['absence_date'], '%Y-%m-%d').date()
+            absence['start_display'] = start_date.strftime('%a %d %b')
+            
+            if absence.get('end_date'):
+                end_date = datetime.strptime(absence['end_date'], '%Y-%m-%d').date()
+                absence['end_display'] = end_date.strftime('%a %d %b')
+            else:
+                absence['end_display'] = absence['start_display']
+            
+            absences.append(absence)
+        
+        return render_template('absences/teachers.html', absences=absences)

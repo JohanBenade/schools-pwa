@@ -315,6 +315,7 @@ def mission_control():
     day1, day1_label, day2, day2_label = get_school_days()
     today = date.today()
     tab = request.args.get('tab', 'today')
+    staff_filter = request.args.get('staff', None)
     
     # Calculate date range based on tab
     if tab == 'tomorrow':
@@ -345,7 +346,7 @@ def mission_control():
         cursor = conn.cursor()
         
         # Get absences that overlap with filter range
-        cursor.execute("""
+        query = """
             SELECT a.*, s.display_name as teacher_name, s.surname,
                    mg.group_name as mentor_class
             FROM absence a
@@ -354,10 +355,18 @@ def mission_control():
             WHERE a.tenant_id = ?
               AND a.absence_date <= ?
               AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
-            ORDER BY a.absence_date ASC, a.reported_at ASC
-        """, (TENANT_ID, filter_end.isoformat(), filter_start.isoformat()))
+        """
+        params = [TENANT_ID, filter_end.isoformat(), filter_start.isoformat()]
+        
+        if staff_filter:
+            query += " AND a.staff_id = ?"
+            params.append(staff_filter)
+        
+        query += " ORDER BY a.absence_date ASC, a.reported_at ASC"
+        cursor.execute(query, params)
         absences = [dict(row) for row in cursor.fetchall()]
         
+        for absence in absences:
         for absence in absences:
             # Get requests only for dates within filter range
             placeholders = ','.join(['?' for _ in filter_dates])

@@ -6,13 +6,32 @@
     <title>Teacher Absences - SchoolOps</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
-        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; padding-top: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px 20px 100px; color: white; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-top: 10px; }
         .back-link { color: #60a5fa; text-decoration: none; font-size: 14px; }
         .header h1 { font-size: 22px; font-weight: 600; }
+        .summary { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; }
+        .summary-stat { text-align: center; }
+        .summary-stat .number { font-size: 28px; font-weight: 700; }
+        .summary-stat .number.orange { color: #fb923c; }
+        .summary-stat .number.green { color: #4ade80; }
+        .summary-stat .number.red { color: #f87171; }
+        .summary-stat .label { font-size: 12px; opacity: 0.7; }
+        .teacher-list { display: flex; flex-direction: column; gap: 12px; }
+        .teacher-card { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
+        .teacher-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .teacher-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+        .teacher-type { font-size: 13px; opacity: 0.7; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-badge.covered { background: #22c55e; color: white; }
+        .status-badge.partial { background: #f59e0b; color: white; }
+        .status-badge.pending { background: #ef4444; color: white; }
+        .teacher-dates { font-size: 13px; margin-bottom: 12px; opacity: 0.8; }
+        .teacher-dates span { opacity: 0.6; }
+        .view-btn { display: block; width: 100%; padding: 10px; background: rgba(59, 130, 246, 0.3); border: 1px solid #3b82f6; border-radius: 8px; color: #60a5fa; text-decoration: none; text-align: center; font-size: 14px; font-weight: 500; }
+        .view-btn:active { background: rgba(59, 130, 246, 0.5); }
         .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
         .empty-state p { font-size: 16px; margin-bottom: 8px; }
-        .empty-state span { font-size: 13px; }
     </style>
 </head>
 <body>
@@ -20,9 +39,46 @@
         <a href="/absences/" class="back-link">← Back</a>
         <h1>👩‍🏫 Teacher Absences</h1>
     </div>
-    <div class="empty-state">
-        <p>Coming soon</p>
-        <span>Teacher absence tracking will be available here</span>
+    
+    {% if absences %}
+    <div class="summary">
+        <div class="summary-stat">
+            <div class="number orange">{{ absences|length }}</div>
+            <div class="label">Absent</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number green">{{ absences|selectattr('status', 'eq', 'Covered')|list|length }}</div>
+            <div class="label">Covered</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number red">{{ absences|rejectattr('status', 'eq', 'Covered')|list|length }}</div>
+            <div class="label">Pending</div>
+        </div>
     </div>
+    
+    <div class="teacher-list">
+        {% for absence in absences %}
+        <div class="teacher-card">
+            <div class="teacher-top">
+                <div>
+                    <div class="teacher-name">{{ absence.teacher_name }}</div>
+                    <div class="teacher-type">{{ absence.absence_type }}{% if absence.mentor_class %} • {{ absence.mentor_class }}{% endif %}</div>
+                </div>
+                <span class="status-badge {{ absence.status|lower }}">{{ absence.status }}</span>
+            </div>
+            <div class="teacher-dates">
+                📅 {{ absence.start_display }}{% if absence.end_display and absence.end_display != absence.start_display %} → {{ absence.end_display }}{% endif %}
+                {% if absence.is_open_ended %}<span> (until further notice)</span>{% endif %}
+            </div>
+            <a href="/substitute/mission-control?staff={{ absence.staff_id }}" class="view-btn">View Coverage →</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No teacher absences</p>
+        <span>All staff present</span>
+    </div>
+    {% endif %}
 </body>
 </html>
