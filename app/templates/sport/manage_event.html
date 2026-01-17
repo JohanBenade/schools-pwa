@@ -46,7 +46,16 @@
         
         .search-input { width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; margin-bottom: 8px; }
         .search-input::placeholder { color: rgba(255,255,255,0.4); }
-        .staff-dropdown { max-height: 200px; overflow-y: auto; }
+        .staff-list { max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; margin-top: 8px; }
+        .staff-option { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .staff-option:hover { background: rgba(255,255,255,0.1); }
+        .staff-option.hidden { display: none; }
+        .staff-option:last-child { border-bottom: none; }
+        .selected-staff { margin-top: 8px; padding: 10px 12px; background: #14b8a6; border-radius: 8px; display: none; }
+        .selected-staff.show { display: flex; justify-content: space-between; align-items: center; }
+        .selected-staff .clear { cursor: pointer; opacity: 0.7; }
+        .selected-staff .clear:hover { opacity: 1; }
+        .staff-list.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -70,13 +79,14 @@
         <form class="add-form" action="/sport/coordination/event/{{ event.id }}/add-duty" method="POST">
             <div class="form-row">
                 <label>Teacher *</label>
+                <input type="hidden" name="staff_id" id="staffId" required>
                 <input type="text" id="staffSearch" class="search-input" placeholder="Search by name..." autocomplete="off">
-                <select name="staff_id" id="staffSelect" required>
-                    <option value="">Select teacher...</option>
+                <div class="staff-list" id="staffList">
                     {% for staff in all_staff %}
-                    <option value="{{ staff.id }}" data-firstname="{{ staff.sort_name|lower }}">{{ staff.display_name }}</option>
+                    <div class="staff-option" data-id="{{ staff.id }}" data-firstname="{{ staff.sort_name|lower }}">{{ staff.display_name }}</div>
                     {% endfor %}
-                </select>
+                </div>
+                <div class="selected-staff" id="selectedStaff"></div>
             </div>
             <div class="form-row">
                 <label>Duty Type *</label>
@@ -143,42 +153,48 @@
     </div>
     
     <script>
-        // Staff search filter - rebuilds options for Safari compatibility
+        // Staff search with clickable list
         const searchInput = document.getElementById('staffSearch');
-        const staffSelect = document.getElementById('staffSelect');
+        const staffList = document.getElementById('staffList');
+        const staffOptions = document.querySelectorAll('.staff-option');
+        const staffIdInput = document.getElementById('staffId');
+        const selectedStaff = document.getElementById('selectedStaff');
         
-        // Cache all staff options on load
-        const allOptions = [];
-        staffSelect.querySelectorAll('option').forEach(opt => {
-            if (opt.value) {
-                allOptions.push({
-                    value: opt.value,
-                    text: opt.text,
-                    searchName: opt.dataset.firstname || opt.text.toLowerCase()
-                });
-            }
-        });
-        console.log('Staff options loaded:', allOptions.length);
-        
+        // Filter as user types
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
-            console.log('Search query:', query, 'Options:', allOptions.length);
+            staffList.classList.remove('hidden');
             
-            // Clear all except placeholder
-            while (staffSelect.options.length > 1) {
-                staffSelect.remove(1);
-            }
-            
-            // Re-add matching options (matches START of first name)
-            allOptions.forEach(opt => {
-                const firstName = opt.searchName.split(' ')[0];
-                if (query === '' || firstName.startsWith(query)) {
-                    const option = document.createElement('option');
-                    option.value = opt.value;
-                    option.text = opt.text;
-                    staffSelect.add(option);
+            staffOptions.forEach(opt => {
+                const firstname = opt.dataset.firstname;
+                if (query === '' || firstname.startsWith(query)) {
+                    opt.classList.remove('hidden');
+                } else {
+                    opt.classList.add('hidden');
                 }
             });
+        });
+        
+        // Select staff on click
+        staffOptions.forEach(opt => {
+            opt.addEventListener('click', function() {
+                staffIdInput.value = this.dataset.id;
+                selectedStaff.innerHTML = this.textContent + ' <span class="clear">✕</span>';
+                selectedStaff.classList.add('show');
+                staffList.classList.add('hidden');
+                searchInput.value = '';
+                searchInput.style.display = 'none';
+                
+                // Clear selection handler
+                selectedStaff.querySelector('.clear').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    staffIdInput.value = '';
+                    selectedStaff.classList.remove('show');
+                    searchInput.style.display = '';
+                    searchInput.focus();
+                });
+            });
+        });
             
             staffSelect.value = '';
         });
