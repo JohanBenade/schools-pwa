@@ -91,11 +91,11 @@
             <div class="form-row-half">
                 <div class="form-row">
                     <label>Start Time</label>
-                    <input type="time" name="start_time">
+                    <input type="time" name="start_time" value="{{ event.start_time or '' }}">
                 </div>
                 <div class="form-row">
                     <label>End Time</label>
-                    <input type="time" name="end_time">
+                    <input type="time" name="end_time" value="{{ event.end_time or '' }}">
                 </div>
             </div>
             <div class="form-row">
@@ -143,18 +143,23 @@
     </div>
     
     <script>
-        // Staff search filter - matches first name starts with
+        // Staff search filter - matches name starts with (after Mr/Ms/Mrs)
         const searchInput = document.getElementById('staffSearch');
         const staffSelect = document.getElementById('staffSelect');
         const options = Array.from(staffSelect.options);
+        
+        function getFirstName(displayName) {
+            // Remove Mr/Ms/Mrs prefix
+            return displayName.replace(/^(Mr|Ms|Mrs)\s+/i, '').toLowerCase();
+        }
         
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
             staffSelect.innerHTML = '';
             
             options.forEach(opt => {
-                const firstname = opt.dataset.firstname || '';
-                if (opt.value === '' || query === '' || firstname.startsWith(query)) {
+                const firstName = getFirstName(opt.text);
+                if (opt.value === '' || query === '' || firstName.startsWith(query)) {
                     staffSelect.appendChild(opt.cloneNode(true));
                 }
             });
