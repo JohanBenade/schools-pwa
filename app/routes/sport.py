@@ -55,16 +55,7 @@ def events():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        if filter_type == 'upcoming':
-            # Next 30 days
-            end_date = today + timedelta(days=30)
-            cursor.execute("""
-                SELECT * FROM sport_event 
-                WHERE tenant_id = ? AND event_date >= ? AND event_date <= ?
-                ORDER BY event_date ASC, start_time ASC
-            """, (TENANT_ID, today.isoformat(), end_date.isoformat()))
-            filter_label = "Next 30 Days"
-        elif filter_type == 'this_week':
+        if filter_type == 'this_week':
             # This week (Mon-Sun)
             start_of_week = today - timedelta(days=today.weekday())
             end_of_week = start_of_week + timedelta(days=6)
@@ -74,19 +65,25 @@ def events():
                 ORDER BY event_date ASC, start_time ASC
             """, (TENANT_ID, start_of_week.isoformat(), end_of_week.isoformat()))
             filter_label = "This Week"
-        elif filter_type == 'this_month':
-            # This month
-            start_of_month = today.replace(day=1)
-            if today.month == 12:
-                end_of_month = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_of_month = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+        elif filter_type == 'next_week':
+            # Next week (Mon-Sun)
+            start_of_week = today - timedelta(days=today.weekday())
+            start_of_next_week = start_of_week + timedelta(days=7)
+            end_of_next_week = start_of_next_week + timedelta(days=6)
             cursor.execute("""
                 SELECT * FROM sport_event 
                 WHERE tenant_id = ? AND event_date >= ? AND event_date <= ?
                 ORDER BY event_date ASC, start_time ASC
-            """, (TENANT_ID, start_of_month.isoformat(), end_of_month.isoformat()))
-            filter_label = today.strftime("%B %Y")
+            """, (TENANT_ID, start_of_next_week.isoformat(), end_of_next_week.isoformat()))
+            filter_label = "Next Week"
+        elif filter_type == 'this_term':
+            # Term 1 2026: 19 Jan - 27 March
+            cursor.execute("""
+                SELECT * FROM sport_event 
+                WHERE tenant_id = ? AND event_date >= ? AND event_date <= ?
+                ORDER BY event_date ASC, start_time ASC
+            """, (TENANT_ID, '2026-01-19', '2026-03-27'))
+            filter_label = "This Term"
         elif filter_type == 'past':
             # Past 30 days
             start_date = today - timedelta(days=30)
@@ -95,7 +92,7 @@ def events():
                 WHERE tenant_id = ? AND event_date < ? AND event_date >= ?
                 ORDER BY event_date DESC, start_time ASC
             """, (TENANT_ID, today.isoformat(), start_date.isoformat()))
-            filter_label = "Past 30 Days"
+            filter_label = "Past"
         else:
             # All events (past + future)
             cursor.execute("""
@@ -103,7 +100,7 @@ def events():
                 WHERE tenant_id = ?
                 ORDER BY event_date ASC, start_time ASC
             """, (TENANT_ID,))
-            filter_label = "All Events"
+            filter_label = "All"
         
         events_raw = cursor.fetchall()
         
