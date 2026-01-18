@@ -44,7 +44,7 @@
         .date-title { font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.9); }
         
         /* Event card */
-        .event-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; transition: transform 0.1s, background 0.2s; }
+        .event-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; transition: transform 0.1s, background 0.2s; cursor: pointer; }
         .event-card:active { transform: scale(0.98); }
         .event-card:hover { background: #263548; }
         
@@ -72,6 +72,12 @@
 <body>
     <div class="container">
         {{ nav_header|safe }}
+        
+        {% if user_role == 'sport_coordinator' %}
+        <div style="margin-bottom: 16px;">
+            <a href="/sport/coordination" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; background: #14b8a6; border-radius: 10px; color: white; text-decoration: none; font-size: 14px; font-weight: 600;">📋 Coordination Dashboard</a>
+        </div>
+        {% endif %}
         
         <!-- Filter tabs -->
         <div class="filter-tabs">
@@ -106,7 +112,7 @@
                 </div>
                 
                 {% for event in group.events %}
-                <a href="/sport/event/{{ event.id }}" class="event-card">
+                <a href="{% if user_role == 'sport_coordinator' %}/sport/coordination/event/{{ event.id }}{% else %}/sport/event/{{ event.id }}{% endif %}" class="event-card">
                     <div class="event-top">
                         <div class="event-name">{{ event.event_name }}</div>
                         <div class="event-sport">{{ event.sport_type }}</div>

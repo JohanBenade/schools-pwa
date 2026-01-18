@@ -144,12 +144,15 @@ def events():
     nav_header = get_nav_header("Sport Events", back_url, back_label)
     nav_styles = get_nav_styles()
     
+    user_role = session.get('role', '')
+    
     return render_template('sport/events.html',
                           grouped_events=grouped_events,
                           total_events=total_events,
                           filter_type=filter_type,
                           filter_label=filter_label,
                           today=today.isoformat(),
+                          user_role=user_role,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
 
