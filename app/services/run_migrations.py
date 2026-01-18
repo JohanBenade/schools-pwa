@@ -6,6 +6,7 @@ from app.services.db import get_connection
 
 MIGRATIONS = [
     (4, "004_decline_multiday", "Decline flow + Multi-day absence support"),
+    (10, "010_terrain_enhancements", "Terrain duty enhancements - Homework venue, decline tracking"),
 ]
 
 def run_migrations():
