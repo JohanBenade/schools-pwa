@@ -297,19 +297,18 @@ def coordination():
         date_start = start_of_week
         date_end = end_of_week
         filter_label = "This Week"
-    elif time_filter == 'this_month':
-        start_of_month = today.replace(day=1)
-        if today.month == 12:
-            end_of_month = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            end_of_month = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
-        date_start = start_of_month
-        date_end = end_of_month
-        filter_label = today.strftime("%B")
-    elif time_filter == 'upcoming':
-        date_start = today
-        date_end = today + timedelta(days=30)
-        filter_label = "Next 30 Days"
+    elif time_filter == 'next_week':
+        start_of_week = today - timedelta(days=today.weekday())
+        start_of_next_week = start_of_week + timedelta(days=7)
+        end_of_next_week = start_of_next_week + timedelta(days=6)
+        date_start = start_of_next_week
+        date_end = end_of_next_week
+        filter_label = "Next Week"
+    elif time_filter == 'this_term':
+        # Term 1 2026: 19 Jan - 27 March
+        date_start = date(2026, 1, 19)
+        date_end = date(2026, 3, 27)
+        filter_label = "This Term"
     elif time_filter == 'past':
         date_start = today - timedelta(days=30)
         date_end = today - timedelta(days=1)

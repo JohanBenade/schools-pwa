@@ -75,8 +75,8 @@
         <!-- Time Filters -->
         <div class="time-filters">
             <a href="/sport/coordination?filter=this_week&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'this_week' else '' }}">This Week</a>
-            <a href="/sport/coordination?filter=this_month&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'this_month' else '' }}">This Month</a>
-            <a href="/sport/coordination?filter=upcoming&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'upcoming' else '' }}">Next 30 Days</a>
+            <a href="/sport/coordination?filter=next_week&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'next_week' else '' }}">Next Week</a>
+            <a href="/sport/coordination?filter=this_term&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'this_term' else '' }}">This Term</a>
             <a href="/sport/coordination?filter=all&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'all' else '' }}">All</a>
             <a href="/sport/coordination?filter=past&view={{ view }}{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="time-filter {{ 'active' if time_filter == 'past' else '' }}">Past</a>
         </div>
