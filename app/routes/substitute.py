@@ -307,9 +307,7 @@ def absence_status(absence_id):
 @substitute_bp.route('/mission-control')
 def mission_control():
     """Principal's view - all absences and coverage status."""
-    role = session.get('role', 'teacher')
-    if role not in ['principal', 'deputy', 'admin']:
-        return "Access denied", 403
+    # All staff can view substitute coverage
     
     # Get school days (skips weekends)
     day1, day1_label, day2, day2_label = get_school_days()
