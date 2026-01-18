@@ -162,6 +162,10 @@ def create_app():
             <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
             <span class="app-label">Emergency</span>
         </a>
+        <a href="/absences/" class="app-icon">
+            <div class="icon-box bg-indigo">&#128203;</div>
+            <span class="app-label">Absences</span>
+        </a>
         <a href="/attendance/" class="app-icon">
             <div class="icon-box bg-blue">&#128203;</div>
             <span class="app-label">Roll Call</span>
