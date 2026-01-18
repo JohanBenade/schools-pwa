@@ -164,7 +164,7 @@ def create_app():
         </a>
         <a href="/absences/" class="app-icon">
             <div class="icon-box bg-indigo">&#128203;</div>
-            <span class="app-label">Absences</span>
+            <span class="app-label">Who's Out</span>
         </a>
         <a href="/attendance/" class="app-icon">
             <div class="icon-box bg-blue">&#128203;</div>
