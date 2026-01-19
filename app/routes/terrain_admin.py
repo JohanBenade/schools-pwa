@@ -30,7 +30,7 @@ def generate_week():
             SELECT id, display_name, surname, first_name
             FROM staff
             WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
-            ORDER BY surname ASC, first_name ASC
+            ORDER BY first_name ASC, surname ASC
         """, (TENANT_ID,))
         staff = [dict(row) for row in cursor.fetchall()]
         results['staff'] = [s['display_name'] for s in staff]
