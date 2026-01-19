@@ -1358,3 +1358,28 @@ def duty_declines():
                           filter_type=filter_type,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
+
+
+@admin_bp.route('/migrate/duty-decline')
+def migrate_duty_decline():
+    """One-time migration to create duty_decline table."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS duty_decline (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                duty_type TEXT NOT NULL,
+                staff_id TEXT NOT NULL,
+                staff_name TEXT NOT NULL,
+                duty_description TEXT NOT NULL,
+                duty_date DATE NOT NULL,
+                reason TEXT,
+                declined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_duty_decline_tenant ON duty_decline(tenant_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_duty_decline_date ON duty_decline(duty_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_duty_decline_type ON duty_decline(duty_type)")
+        conn.commit()
+    return "duty_decline table created successfully"
