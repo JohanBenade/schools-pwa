@@ -2,8 +2,8 @@
 {% block title %}{{ attendance.group_name }}{% endblock %}
 
 {% block content %}
-{{ nav_styles }}
-{{ nav_header }}
+{{ nav_styles|safe }}
+{{ nav_header|safe }}
 
 <div class="p-4">
     <div class="mb-4">
