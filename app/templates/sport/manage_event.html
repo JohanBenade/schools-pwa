@@ -142,7 +142,7 @@
                         {% endif %}
                     </div>
                     {% if is_coordinator %}
-                    <form action="/sport/coordination/duty/{{ duty.id }}/remove" method="POST" onsubmit="return confirm('Remove this duty?')">
+                    <form action="/sport/coordination/duty/{{ duty.id }}/remove" method="POST" onsubmit="return confirm('Remove {{ duty.display_name }} from {{ group.type }}?')">
                         <button type="submit" class="btn-danger">Remove</button>
                     </form>
                     {% endif %}
