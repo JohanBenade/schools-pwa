@@ -427,7 +427,7 @@ def terrain_roster():
         cursor.execute("""
             SELECT id, area_code, area_name
             FROM terrain_area
-            WHERE tenant_id = ? AND is_active = 1 AND area_code != 'HWV'
+            WHERE tenant_id = ? AND is_active = 1 AND area_name NOT LIKE '%Homework%'
             ORDER BY sort_order
         """, (TENANT_ID,))
         areas = [dict(row) for row in cursor.fetchall()]
