@@ -91,16 +91,9 @@
         </div>
         {% endif %}
         
-        <!-- View Toggle -->
-        <div class="view-toggle">
-            <a href="/sport/coordination?filter={{ time_filter }}&view=all{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="view-btn {{ 'active' if view == 'all' else '' }}">All Events ({{ total_events }})</a>
-            <a href="/sport/coordination?filter={{ time_filter }}&view=my{% if sport_filter %}&sport={{ sport_filter }}{% endif %}" class="view-btn {{ 'active' if view == 'my' else '' }}">Mine ({{ my_count }})</a>
-        </div>
-        
         <!-- Stats Bar -->
         <div class="stats-bar">
             <div class="stat"><span class="stat-dot red"></span> {{ no_duties_count }} need duties</div>
-            <div class="stat"><span class="stat-dot amber"></span> {{ unclaimed_count }} unclaimed</div>
         </div>
         
         <!-- Events grouped by date -->
