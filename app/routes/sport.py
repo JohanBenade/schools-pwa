@@ -246,7 +246,7 @@ def my_duties():
         
         # Get upcoming duties for this staff member
         cursor.execute("""
-            SELECT sd.*, se.event_name, se.event_date, se.start_time, se.end_time,
+            SELECT sd.*, se.event_name, se.event_date, se.start_time as event_start, se.end_time as event_end,
                    se.sport_type, se.location_type, se.venue_name
             FROM sport_duty sd
             JOIN sport_event se ON sd.event_id = se.id
@@ -265,10 +265,10 @@ def my_duties():
             duty['date_display'] = dt.strftime('%d %b')
             duty['is_today'] = duty['event_date'] == today.isoformat()
             
-            if duty['start_time'] and duty['end_time']:
-                duty['time_display'] = f"{duty['start_time']} - {duty['end_time']}"
+            if duty["event_start"] and duty["event_end"]:
+                duty["time_display"] = f"{duty['event_start']} - {duty['event_end']}"
             else:
-                duty['time_display'] = duty['start_time'] or "TBC"
+                duty["time_display"] = duty["event_start"] or "TBC"
             
             duties.append(duty)
             
