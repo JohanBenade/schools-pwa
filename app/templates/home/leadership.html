@@ -18,7 +18,7 @@
         .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
         .header p { font-size: 14px; opacity: 0.7; }
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 340px; margin: 0 auto; }
-        @media (min-width: 768px) { .grid { grid-template-columns: repeat(6, 1fr); max-width: 660px; gap: 24px; } }
+        @media (min-width: 768px) { .grid { grid-template-columns: repeat(4, 1fr); max-width: 480px; gap: 24px; } }
         .app-icon { display: flex; flex-direction: column; align-items: center; text-decoration: none; -webkit-tap-highlight-color: transparent; }
         .app-icon:active .icon-box { transform: scale(0.92); }
         .icon-box { width: 70px; height: 70px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 8px; transition: transform 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
@@ -31,6 +31,7 @@
         .bg-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
         .bg-indigo { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
         .bg-cyan { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+        .bg-purple { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); }
         .footer { text-align: center; margin-top: 50px; opacity: 0.5; font-size: 12px; }
         .emergency-pulse { animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0%, 100% { box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.8); } }
@@ -62,6 +63,10 @@
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">📅</div>
             <span class="app-label">My Day</span>
+        </a>
+        <a href="/duty/terrain" class="app-icon">
+            <div class="icon-box bg-purple">🗺️</div>
+            <span class="app-label">Terrain Roster</span>
         </a>
         <a href="/sport/events" class="app-icon">
             <div class="icon-box bg-teal">🏆</div>

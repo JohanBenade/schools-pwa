@@ -174,6 +174,10 @@ def create_app():
             <div class="icon-box bg-orange">✋</div>
             <span class="app-label">Report Absence</span>
         </a>
+        <a href="/duty/terrain" class="app-icon">
+            <div class="icon-box bg-purple">&#127758;</div>
+            <span class="app-label">Terrain Roster</span>
+        </a>
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">&#128694;</div>
             <span class="app-label">My Day</span>

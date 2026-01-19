@@ -386,3 +386,140 @@ def my_day():
                           absence_type=absence_type,
                           viewing_other=viewing_other,
                           viewing_name=viewing_name)
+
+
+@duty_bp.route('/terrain')
+def terrain_roster():
+    """Weekly terrain duty roster - shows all staff assignments."""
+    staff_id = session.get('staff_id')
+    
+    # Get current week (Mon-Fri)
+    today = date.today()
+    weekday = today.weekday()
+    
+    # Find Monday of current week
+    if weekday == 5:  # Saturday
+        monday = today + timedelta(days=2)
+    elif weekday == 6:  # Sunday
+        monday = today + timedelta(days=1)
+    else:
+        monday = today - timedelta(days=weekday)
+    
+    # Build list of 5 weekdays
+    week_days = []
+    for i in range(5):
+        d = monday + timedelta(days=i)
+        week_days.append({
+            'date': d,
+            'date_str': d.isoformat(),
+            'day_name': d.strftime('%a'),
+            'day_num': d.strftime('%d'),
+            'is_today': d == today
+        })
+    
+    week_start = monday.isoformat()
+    week_end = (monday + timedelta(days=4)).isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get terrain areas (excluding Homework Venue)
+        cursor.execute("""
+            SELECT id, area_code, area_name
+            FROM terrain_area
+            WHERE tenant_id = ? AND is_active = 1 AND area_code != 'HWV'
+            ORDER BY sort_order
+        """, (TENANT_ID,))
+        areas = [dict(row) for row in cursor.fetchall()]
+        
+        # Get all terrain duties for the week
+        cursor.execute("""
+            SELECT dr.duty_date, dr.terrain_area_id, dr.staff_id, s.display_name
+            FROM duty_roster dr
+            JOIN staff s ON dr.staff_id = s.id
+            WHERE dr.tenant_id = ? 
+              AND dr.duty_type = 'terrain'
+              AND dr.duty_date >= ? AND dr.duty_date <= ?
+        """, (TENANT_ID, week_start, week_end))
+        
+        # Build lookup: {(area_id, date_str): {'staff_id': x, 'name': y}}
+        terrain_duties = {}
+        for row in cursor.fetchall():
+            key = (row['terrain_area_id'], row['duty_date'])
+            terrain_duties[key] = {
+                'staff_id': row['staff_id'],
+                'name': row['display_name']
+            }
+        
+        # Get homework duties for Mon-Thu
+        cursor.execute("""
+            SELECT dr.duty_date, dr.staff_id, s.display_name
+            FROM duty_roster dr
+            JOIN staff s ON dr.staff_id = s.id
+            WHERE dr.tenant_id = ?
+              AND dr.duty_type = 'homework'
+              AND dr.duty_date >= ? AND dr.duty_date <= ?
+        """, (TENANT_ID, week_start, week_end))
+        
+        homework_duties = {}
+        for row in cursor.fetchall():
+            homework_duties[row['duty_date']] = {
+                'staff_id': row['staff_id'],
+                'name': row['display_name']
+            }
+        
+        # Get break times for display (use type_a as reference)
+        cursor.execute("""
+            SELECT slot_name, start_time, end_time
+            FROM bell_schedule
+            WHERE tenant_id = ? AND schedule_type = 'type_a' AND is_break = 1
+            ORDER BY sort_order
+        """, (TENANT_ID,))
+        breaks = [dict(row) for row in cursor.fetchall()]
+    
+    # Build grid data
+    grid = []
+    for area in areas:
+        row = {
+            'area_id': area['id'],
+            'area_name': area['area_name'],
+            'area_code': area['area_code'],
+            'days': []
+        }
+        for day in week_days:
+            key = (area['id'], day['date_str'])
+            duty = terrain_duties.get(key)
+            row['days'].append({
+                'date_str': day['date_str'],
+                'staff_id': duty['staff_id'] if duty else None,
+                'name': duty['name'] if duty else '—',
+                'is_current_user': duty['staff_id'] == staff_id if duty else False
+            })
+        grid.append(row)
+    
+    # Homework row (Mon-Thu only)
+    homework_row = []
+    for day in week_days[:4]:  # Mon-Thu
+        duty = homework_duties.get(day['date_str'])
+        homework_row.append({
+            'date_str': day['date_str'],
+            'staff_id': duty['staff_id'] if duty else None,
+            'name': duty['name'] if duty else '—',
+            'is_current_user': duty['staff_id'] == staff_id if duty else False
+        })
+    
+    from app.services.nav import get_nav_header, get_nav_styles
+    nav_header = get_nav_header("Terrain Roster", "/", "Home")
+    nav_styles = get_nav_styles()
+    
+    # Week label
+    week_label = f"{monday.strftime('%d %b')} – {(monday + timedelta(days=4)).strftime('%d %b %Y')}"
+    
+    return render_template('duty/terrain.html',
+                          grid=grid,
+                          week_days=week_days,
+                          homework_row=homework_row,
+                          breaks=breaks,
+                          week_label=week_label,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
