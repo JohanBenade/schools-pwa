@@ -41,6 +41,7 @@ def get_connection():
     conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row  # Enable dict-like access
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     try:
         yield conn
     finally:
