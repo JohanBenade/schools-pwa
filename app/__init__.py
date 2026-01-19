@@ -192,6 +192,10 @@ def create_app():
             <div class="icon-box bg-teal">&#127942;</div>
             <span class="app-label">Sport</span>
         </a>
+        <a href="/sport/my-duties" class="app-icon">
+            <div class="icon-box bg-teal">🎽</div>
+            <span class="app-label">Sport Duties</span>
+        </a>
         '''
         
         if show_dashboard:

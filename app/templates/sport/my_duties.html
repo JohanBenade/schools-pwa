@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sport Duties - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 500px; margin: 0 auto; }
+        {{ nav_styles }}
+        
+        .page-header { text-align: center; margin-bottom: 20px; }
+        .page-header h2 { font-size: 20px; font-weight: 600; }
+        .page-header .subtitle { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+        
+        .stats { display: flex; gap: 12px; margin-bottom: 20px; }
+        .stat { flex: 1; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #14b8a6; }
+        .stat-label { font-size: 12px; opacity: 0.7; }
+        
+        .date-group { margin-bottom: 24px; }
+        .date-label { font-size: 14px; font-weight: 600; color: #14b8a6; margin-bottom: 8px; padding-left: 4px; }
+        
+        .duty-card { background: rgba(20, 184, 166, 0.15); border-left: 4px solid #14b8a6; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+        .duty-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .duty-event { font-size: 15px; font-weight: 600; flex: 1; }
+        .duty-time { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+        
+        .duty-details { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+        .duty-row { font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 4px; display: flex; gap: 8px; }
+        .duty-row span:first-child { opacity: 0.6; }
+        
+        .decline-btn {
+            font-size: 12px;
+            color: #ef4444;
+            background: transparent;
+            border: 1px solid #ef4444;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .decline-btn:hover {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .empty-state { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.1); border-radius: 12px; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state h3 { font-size: 18px; margin-bottom: 8px; }
+        .empty-state p { opacity: 0.7; font-size: 14px; }
+        
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 8px; color: white; }
+        .modal p { font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
+        .modal textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .modal textarea::placeholder { color: #64748b; }
+        .modal-buttons { display: flex; gap: 12px; }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #94a3b8; }
+        .btn-confirm { background: #dc2626; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+        
+        <div class="page-header">
+            <h2>🏆 My Sport Duties</h2>
+            <div class="subtitle">All upcoming sport duty assignments</div>
+        </div>
+        
+        {% if duties %}
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value">{{ duties|length }}</div>
+                <div class="stat-label">Dut{{ 'y' if duties|length == 1 else 'ies' }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ duties|map(attribute='event_date')|unique|list|length }}</div>
+                <div class="stat-label">Event{{ 's' if duties|map(attribute='event_date')|unique|list|length != 1 else '' }}</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if duties_by_date %}
+            {% for day in duties_by_date %}
+            <div class="date-group">
+                <div class="date-label">{{ day.display_date }}</div>
+                {% for duty in day.duties %}
+                <div class="duty-card">
+                    <div class="duty-header">
+                        <div class="duty-event">{{ duty.event_name }}</div>
+                        <button class="decline-btn" onclick="openDecline('{{ duty.id }}', '{{ duty.event_name }}', '{{ duty.duty_type }}', '{{ day.display_date }}')">✕ Decline</button>
+                    </div>
+                    <div class="duty-time">{{ duty.time_display }} • {{ duty.venue_name or duty.location_type or 'TBC' }}</div>
+                    <div class="duty-details">
+                        <div class="duty-row"><span>🏷️</span> {{ duty.duty_type }}</div>
+                        {% if duty.location %}
+                        <div class="duty-row"><span>📍</span> {{ duty.location }}</div>
+                        {% endif %}
+                        {% if duty.notes %}
+                        <div class="duty-row"><span>📝</span> {{ duty.notes }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">✅</div>
+                <h3>No Sport Duties</h3>
+                <p>You have no upcoming sport duty assignments</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="modal-overlay" id="declineModal">
+        <div class="modal">
+            <h2>Decline Sport Duty</h2>
+            <p id="declineInfo"></p>
+            <form id="declineForm" method="POST">
+                <input type="hidden" name="return_to" value="/sport/my-duties">
+                <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeDecline()">Cancel</button>
+                    <button type="submit" class="btn-confirm">Confirm Decline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openDecline(dutyId, eventName, dutyType, dateStr) {
+            document.getElementById('declineInfo').textContent = dateStr + ' - ' + eventName + ' - ' + dutyType;
+            document.getElementById('declineForm').action = '/sport/decline/' + dutyId;
+            document.getElementById('declineModal').classList.add('active');
+        }
+        function closeDecline() {
+            document.getElementById('declineModal').classList.remove('active');
+        }
+        document.getElementById('declineModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDecline();
+        });
+    </script>
+</body>
+</html>

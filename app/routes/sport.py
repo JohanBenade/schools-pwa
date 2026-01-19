@@ -256,6 +256,7 @@ def my_duties():
         
         duties_raw = cursor.fetchall()
         duties = []
+        duties_by_date = {}
         
         for row in duties_raw:
             duty = dict(row)
@@ -263,7 +264,6 @@ def my_duties():
             duty['day_name'] = dt.strftime('%A')
             duty['date_display'] = dt.strftime('%d %b')
             duty['is_today'] = duty['event_date'] == today.isoformat()
-            duty['is_tomorrow'] = duty['event_date'] == (today + timedelta(days=1)).isoformat()
             
             if duty['start_time'] and duty['end_time']:
                 duty['time_display'] = f"{duty['start_time']} - {duty['end_time']}"
@@ -271,18 +271,29 @@ def my_duties():
                 duty['time_display'] = duty['start_time'] or "TBC"
             
             duties.append(duty)
+            
+            # Group by date
+            event_date = duty['event_date']
+            if event_date not in duties_by_date:
+                duties_by_date[event_date] = {
+                    'date': event_date,
+                    'display_date': f"{duty['day_name']}, {duty['date_display']}",
+                    'duties': []
+                }
+            duties_by_date[event_date]['duties'].append(duty)
+        
+        # Convert to sorted list
+        duties_by_date_list = sorted(duties_by_date.values(), key=lambda x: x['date'])
     
-    nav_header = get_nav_header("My Sport Duties", '/', 'Home')
+    nav_header = get_nav_header("Sport Duties", '/', 'Home')
     nav_styles = get_nav_styles()
     
     return render_template('sport/my_duties.html',
                           duties=duties,
+                          duties_by_date=duties_by_date_list,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
 
-
-# ============================================================
-# SPORTS COORDINATION ROUTES
 # ============================================================
 
 @sport_bp.route('/coordination')
@@ -616,3 +627,44 @@ def remove_duty(duty_id):
     if event_id:
         return redirect(f'/sport/coordination/event/{event_id}')
     return redirect('/sport/coordination')
+
+
+@sport_bp.route('/decline/<duty_id>', methods=['POST'])
+def decline_duty(duty_id):
+    """Decline a sport duty assignment."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    reason = request.form.get('reason', '').strip()
+    return_to = request.form.get('return_to', '/sport/my-duties')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify this duty belongs to the current user
+        cursor.execute("""
+            SELECT sd.*, se.event_name, se.event_date
+            FROM sport_duty sd
+            JOIN sport_event se ON sd.event_id = se.id
+            WHERE sd.id = ? AND sd.staff_id = ? AND sd.tenant_id = ?
+        """, (duty_id, staff_id, TENANT_ID))
+        duty = cursor.fetchone()
+        
+        if not duty:
+            return redirect(return_to)
+        
+        # Get staff name for audit
+        cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
+        staff_row = cursor.fetchone()
+        staff_name = staff_row['display_name'] if staff_row else 'Unknown'
+        
+        # Log the decline (for future audit trail)
+        # TODO: Create sport_duty_decline table for full audit
+        print(f"SPORT DUTY DECLINE: {staff_name} declined {duty['duty_type']} for {duty['event_name']} on {duty['event_date']}. Reason: {reason or 'None given'}")
+        
+        # Delete the duty assignment
+        cursor.execute("DELETE FROM sport_duty WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+        conn.commit()
+    
+    return redirect(return_to)
