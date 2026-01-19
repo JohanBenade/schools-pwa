@@ -484,6 +484,13 @@ def decline_assignment(request_id):
               f"{req['decliner_name']} declined {req['period_name'] or 'Roll Call'}: {reason}",
               staff_id, TENANT_ID, now.isoformat()))
         
+        
+        # Also log to unified duty_decline table
+        duty_desc = f"{req['period_name'] or 'Roll Call'} - covering for {req.get('absent_teacher_name', 'absent teacher')}"
+        cursor.execute("""
+            INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason)
+            VALUES (?, ?, 'substitute', ?, ?, ?, ?, ?)
+        """, (str(uuid.uuid4()), TENANT_ID, staff_id, req['decliner_name'], duty_desc, req['request_date'], reason))
         conn.commit()
         
         # Auto-reassign

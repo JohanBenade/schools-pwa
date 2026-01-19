@@ -1292,3 +1292,69 @@ def check_sub_status():
         """)
         results = [dict(r) for r in cursor.fetchall()]
     return jsonify(results)
+
+
+@admin_bp.route('/declines')
+def duty_declines():
+    """View all duty declines (leadership only)."""
+    from datetime import datetime
+    
+    staff_id = session.get('staff_id')
+    role = session.get('role', '')
+    
+    # Leadership access check
+    if role not in ['principal', 'deputy', 'admin']:
+        return redirect('/')
+    
+    filter_type = request.args.get('type', '')
+    
+    TENANT_ID = "MARAGON"
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        if filter_type:
+            cursor.execute("""
+                SELECT * FROM duty_decline
+                WHERE tenant_id = ? AND duty_type = ?
+                ORDER BY declined_at DESC
+                LIMIT 100
+            """, (TENANT_ID, filter_type))
+        else:
+            cursor.execute("""
+                SELECT * FROM duty_decline
+                WHERE tenant_id = ?
+                ORDER BY declined_at DESC
+                LIMIT 100
+            """, (TENANT_ID,))
+        
+        declines_raw = cursor.fetchall()
+        declines = []
+        
+        for row in declines_raw:
+            decline = dict(row)
+            # Format duty date
+            try:
+                dt = datetime.strptime(decline['duty_date'], '%Y-%m-%d')
+                decline['duty_date_display'] = dt.strftime('%a %d %b')
+            except:
+                decline['duty_date_display'] = decline['duty_date']
+            
+            # Format declined_at timestamp
+            try:
+                declined_dt = datetime.fromisoformat(decline['declined_at'].replace('Z', '+00:00'))
+                decline['declined_at_display'] = declined_dt.strftime('%d %b at %H:%M')
+            except:
+                decline['declined_at_display'] = decline['declined_at']
+            
+            declines.append(decline)
+    
+    from app.services.nav import get_nav_header, get_nav_styles
+    nav_header = get_nav_header("Duty Declines", "/", "Home")
+    nav_styles = get_nav_styles()
+    
+    return render_template('admin/declines.html',
+                          declines=declines,
+                          filter_type=filter_type,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)

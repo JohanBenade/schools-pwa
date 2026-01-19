@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duty Declines - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 600px; margin: 0 auto; }
+        {{ nav_styles }}
+        
+        .page-header { text-align: center; margin-bottom: 20px; }
+        .page-header h2 { font-size: 20px; font-weight: 600; }
+        .page-header .subtitle { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+        
+        .filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-btn { padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); text-decoration: none; }
+        .filter-btn.active { background: #3b82f6; color: white; }
+        
+        .decline-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #ef4444; }
+        .decline-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .decline-staff { font-size: 15px; font-weight: 600; }
+        .decline-type { font-size: 11px; padding: 3px 10px; border-radius: 10px; background: rgba(255,255,255,0.15); }
+        .decline-type.substitute { background: rgba(249, 115, 22, 0.3); color: #fdba74; }
+        .decline-type.terrain { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
+        .decline-type.sport { background: rgba(20, 184, 166, 0.3); color: #5eead4; }
+        
+        .decline-details { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+        .decline-reason { font-size: 13px; color: rgba(255,255,255,0.5); font-style: italic; }
+        .decline-time { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 8px; }
+        
+        .empty-state { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+        
+        <div class="page-header">
+            <h2>📋 Duty Declines</h2>
+            <div class="subtitle">Staff who declined duty assignments</div>
+        </div>
+        
+        <div class="filters">
+            <a href="/admin/declines" class="filter-btn {{ 'active' if not filter_type else '' }}">All</a>
+            <a href="/admin/declines?type=substitute" class="filter-btn {{ 'active' if filter_type == 'substitute' else '' }}">Substitute</a>
+            <a href="/admin/declines?type=terrain" class="filter-btn {{ 'active' if filter_type == 'terrain' else '' }}">Terrain</a>
+            <a href="/admin/declines?type=sport" class="filter-btn {{ 'active' if filter_type == 'sport' else '' }}">Sport</a>
+        </div>
+        
+        {% if declines %}
+            {% for decline in declines %}
+            <div class="decline-card">
+                <div class="decline-header">
+                    <div class="decline-staff">{{ decline.staff_name }}</div>
+                    <span class="decline-type {{ decline.duty_type }}">{{ decline.duty_type|title }}</span>
+                </div>
+                <div class="decline-details">
+                    📅 {{ decline.duty_date_display }} • {{ decline.duty_description }}
+                </div>
+                {% if decline.reason %}
+                <div class="decline-reason">"{{ decline.reason }}"</div>
+                {% else %}
+                <div class="decline-reason">No reason given</div>
+                {% endif %}
+                <div class="decline-time">Declined {{ decline.declined_at_display }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">✅</div>
+                <p>No declines recorded{% if filter_type %} for {{ filter_type }}{% endif %}</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

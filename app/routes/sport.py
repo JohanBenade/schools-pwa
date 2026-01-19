@@ -632,6 +632,8 @@ def remove_duty(duty_id):
 @sport_bp.route('/decline/<duty_id>', methods=['POST'])
 def decline_duty(duty_id):
     """Decline a sport duty assignment."""
+    import uuid
+    
     staff_id = session.get('staff_id')
     if not staff_id:
         return redirect('/')
@@ -659,9 +661,13 @@ def decline_duty(duty_id):
         staff_row = cursor.fetchone()
         staff_name = staff_row['display_name'] if staff_row else 'Unknown'
         
-        # Log the decline (for future audit trail)
-        # TODO: Create sport_duty_decline table for full audit
-        print(f"SPORT DUTY DECLINE: {staff_name} declined {duty['duty_type']} for {duty['event_name']} on {duty['event_date']}. Reason: {reason or 'None given'}")
+        # Log to duty_decline table
+        decline_id = str(uuid.uuid4())
+        duty_description = f"{duty['duty_type']} - {duty['event_name']}"
+        cursor.execute("""
+            INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason)
+            VALUES (?, ?, 'sport', ?, ?, ?, ?, ?)
+        """, (decline_id, TENANT_ID, staff_id, staff_name, duty_description, duty['event_date'], reason or None))
         
         # Delete the duty assignment
         cursor.execute("DELETE FROM sport_duty WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))

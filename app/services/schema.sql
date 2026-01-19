@@ -555,3 +555,21 @@ VALUES (5, 'Terrain duty + My Daily Schedule - areas, calendar, bell schedules, 
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (6, 'Homework venue duty support');
+
+-- Duty decline audit trail (all duty types)
+CREATE TABLE IF NOT EXISTS duty_decline (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    duty_type TEXT NOT NULL,  -- 'substitute', 'terrain', 'sport'
+    staff_id TEXT NOT NULL,
+    staff_name TEXT NOT NULL,
+    duty_description TEXT NOT NULL,
+    duty_date DATE NOT NULL,
+    reason TEXT,
+    declined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (staff_id) REFERENCES staff(id)
+);
+CREATE INDEX IF NOT EXISTS idx_duty_decline_tenant ON duty_decline(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_duty_decline_date ON duty_decline(duty_date);
+CREATE INDEX IF NOT EXISTS idx_duty_decline_type ON duty_decline(duty_type);

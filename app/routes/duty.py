@@ -252,6 +252,7 @@ def my_day():
                 'is_sport': True,
                 'request_id': None,
                 'event_id': sport['event_id'],
+                'sport_duty_id': sport['id'],
                 'affects_timetable': sport['affects_timetable']
             })
         
@@ -270,7 +271,8 @@ def my_day():
                 'is_free_occupied': False,
                 'room_occupant': None,
                 'is_sport': False,
-                'request_id': None
+                'request_id': None,
+                'terrain_duty_id': terrain_duty['id']
             })
         
         for slot in bell_slots:
@@ -535,3 +537,52 @@ def terrain_roster():
                           week_label=week_label,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
+
+
+@duty_bp.route('/terrain/decline/<duty_id>', methods=['POST'])
+def decline_terrain_duty(duty_id):
+    """Decline a terrain duty assignment."""
+    import uuid
+    
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+    
+    reason = request.form.get('reason', '').strip()
+    return_to = request.form.get('return_to', '/duty/my-day')
+    
+    TENANT_ID = "MARAGON"
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify this duty belongs to the current user
+        cursor.execute("""
+            SELECT dr.*, ta.area_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.id = ? AND dr.staff_id = ? AND dr.tenant_id = ?
+        """, (duty_id, staff_id, TENANT_ID))
+        duty = cursor.fetchone()
+        
+        if not duty:
+            return redirect(return_to)
+        
+        # Get staff name for audit
+        cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
+        staff_row = cursor.fetchone()
+        staff_name = staff_row['display_name'] if staff_row else 'Unknown'
+        
+        # Log to duty_decline table
+        decline_id = str(uuid.uuid4())
+        duty_description = f"Terrain - {duty['area_name'] or duty['duty_type']}"
+        cursor.execute("""
+            INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason)
+            VALUES (?, ?, 'terrain', ?, ?, ?, ?, ?)
+        """, (decline_id, TENANT_ID, staff_id, staff_name, duty_description, duty['duty_date'], reason or None))
+        
+        # Delete the duty assignment
+        cursor.execute("DELETE FROM duty_roster WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+        conn.commit()
+    
+    return redirect(return_to)
