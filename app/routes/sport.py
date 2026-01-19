@@ -207,7 +207,14 @@ def event_detail(event_id):
                 duties_by_type[duty_type] = []
             duties_by_type[duty_type].append(duty)
         
-        duties = [{'type': k, 'staff': v} for k, v in sorted(duties_by_type.items())]
+        # Custom sort: Coordination first, then alphabetical
+        def sort_duty_types(item):
+            duty_type = item[0]
+            if duty_type == 'Coordination':
+                return (0, duty_type)
+            return (1, duty_type)
+        
+        duties = [{"type": k, "staff": v} for k, v in sorted(duties_by_type.items(), key=sort_duty_types)]
     
     from_page = request.args.get('from')
     from_tab = request.args.get('tab', '')
@@ -499,7 +506,26 @@ def manage_event(event_id):
             WHERE sd.event_id = ? AND sd.tenant_id = ?
             ORDER BY sd.duty_type, s.display_name
         """, (event_id, TENANT_ID))
-        duties = [dict(row) for row in cursor.fetchall()]
+        duties_raw = cursor.fetchall()
+        
+        # Group duties by type
+        duties_by_type = {}
+        for row in duties_raw:
+            duty = dict(row)
+            duty_type = duty["duty_type"]
+            if duty_type not in duties_by_type:
+                duties_by_type[duty_type] = []
+            duties_by_type[duty_type].append(duty)
+        
+        # Custom sort: Coordination first, then alphabetical
+        def sort_duty_types(item):
+            duty_type = item[0]
+            if duty_type == "Coordination":
+                return (0, duty_type)
+            return (1, duty_type)
+        
+        duties = [{"type": k, "staff": v} for k, v in sorted(duties_by_type.items(), key=sort_duty_types)]
+        duties_count = sum(len(group["staff"]) for group in duties)
         
         # Get all staff for assignment dropdown, sorted by first name
         cursor.execute("""
@@ -525,6 +551,7 @@ def manage_event(event_id):
     return render_template('sport/manage_event.html',
                           event=event,
                           duties=duties,
+                          duties_count=duties_count,
                           all_staff=all_staff,
                           duty_types=duty_types,
                           is_coordinator=is_coordinator,
