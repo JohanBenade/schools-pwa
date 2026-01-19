@@ -25,9 +25,9 @@ def generate_week():
         cursor.execute("DELETE FROM duty_roster WHERE tenant_id = ?", (TENANT_ID,))
         results['cleared'] = cursor.rowcount
         
-        # Step 2: Get eligible staff sorted alphabetically
+        # Step 2: Get eligible staff sorted alphabetically by first name
         cursor.execute("""
-            SELECT id, display_name, surname, first_name
+            SELECT id, display_name, first_name, surname
             FROM staff
             WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
             ORDER BY first_name ASC, surname ASC
@@ -65,9 +65,10 @@ def generate_week():
         week_days = [monday + timedelta(days=i) for i in range(5)]
         homework_days = week_days[:4]
         
-        # Step 5: Generate terrain duties
+        # Step 5: Generate terrain duties and track assigned staff
         terrain_pointer = 0
         staff_count = len(staff)
+        terrain_assigned_ids = set()
         
         for day in week_days:
             day_str = day.isoformat()
@@ -76,6 +77,7 @@ def generate_week():
             for i, area in enumerate(areas):
                 staff_idx = (terrain_pointer + i) % staff_count
                 assigned = staff[staff_idx]
+                terrain_assigned_ids.add(assigned['id'])
                 
                 duty_id = str(uuid.uuid4())
                 cursor.execute("""
@@ -87,13 +89,22 @@ def generate_week():
             
             terrain_pointer = (terrain_pointer + len(areas)) % staff_count
         
-        # Step 6: Generate homework duties (Mon-Thu)
-        homework_pointer = 20
+        # Step 6: Generate homework duties - skip anyone with terrain this week
+        # Build list of staff NOT on terrain duty
+        homework_eligible = [s for s in staff if s['id'] not in terrain_assigned_ids]
         
+        if len(homework_eligible) < 4:
+            results['errors'].append(f'Only {len(homework_eligible)} staff available for homework (need 4)')
+            # Fall back to full list if not enough
+            homework_eligible = staff
+        
+        results['homework_pool'] = [s['display_name'] for s in homework_eligible]
+        
+        homework_pointer = 0
         for day in homework_days:
             day_str = day.isoformat()
             day_label = day.strftime('%a %d')
-            assigned = staff[homework_pointer % staff_count]
+            assigned = homework_eligible[homework_pointer % len(homework_eligible)]
             
             duty_id = str(uuid.uuid4())
             cursor.execute("""
@@ -102,7 +113,7 @@ def generate_week():
             """, (duty_id, TENANT_ID, day_str, assigned['id']))
             
             results['homework'].append(f"{day_label}: {assigned['display_name']}")
-            homework_pointer = (homework_pointer + 1) % staff_count
+            homework_pointer = (homework_pointer + 1) % len(homework_eligible)
         
         # Step 7: Update pointers
         cursor.execute("""
@@ -113,6 +124,7 @@ def generate_week():
         
         results['pointers'] = {'terrain': terrain_pointer, 'homework': homework_pointer}
         results['week'] = f"{monday.strftime('%d %b')} - {(monday + timedelta(days=4)).strftime('%d %b %Y')}"
+        results['terrain_count'] = len(terrain_assigned_ids)
         
         conn.commit()
     
