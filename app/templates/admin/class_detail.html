@@ -47,7 +47,7 @@
         <div class="bg-white rounded-lg p-3 shadow-sm border {% if e.status == 'Present' %}border-green-200{% elif e.status == 'Absent' %}border-red-300{% elif e.status == 'Late' %}border-amber-300{% else %}border-gray-200{% endif %}">
             <div class="flex justify-between items-center">
                 <div>
-                    <span class="font-medium text-gray-800">{{ e.surname }}, {{ e.first_name }}</span>
+                    <span class="font-medium text-gray-800">{{ e.first_name }} {{ e.surname }}</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <!-- Status buttons -->

@@ -133,7 +133,7 @@ def absentees():
             JOIN mentor_group mg ON a.mentor_group_id = mg.id
             LEFT JOIN grade g ON mg.grade_id = g.id
             WHERE a.date = ? AND ae.status IN ('Absent', 'Late')
-            ORDER BY ae.stasy_captured ASC, l.surname, l.first_name
+            ORDER BY ae.stasy_captured ASC, l.first_name, l.surname
         ''', (today_str,))
         
         absentees = [dict(row) for row in cursor.fetchall()]
@@ -177,7 +177,7 @@ def late_learners():
             JOIN mentor_group mg ON a.mentor_group_id = mg.id
             LEFT JOIN grade g ON mg.grade_id = g.id
             WHERE a.date = ? AND ae.status = 'Late'
-            ORDER BY g.grade_number, mg.group_name, l.surname, l.first_name
+            ORDER BY g.grade_number, mg.group_name, l.first_name, l.surname
         ''', (today_str,))
         
         late = [dict(row) for row in cursor.fetchall()]
@@ -227,7 +227,7 @@ def class_detail(attendance_id):
                     WHEN 'Late' THEN 1 
                     ELSE 2 
                 END,
-                l.surname, l.first_name
+                l.first_name, l.surname
         ''', (attendance_id,))
         entries = [dict(row) for row in cursor.fetchall()]
     
