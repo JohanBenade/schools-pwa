@@ -1303,7 +1303,7 @@ def duty_declines():
     role = session.get('role', '')
     
     # Leadership access check
-    if role not in ['principal', 'deputy', 'admin']:
+    if not staff_id:
         return redirect('/')
     
     filter_type = request.args.get('type', '')

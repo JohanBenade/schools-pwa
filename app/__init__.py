@@ -214,6 +214,8 @@ def create_app():
         </a>
         '''
         
+        icons_html += '<a href="/admin/declines" class="app-icon"><div class="icon-box bg-red">📉</div><span class="app-label">Declines</span></a>'
+        
         icons_html += '''
         <a href="#" class="app-icon coming-soon" onclick="return false;">
             <div class="icon-box bg-purple">&#128196;</div>
