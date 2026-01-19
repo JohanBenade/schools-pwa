@@ -2,17 +2,12 @@
 {% block title %}{{ attendance.group_name }}{% endblock %}
 
 {% block content %}
+{{ nav_styles }}
+{{ nav_header }}
+
 <div class="p-4">
-    <div class="flex items-center mb-4">
-        <a href="{{ url_for('admin.dashboard') }}" class="mr-3 p-2 -ml-2">
-            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-        </a>
-        <div>
-            <h1 class="text-xl font-bold text-gray-800">{{ attendance.group_name }}</h1>
-            <p class="text-gray-600 text-sm">{{ attendance.mentor_name or 'No mentor' }} &bull; {{ attendance.date_display }}</p>
-        </div>
+    <div class="mb-4">
+        <p class="text-gray-600 text-sm">{{ attendance.mentor_name or 'No mentor' }} &bull; {{ attendance.date_display }}</p>
     </div>
     
     <!-- Summary -->
