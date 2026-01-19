@@ -423,7 +423,7 @@ def terrain_roster():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Get terrain areas (excluding Homework Venue)
+        # Get terrain areas (excluding Homework Venue for now)
         cursor.execute("""
             SELECT id, area_code, area_name
             FROM terrain_area
@@ -451,7 +451,7 @@ def terrain_roster():
                 'name': row['display_name']
             }
         
-        # Get homework duties for Mon-Thu
+        # Get homework duties for the week
         cursor.execute("""
             SELECT dr.duty_date, dr.staff_id, s.display_name
             FROM duty_roster dr
@@ -477,7 +477,7 @@ def terrain_roster():
         """, (TENANT_ID,))
         breaks = [dict(row) for row in cursor.fetchall()]
     
-    # Build grid data
+    # Build grid data for terrain areas
     grid = []
     for area in areas:
         row = {
@@ -497,18 +497,31 @@ def terrain_roster():
             })
         grid.append(row)
     
-    # Homework row (Mon-Thu only)
-    homework_row = []
-    for day in week_days[:4]:  # Mon-Thu
-        duty = homework_duties.get(day['date_str'])
-        homework_row.append({
-            'date_str': day['date_str'],
-            'staff_id': duty['staff_id'] if duty else None,
-            'name': duty['name'] if duty else '—',
-            'is_current_user': duty['staff_id'] == staff_id if duty else False
-        })
+    # Add Homework Venue as last row (Mon-Thu only, Fri shows —)
+    homework_row = {
+        'area_id': 'homework',
+        'area_name': 'Homework Venue',
+        'area_code': 'HWV',
+        'days': []
+    }
+    for i, day in enumerate(week_days):
+        if i < 4:  # Mon-Thu
+            duty = homework_duties.get(day['date_str'])
+            homework_row['days'].append({
+                'date_str': day['date_str'],
+                'staff_id': duty['staff_id'] if duty else None,
+                'name': duty['name'] if duty else '—',
+                'is_current_user': duty['staff_id'] == staff_id if duty else False
+            })
+        else:  # Friday - no homework venue
+            homework_row['days'].append({
+                'date_str': day['date_str'],
+                'staff_id': None,
+                'name': '—',
+                'is_current_user': False
+            })
+    grid.append(homework_row)
     
-    from app.services.nav import get_nav_header, get_nav_styles
     nav_header = get_nav_header("Terrain Roster", "/", "Home")
     nav_styles = get_nav_styles()
     
@@ -518,7 +531,6 @@ def terrain_roster():
     return render_template('duty/terrain.html',
                           grid=grid,
                           week_days=week_days,
-                          homework_row=homework_row,
                           breaks=breaks,
                           week_label=week_label,
                           nav_header=nav_header,

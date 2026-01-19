@@ -20,6 +20,7 @@
         .roster-table th .day-num { display: block; font-size: 16px; margin-top: 2px; }
         
         .area-name { text-align: left !important; font-weight: 600; font-size: 13px; white-space: nowrap; }
+        .area-name.homework { color: #a78bfa; }
         
         .roster-table td { font-size: 12px; }
         .roster-table td.today { background: rgba(96, 165, 250, 0.1); }
@@ -28,24 +29,13 @@
         .teacher-name.is-me { background: #14b8a6; color: white; padding: 4px 6px; border-radius: 6px; font-weight: 600; }
         .teacher-name.empty { opacity: 0.4; }
         
-        .section-title { font-size: 14px; font-weight: 600; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.2); }
-        
         .time-slots { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
         .time-slots h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; opacity: 0.8; }
         .time-slot { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .time-slot:last-child { border-bottom: none; }
         .time-slot .label { opacity: 0.7; }
         .time-slot .time { font-weight: 500; }
-        
-        .homework-section { margin-top: 24px; }
-        .homework-table { width: 100%; border-collapse: collapse; }
-        .homework-table th, .homework-table td { padding: 10px 8px; text-align: center; }
-        .homework-table th { font-size: 12px; font-weight: 600; opacity: 0.7; }
-        .homework-table th.today { color: #60a5fa; opacity: 1; }
-        .homework-table td { font-size: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; }
-        .homework-table td.today { background: rgba(139, 92, 246, 0.2); }
-        
-        .homework-time { text-align: center; font-size: 12px; opacity: 0.6; margin-top: 8px; }
+        .time-slot.homework .label { color: #a78bfa; }
         
         {{ nav_styles }}
     </style>
@@ -73,7 +63,7 @@
             <tbody>
                 {% for row in grid %}
                 <tr>
-                    <td class="area-name">{{ row.area_name }}</td>
+                    <td class="area-name {{ 'homework' if row.area_code == 'HWV' else '' }}">{{ row.area_name }}</td>
                     {% for cell in row.days %}
                     <td class="{{ 'today' if week_days[loop.index0].is_today else '' }}">
                         <span class="teacher-name {{ 'is-me' if cell.is_current_user else '' }} {{ 'empty' if cell.name == '—' else '' }}">{{ cell.name }}</span>
@@ -96,29 +86,10 @@
                 <span class="time">{{ brk.start_time }} – {{ brk.end_time }}</span>
             </div>
             {% endfor %}
-        </div>
-        
-        <div class="homework-section">
-            <div class="section-title">📚 Homework Venue (Mon–Thu)</div>
-            <table class="homework-table">
-                <thead>
-                    <tr>
-                        {% for day in week_days[:4] %}
-                        <th class="{{ 'today' if day.is_today else '' }}">{{ day.day_name }} {{ day.day_num }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        {% for cell in homework_row %}
-                        <td class="{{ 'today' if week_days[loop.index0].is_today else '' }}">
-                            <span class="teacher-name {{ 'is-me' if cell.is_current_user else '' }} {{ 'empty' if cell.name == '—' else '' }}">{{ cell.name }}</span>
-                        </td>
-                        {% endfor %}
-                    </tr>
-                </tbody>
-            </table>
-            <div class="homework-time">14:15 – 15:00</div>
+            <div class="time-slot homework">
+                <span class="label">📚 Homework Venue (Mon–Thu)</span>
+                <span class="time">14:15 – 15:00</span>
+            </div>
         </div>
     </div>
 </body>
