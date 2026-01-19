@@ -88,7 +88,7 @@ def generate_week():
             terrain_pointer = (terrain_pointer + len(areas)) % staff_count
         
         # Step 6: Generate homework duties (Mon-Thu)
-        homework_pointer = 0
+        homework_pointer = 20
         
         for day in homework_days:
             day_str = day.isoformat()
