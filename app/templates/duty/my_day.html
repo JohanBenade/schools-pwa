@@ -224,7 +224,7 @@
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
                 {% endif %}
                 {% if slot.sport_duty_id %}
-                <button class="decline-btn" onclick="openDecline('{{ slot.sport_duty_id }}', 'sport', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>
+                {% if not viewing_other %}<button class="decline-btn" onclick="openDecline('{{ slot.sport_duty_id }}', 'sport', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>{% endif %}
                 {% endif %}
             </div>
             {% elif slot.is_duty and slot.terrain_duty_id %}
@@ -237,7 +237,7 @@
                 {% if slot.badge %}
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
                 {% endif %}
-                <button class="decline-btn" onclick="openDecline('{{ slot.terrain_duty_id }}', 'terrain', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>
+                {% if not viewing_other %}<button class="decline-btn" onclick="openDecline('{{ slot.terrain_duty_id }}', 'terrain', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>{% endif %}
             </div>
             {% else %}
             <div class="slot {% if slot.is_duty %}is-duty{% endif %} {% if slot.is_sub %}is-sub{% endif %} {% if slot.is_free %}is-free{% endif %} {% if slot.is_free_occupied %}is-free-occupied{% endif %} {% if slot.slot_type == 'break' and not slot.is_duty %}is-break{% endif %}">
@@ -261,7 +261,7 @@
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
                 {% endif %}
                 {% if slot.is_sub and slot.request_id %}
-                <button class="decline-btn" onclick="openDecline('{{ slot.request_id }}', 'substitute', '{{ slot.slot_name }}', '{{ slot.badge }}')">✕ Decline</button>
+                {% if not viewing_other %}<button class="decline-btn" onclick="openDecline('{{ slot.request_id }}', 'substitute', '{{ slot.slot_name }}', '{{ slot.badge }}')">✕ Decline</button>{% endif %}
                 {% endif %}
             </div>
             {% endif %}
