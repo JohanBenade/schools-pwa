@@ -455,9 +455,30 @@ def process_absence(absence_id):
                         'request_id': request_id
                     }
                 else:
-                    log_event(absence_id, 'no_cover', None, 
-                             f"[{target_date_str}] No nearby teacher found for mentor roll call {absence['mentor_class']}")
-                    day_result['roll_call'] = {'error': 'No nearby teacher found found'}
+                    # Fallback to Deputy (Kea) for unmapped rooms
+                    kea_id = '0f9674b4-2cdf-438b-b960-48bfedd4be61'
+                    request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         is_mentor_duty, mentor_group_id, class_name, venue_name, assigned_at, request_date)
+                        VALUES (?, ?, ?, ?, ?, 'Assigned', 1, ?, ?, ?, ?, ?)
+                    """, (request_id, TENANT_ID, absence_id, None, kea_id,
+                          absence['mentor_group_id'], absence['mentor_class'],
+                          absence['venue_code'], datetime.now().isoformat(), target_date_str))
+                    conn.commit()
+                    
+                    log_event(absence_id, 'allocated', kea_id,
+                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - assigned to Deputy (unmapped room {absence['venue_code']})",
+                             request_id)
+                    
+                    day_result['roll_call'] = {
+                        'substitute': 'Ms Kea',
+                        'venue': absence['venue_code'],
+                        'mentor_class': absence['mentor_class'],
+                        'request_id': request_id,
+                        'note': 'Deputy assigned - unmapped room'
+                    }
             
             # === TEACHING PERIODS ===
             schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
