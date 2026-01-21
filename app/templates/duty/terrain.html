@@ -89,12 +89,14 @@
                 <span class="label">Before School</span>
                 <span class="time">07:15 – 07:30</span>
             </div>
-            {% for brk in breaks %}
             <div class="time-slot">
-                <span class="label">{{ brk.slot_name }}</span>
-                <span class="time">{{ brk.start_time }} – {{ brk.end_time }}</span>
+                <span class="label">Break 1</span>
+                <span class="time">Mon/Wed 09:50 | Tue/Thu 10:04 | Fri 10:30</span>
             </div>
-            {% endfor %}
+            <div class="time-slot">
+                <span class="label">Break 2</span>
+                <span class="time">Mon/Wed 12:25 | Tue/Thu 12:30 | Fri —</span>
+            </div>
             <div class="time-slot homework">
                 <span class="label">📚 Homework Venue (Mon–Thu)</span>
                 <span class="time">14:15 – 15:00</span>
