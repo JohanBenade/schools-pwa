@@ -481,12 +481,12 @@ def decline_assignment(request_id):
             INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
             VALUES (?, ?, 'declined', ?, ?, ?, ?)
         """, (str(uuid.uuid4()), req['absence_id'], 
-              f"{req['decliner_name']} declined {req['period_name'] or 'Roll Call'}: {reason}",
+              f"{req['decliner_name']} declined {req['period_name'] or 'Register'}: {reason}",
               staff_id, TENANT_ID, now.isoformat()))
         
         
         # Also log to unified duty_decline table
-        duty_desc = f"{req['period_name'] or 'Roll Call'} - covering for {req.get('absent_teacher_name', 'absent teacher')}"
+        duty_desc = f"{req['period_name'] or 'Register'} - covering for {req.get('absent_teacher_name', 'absent teacher')}"
         cursor.execute("""
             INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason)
             VALUES (?, ?, 'substitute', ?, ?, ?, ?, ?)
@@ -520,7 +520,7 @@ def decline_assignment(request_id):
                     send_substitute_assigned_push(
                         new_sub['id'],
                         absence_info['absent_teacher'],
-                        req['period_name'] or 'Roll Call',
+                        req['period_name'] or 'Register',
                         date_display,
                         req.get('venue_name', 'TBC')
                     )

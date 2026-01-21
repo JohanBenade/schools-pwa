@@ -42,7 +42,7 @@ def index():
                          groups=groups, 
                          today_date=today_date,
                          nav_header=True,
-                         nav_title='Roll Call',
+                         nav_title='Register',
                          nav_back_url='/',
                          nav_back_label='Home')
 

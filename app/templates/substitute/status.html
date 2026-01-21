@@ -180,7 +180,7 @@
                 </div>
                 <div class="assignment-info">
                     {% if req.is_mentor_duty %}
-                    <h3>Mentor Roll Call: {{ req.class_name }}</h3>
+                    <h3>Mentor Register: {{ req.class_name }}</h3>
                     <p>{{ req.venue_name }} • {{ req.substitute_name or 'Unassigned' }}</p>
                     {% else %}
                     <h3>{{ req.period_name }}: {{ req.class_name }}</h3>

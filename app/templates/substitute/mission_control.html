@@ -99,7 +99,7 @@
                             {% for req in reqs %}
                             <span class="period-chip {{ 'assigned' if req.substitute_id else 'pending' }}">
                                 {% if req.is_mentor_duty %}
-                                    🏠 Roll Call → {{ req.substitute_name or 'Pending' }}
+                                    🏠 Register → {{ req.substitute_name or 'Pending' }}
                                 {% else %}
                                     P{{ req.period_number }}: {{ req.substitute_name or 'Pending' }}
                                 {% endif %}
