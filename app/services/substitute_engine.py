@@ -456,8 +456,8 @@ def process_absence(absence_id):
                     }
                 else:
                     log_event(absence_id, 'no_cover', None, 
-                             f"[{target_date_str}] No adjacent teacher for mentor roll call {absence['mentor_class']}")
-                    day_result['roll_call'] = {'error': 'No adjacent teacher found'}
+                             f"[{target_date_str}] No nearby teacher found for mentor roll call {absence['mentor_class']}")
+                    day_result['roll_call'] = {'error': 'No nearby teacher found found'}
             
             # === TEACHING PERIODS ===
             schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
