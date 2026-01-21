@@ -551,7 +551,7 @@ def terrain_roster():
 def decline_terrain_duty(duty_id):
     """Decline a terrain duty assignment with auto-reassign."""
     import uuid
-    from datetime import datetime, date, time
+    from datetime import datetime, date, time, timedelta
     
     staff_id = session.get('staff_id')
     if not staff_id:
@@ -586,6 +586,11 @@ def decline_terrain_duty(duty_id):
             # Too late to decline - redirect back with no action
             return redirect(return_to)
         
+        # Calculate week boundaries (Mon-Fri) for this duty
+        weekday = duty_date.weekday()
+        week_monday = duty_date - timedelta(days=weekday)
+        week_friday = week_monday + timedelta(days=4)
+        
         # Get staff name for audit
         cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
         staff_row = cursor.fetchone()
@@ -599,18 +604,20 @@ def decline_terrain_duty(duty_id):
             VALUES (?, ?, 'terrain', ?, ?, ?, ?, ?)
         """, (decline_id, TENANT_ID, staff_id, staff_name, duty_description, duty['duty_date'], reason or None))
         
-        # Find replacement: next eligible staff alphabetically who isn't on terrain that day
+        # Find replacement: next eligible staff alphabetically who isn't on terrain THIS WEEK
         cursor.execute("""
             SELECT id, display_name, first_name
             FROM staff
             WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
               AND id NOT IN (
                   SELECT staff_id FROM duty_roster 
-                  WHERE tenant_id = ? AND duty_date = ? AND duty_type = 'terrain'
+                  WHERE tenant_id = ? 
+                    AND duty_date >= ? AND duty_date <= ?
+                    AND duty_type = 'terrain'
               )
             ORDER BY first_name ASC, surname ASC
             LIMIT 1
-        """, (TENANT_ID, TENANT_ID, duty['duty_date']))
+        """, (TENANT_ID, TENANT_ID, week_monday.isoformat(), week_friday.isoformat()))
         replacement = cursor.fetchone()
         
         if replacement:
