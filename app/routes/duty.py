@@ -391,9 +391,11 @@ def my_day():
 
 
 @duty_bp.route('/terrain')
+@duty_bp.route('/terrain')
 def terrain_roster():
     """Weekly terrain duty roster - shows all staff assignments."""
     staff_id = session.get('staff_id')
+    week_param = request.args.get('week', 'current')  # 'current' or 'next'
     
     # Get current week (Mon-Fri)
     today = date.today()
@@ -401,11 +403,17 @@ def terrain_roster():
     
     # Find Monday of current week
     if weekday == 5:  # Saturday
-        monday = today + timedelta(days=2)
+        this_monday = today + timedelta(days=2)
     elif weekday == 6:  # Sunday
-        monday = today + timedelta(days=1)
+        this_monday = today + timedelta(days=1)
     else:
-        monday = today - timedelta(days=weekday)
+        this_monday = today - timedelta(days=weekday)
+    
+    # Select which week to show
+    if week_param == 'next':
+        monday = this_monday + timedelta(days=7)
+    else:
+        monday = this_monday
     
     # Build list of 5 weekdays
     week_days = []
@@ -535,9 +543,9 @@ def terrain_roster():
                           week_days=week_days,
                           breaks=breaks,
                           week_label=week_label,
+                          week_param=week_param,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
-
 
 @duty_bp.route('/terrain/decline/<duty_id>', methods=['POST'])
 def decline_terrain_duty(duty_id):

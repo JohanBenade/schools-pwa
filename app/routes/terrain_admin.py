@@ -129,3 +129,150 @@ def generate_week():
         conn.commit()
     
     return jsonify(results)
+
+
+@terrain_admin_bp.route('/reset')
+def reset_terrain():
+    """Clear ALL terrain duties (for testing)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM duty_roster WHERE tenant_id = ?", (TENANT_ID,))
+        deleted = cursor.rowcount
+        
+        # Reset pointers
+        cursor.execute("""
+            UPDATE terrain_config 
+            SET pointer_index = 0, homework_pointer_index = 0, updated_at = datetime('now')
+            WHERE tenant_id = ?
+        """, (TENANT_ID,))
+        
+        conn.commit()
+    
+    return jsonify({'success': True, 'deleted': deleted, 'message': 'All terrain duties cleared, pointers reset'})
+
+
+@terrain_admin_bp.route('/generate-next-week')
+def generate_next_week():
+    """Generate terrain + homework duties for NEXT week (Mon-Fri)."""
+    
+    results = {'terrain': [], 'homework': [], 'staff': [], 'errors': []}
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get current pointers
+        cursor.execute("SELECT pointer_index, homework_pointer_index FROM terrain_config WHERE tenant_id = ?", (TENANT_ID,))
+        config = cursor.fetchone()
+        terrain_pointer = config['pointer_index'] if config else 0
+        homework_pointer = config['homework_pointer_index'] if config else 0
+        
+        # Get eligible staff sorted alphabetically by first name
+        cursor.execute("""
+            SELECT id, display_name, first_name, surname
+            FROM staff
+            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
+            ORDER BY first_name ASC, surname ASC
+        """, (TENANT_ID,))
+        staff = [dict(row) for row in cursor.fetchall()]
+        results['staff'] = [s['display_name'] for s in staff]
+        
+        if not staff:
+            results['errors'].append('No eligible staff found')
+            return jsonify(results)
+        
+        # Get terrain areas (exclude homework)
+        cursor.execute("""
+            SELECT id, area_name
+            FROM terrain_area
+            WHERE tenant_id = ? AND is_active = 1 AND area_name NOT LIKE '%Homework%'
+            ORDER BY sort_order
+        """, (TENANT_ID,))
+        areas = [dict(row) for row in cursor.fetchall()]
+        
+        if not areas:
+            results['errors'].append('No terrain areas found')
+            return jsonify(results)
+        
+        # Calculate NEXT week Mon-Fri
+        today = date.today()
+        weekday = today.weekday()
+        # Get this week's Monday first
+        this_monday = today - timedelta(days=weekday)
+        # Next Monday
+        next_monday = this_monday + timedelta(days=7)
+        
+        week_days = [next_monday + timedelta(days=i) for i in range(5)]
+        homework_days = week_days[:4]  # Mon-Thu only
+        
+        # Check if next week already has duties
+        cursor.execute("""
+            SELECT COUNT(*) as cnt FROM duty_roster 
+            WHERE tenant_id = ? AND duty_date >= ? AND duty_date <= ?
+        """, (TENANT_ID, week_days[0].isoformat(), week_days[4].isoformat()))
+        existing = cursor.fetchone()['cnt']
+        
+        if existing > 0:
+            results['errors'].append(f'Next week already has {existing} duties. Run /admin/terrain/reset first to clear.')
+            results['week'] = f"{next_monday.strftime('%d %b')} - {(next_monday + timedelta(days=4)).strftime('%d %b %Y')}"
+            return jsonify(results)
+        
+        # Generate terrain duties
+        staff_count = len(staff)
+        terrain_assigned_ids = set()
+        
+        for day in week_days:
+            day_str = day.isoformat()
+            day_label = day.strftime('%a %d')
+            
+            for i, area in enumerate(areas):
+                staff_idx = (terrain_pointer + i) % staff_count
+                assigned = staff[staff_idx]
+                terrain_assigned_ids.add(assigned['id'])
+                
+                duty_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
+                    VALUES (?, ?, ?, ?, ?, 'terrain', 'Scheduled')
+                """, (duty_id, TENANT_ID, day_str, area['id'], assigned['id']))
+                
+                results['terrain'].append(f"{day_label}: {area['area_name']} -> {assigned['display_name']}")
+            
+            terrain_pointer = (terrain_pointer + len(areas)) % staff_count
+        
+        # Generate homework duties - skip anyone with terrain this week
+        homework_eligible = [s for s in staff if s['id'] not in terrain_assigned_ids]
+        
+        if len(homework_eligible) < 4:
+            results['errors'].append(f'Only {len(homework_eligible)} staff available for homework (need 4)')
+            homework_eligible = staff
+        
+        results['homework_pool'] = [s['display_name'] for s in homework_eligible]
+        
+        for day in homework_days:
+            day_str = day.isoformat()
+            day_label = day.strftime('%a %d')
+            assigned = homework_eligible[homework_pointer % len(homework_eligible)]
+            
+            duty_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
+                VALUES (?, ?, ?, NULL, ?, 'homework', 'Scheduled')
+            """, (duty_id, TENANT_ID, day_str, assigned['id']))
+            
+            results['homework'].append(f"{day_label}: {assigned['display_name']}")
+            homework_pointer = (homework_pointer + 1) % len(homework_eligible)
+        
+        # Update pointers for next run
+        cursor.execute("""
+            UPDATE terrain_config 
+            SET pointer_index = ?, homework_pointer_index = ?, updated_at = datetime('now')
+            WHERE tenant_id = ?
+        """, (terrain_pointer, homework_pointer, TENANT_ID))
+        
+        results['pointers'] = {'terrain': terrain_pointer, 'homework': homework_pointer}
+        results['week'] = f"{next_monday.strftime('%d %b')} - {(next_monday + timedelta(days=4)).strftime('%d %b %Y')}"
+        results['terrain_count'] = len(terrain_assigned_ids)
+        
+        conn.commit()
+    
+    return jsonify(results)

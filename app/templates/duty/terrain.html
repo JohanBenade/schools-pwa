@@ -37,6 +37,11 @@
         .time-slot .time { font-weight: 500; }
         .time-slot.homework .label { color: #a78bfa; }
         
+        .week-toggle { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
+        .week-toggle a { padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.1); transition: all 0.2s; }
+        .week-toggle a:hover { background: rgba(255,255,255,0.15); }
+        .week-toggle a.active { background: #6366f1; color: white; }
+        
         {{ nav_styles }}
     </style>
 </head>
@@ -45,6 +50,10 @@
         {{ nav_header|safe }}
         
         <div class="week-header">
+            <div class="week-toggle">
+                <a href="?week=current" class="{% if week_param != 'next' %}active{% endif %}">This Week</a>
+                <a href="?week=next" class="{% if week_param == 'next' %}active{% endif %}">Next Week</a>
+            </div>
             <h2>{{ week_label }}</h2>
         </div>
         
