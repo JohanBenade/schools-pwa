@@ -140,6 +140,8 @@ def create_app():
     @app.route('/')
     def home():
         from app.services.db import get_connection
+        
+        # Check for active emergency alert
         active_alert = None
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -150,139 +152,44 @@ def create_app():
         
         user_name = session.get('display_name', '')
         user_logged_in = 'staff_id' in session
-        user_role = session.get('role', 'teacher')
+        user_role = session.get('role', '')
         
-        # Leadership gets their own home page
+        # Route to appropriate home page based on role
         if user_role in ['principal', 'deputy']:
-            return render_template('home/leadership.html', user_name=user_name, active_alert=active_alert)
+            return render_template('home/management.html', user_name=user_name, active_alert=active_alert)
         
-        show_admin = user_logged_in  # Dev: all magic link users
+        if user_role in ['activities', 'sport_coordinator']:
+            return render_template('home/activities.html', user_name=user_name, active_alert=active_alert)
         
-        icons_html = f'''
-        <a href="/emergency/" class="app-icon">
-            <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
-            <span class="app-label">Emergency</span>
-        </a>
-        <a href="/duty/my-day" class="app-icon">
-            <div class="icon-box bg-green">&#128694;</div>
-            <span class="app-label">My Day</span>
-        </a>
-        <a href="/attendance/" class="app-icon">
-            <div class="icon-box bg-blue">&#128203;</div>
-            <span class="app-label">Roll Call</span>
-        </a>
-        <a href="/substitute/report" class="app-icon">
-            <div class="icon-box bg-orange">✋</div>
-            <span class="app-label">Report Absence</span>
-        </a>
-        <a href="/substitute/sub-duties" class="app-icon">
-            <div class="icon-box bg-cyan">📅</div>
-            <span class="app-label">Sub Duties</span>
-        </a>
-        <a href="/sport/my-duties" class="app-icon">
-            <div class="icon-box bg-teal">🎽</div>
-            <span class="app-label">Sport Duties</span>
-        </a>
-        <a href="/duty/terrain" class="app-icon">
-            <div class="icon-box bg-purple">&#127758;</div>
-            <span class="app-label">Terrain Roster</span>
-        </a>
-        <a href="/absences/" class="app-icon">
-            <div class="icon-box bg-indigo">&#128203;</div>
-            <span class="app-label">Who's Out</span>
-        </a>
-        <a href="/sport/events" class="app-icon">
-            <div class="icon-box bg-teal">&#127942;</div>
-            <span class="app-label">Sport</span>
-        </a>
-        '''
+        if user_role == 'office':
+            return render_template('home/office.html', user_name=user_name, active_alert=active_alert)
         
-        if show_admin:
-            icons_html += '''
-        <a href="/admin/" class="app-icon">
-            <div class="icon-box bg-amber">📒</div>
-            <span class="app-label">Registers</span>
-        </a>
-        '''
+        if user_role in ['teacher', 'grade_head', 'admin']:
+            return render_template('home/staff.html', user_name=user_name, active_alert=active_alert)
         
-        icons_html += '<a href="/admin/declines" class="app-icon"><div class="icon-box bg-red">📉</div><span class="app-label">Declines</span></a>'
-        
-        return f'''
+        # Not logged in - show login prompt
+        return '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>SchoolOps</title>
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maragon Mooikloof</title>
     <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 60px 20px 40px; }}
-        .user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 12px 20px; font-size: 14px; color: #1E293B; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-        .user-bar a {{ color: #3b82f6; text-decoration: none; }}
-        .header {{ text-align: center; margin-bottom: 40px; color: #1E293B; padding-top: 20px; }}
-        .header h1 {{ font-size: 28px; font-weight: 600; margin-bottom: 4px; }}
-        .header p {{ font-size: 14px; opacity: 0.9; }}
-        .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 400px; margin: 0 auto; }}
-        @media (min-width: 768px) {{ .grid {{ grid-template-columns: repeat(6, 1fr); max-width: 600px; gap: 24px; }} }}
-        .app-icon {{ display: flex; flex-direction: column; align-items: center; text-decoration: none; -webkit-tap-highlight-color: transparent; }}
-        .app-icon:active .icon-box {{ transform: scale(0.92); }}
-        .icon-box {{ width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 6px; transition: transform 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative; }}
-        @media (min-width: 768px) {{ .icon-box {{ width: 72px; height: 72px; border-radius: 16px; font-size: 32px; }} }}
-        .app-label {{ font-size: 11px; color: #1E293B; text-align: center; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        @media (min-width: 768px) {{ .app-label {{ font-size: 12px; max-width: 80px; }} }}
-        .bg-blue {{ background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }}
-        .bg-green {{ background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }}
-        .bg-orange {{ background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }}
-        .bg-purple {{ background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); }}
-        .bg-red {{ background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }}
-        .bg-gray {{ background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }}
-        .bg-teal {{ background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }}
-        .bg-indigo {{ background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }}
-        .bg-cyan {{ background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }}
-        .coming-soon .icon-box {{ opacity: 0.4; }}
-        .coming-soon .app-label {{ opacity: 0.6; }}
-        .footer {{ text-align: center; margin-top: 50px; color: #1E293B; opacity: 0.7; font-size: 12px; }}
-        .emergency-pulse {{ animation: pulse-red 1.5s infinite; }}
-        @keyframes pulse-red {{ 0%, 100% {{ box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 4px 20px rgba(239, 68, 68, 0.8); }} }}
-        .push-prompt {{ position: fixed; bottom: 20px; left: 20px; right: 20px; background: #1e293b; color: white; padding: 16px 20px; border-radius: 12px; display: none; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; }}
-        .push-prompt.show {{ display: flex; }}
-        .push-prompt-text {{ flex: 1; font-size: 14px; }}
-        .push-prompt-btn {{ padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }}
-        .push-prompt-btn.allow {{ background: #22c55e; color: white; }}
-        .push-prompt-btn.dismiss {{ background: transparent; color: #94a3b8; }}
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { text-align: center; max-width: 320px; }
+        h1 { font-size: 24px; color: #1E293B; margin-bottom: 8px; opacity: 0.7; }
+        h2 { font-size: 28px; color: #1E293B; margin-bottom: 24px; }
+        p { color: #64748b; font-size: 14px; }
     </style>
 </head>
 <body>
-    <div class="user-bar">
-        <span>{'&#128100; ' + user_name if user_logged_in else 'Not logged in'}</span>
-        {'<a href="/admin/seed-emergency">Setup</a>' if user_logged_in else '<span style="opacity:0.5">Use magic link to login</span>'}
+    <div class="login-box">
+        <h1>Maragon Mooikloof</h1>
+        <h2>SchoolOps</h2>
+        <p>Use your magic link to login</p>
     </div>
-    <div id="alert-banner" hx-get="/emergency/banner" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
-    <div class="header">
-        <h1>SchoolOps</h1>
-        <p>Maragon Mooikloof</p>
-    </div>
-    <div class="grid">{icons_html}</div>
-    <div class="footer">Term 1 2026 Pilot</div>
-    <div class="push-prompt" id="pushPrompt">
-        <span class="push-prompt-text">🔔 Enable notifications to receive emergency alerts</span>
-        <button class="push-prompt-btn dismiss" onclick="dismissPushPrompt()">Later</button>
-        <button class="push-prompt-btn allow" onclick="enablePushNotifications()">Enable</button>
-    </div>
-    <script src="/static/push.js"></script>
-    <script>
-        function checkPushPrompt() {{ if (!('Notification' in window)) return; if (!('serviceWorker' in navigator)) return; if (Notification.permission !== 'default') return; if (localStorage.getItem('push_prompt_dismissed')) return; setTimeout(() => {{ document.getElementById('pushPrompt').classList.add('show'); }}, 2000); }}
-        async function enablePushNotifications() {{ document.getElementById('pushPrompt').classList.remove('show'); const granted = await requestNotificationPermission(); if (granted) {{ console.log('Push notifications enabled!'); }} }}
-        function dismissPushPrompt() {{ document.getElementById('pushPrompt').classList.remove('show'); localStorage.setItem('push_prompt_dismissed', 'true'); }}
-        {'checkPushPrompt();' if user_logged_in else ''}
-    </script>
 </body>
 </html>
 '''
