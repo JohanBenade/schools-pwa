@@ -156,7 +156,6 @@ def create_app():
         if user_role in ['principal', 'deputy']:
             return render_template('home/leadership.html', user_name=user_name, active_alert=active_alert)
         
-        show_dashboard = user_role in ['principal', 'deputy', 'admin']
         show_admin = user_logged_in  # Dev: all magic link users
         
         icons_html = f'''
@@ -164,9 +163,9 @@ def create_app():
             <div class="icon-box bg-red {'emergency-pulse' if active_alert else ''}">&#128680;</div>
             <span class="app-label">Emergency</span>
         </a>
-        <a href="/absences/" class="app-icon">
-            <div class="icon-box bg-indigo">&#128203;</div>
-            <span class="app-label">Who's Out</span>
+        <a href="/duty/my-day" class="app-icon">
+            <div class="icon-box bg-green">&#128694;</div>
+            <span class="app-label">My Day</span>
         </a>
         <a href="/attendance/" class="app-icon">
             <div class="icon-box bg-blue">&#128203;</div>
@@ -176,33 +175,25 @@ def create_app():
             <div class="icon-box bg-orange">✋</div>
             <span class="app-label">Report Absence</span>
         </a>
-        <a href="/duty/terrain" class="app-icon">
-            <div class="icon-box bg-purple">&#127758;</div>
-            <span class="app-label">Terrain Roster</span>
-        </a>
-        <a href="/duty/my-day" class="app-icon">
-            <div class="icon-box bg-green">&#128694;</div>
-            <span class="app-label">My Day</span>
-        </a>
         <a href="/substitute/sub-duties" class="app-icon">
             <div class="icon-box bg-cyan">📅</div>
             <span class="app-label">Sub Duties</span>
-        </a>
-        <a href="/sport/events" class="app-icon">
-            <div class="icon-box bg-teal">&#127942;</div>
-            <span class="app-label">Sport</span>
         </a>
         <a href="/sport/my-duties" class="app-icon">
             <div class="icon-box bg-teal">🎽</div>
             <span class="app-label">Sport Duties</span>
         </a>
-        '''
-        
-        if show_dashboard:
-            icons_html += '''
-        <a href="/dashboard/" class="app-icon">
-            <div class="icon-box bg-indigo">&#128200;</div>
-            <span class="app-label">Dashboard</span>
+        <a href="/duty/terrain" class="app-icon">
+            <div class="icon-box bg-purple">&#127758;</div>
+            <span class="app-label">Terrain Roster</span>
+        </a>
+        <a href="/absences/" class="app-icon">
+            <div class="icon-box bg-indigo">&#128203;</div>
+            <span class="app-label">Who's Out</span>
+        </a>
+        <a href="/sport/events" class="app-icon">
+            <div class="icon-box bg-teal">&#127942;</div>
+            <span class="app-label">Sport</span>
         </a>
         '''
         
@@ -215,17 +206,6 @@ def create_app():
         '''
         
         icons_html += '<a href="/admin/declines" class="app-icon"><div class="icon-box bg-red">📉</div><span class="app-label">Declines</span></a>'
-        
-        icons_html += '''
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-purple">&#128196;</div>
-            <span class="app-label">Documents</span>
-        </a>
-        <a href="#" class="app-icon coming-soon" onclick="return false;">
-            <div class="icon-box bg-teal">&#128197;</div>
-            <span class="app-label">Timetable</span>
-        </a>
-        '''
         
         return f'''
 <!DOCTYPE html>
