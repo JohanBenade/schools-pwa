@@ -1,7 +1,7 @@
 """
 Substitute Allocation Engine
 The magic that auto-assigns substitutes when a teacher reports sick.
-Updated: Multi-day support
+Updated: Multi-day support + absence checking
 """
 
 import uuid
@@ -81,13 +81,39 @@ def get_teacher_schedule(staff_id, cycle_day):
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
+def get_absent_staff_on_date(target_date):
+    """Get list of staff_ids who are absent on a specific date."""
+    if isinstance(target_date, date):
+        target_date_str = target_date.isoformat()
+    else:
+        target_date_str = target_date
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT staff_id 
+            FROM absence 
+            WHERE absence_date <= ? 
+              AND COALESCE(end_date, absence_date) >= ?
+              AND status != 'Cancelled'
+        """, (target_date_str, target_date_str))
+        return [row['staff_id'] for row in cursor.fetchall()]
+
+
+def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None, target_date=None):
     """
     Find all teachers who are FREE during a specific period.
-    Now includes room blocking: if teacher's home room is occupied, they can't sub.
-    Returns list sorted by surname (A-Z).
+    Now includes:
+    - Room blocking: if teacher's home room is occupied, they can't sub
+    - Absence checking: teachers who are out sick are excluded
+    Returns list sorted by first name (A-Z).
     """
     exclude_staff_ids = exclude_staff_ids or []
+    
+    # Get absent staff for this date
+    if target_date is None:
+        target_date = date.today()
+    absent_staff = get_absent_staff_on_date(target_date)
     
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -123,7 +149,7 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
         """, (TENANT_ID, cycle_day, period_id))
         occupied_rooms = {row['venue_id'] for row in cursor.fetchall()}
         
-        # Free = can substitute AND not teaching AND not excluded AND room not blocked
+        # Free = can substitute AND not teaching AND not excluded AND not absent AND room not blocked
         free_teachers = []
         for teacher in all_teachers:
             teacher_id = teacher['id']
@@ -134,6 +160,10 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None):
             
             # Skip if explicitly excluded
             if teacher_id in exclude_staff_ids:
+                continue
+            
+            # Skip if absent/sick
+            if teacher_id in absent_staff:
                 continue
             
             # Check room blocking (only for teachers with home rooms)
@@ -164,7 +194,7 @@ def get_teachers_assigned_on_date(target_date):
         return [row['substitute_id'] for row in cursor.fetchall()]
 
 
-def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname):
+def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname, target_date=None):
     """
     Find the next substitute using A-Z rotation.
     - Get free teachers for this period
@@ -173,7 +203,7 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     - If none found after pointer, wrap to 'A'
     """
     free_teachers = get_free_teachers_for_period(
-        period_id, cycle_day, exclude_staff_ids=already_assigned_today
+        period_id, cycle_day, exclude_staff_ids=already_assigned_today, target_date=target_date
     )
     
     if not free_teachers:
@@ -445,7 +475,7 @@ def process_absence(absence_id):
                     conn.commit()
                     
                     log_event(absence_id, 'allocated', adjacent_teacher['id'],
-                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - nearest available {adjacent_teacher['venue_code']}",
+                             f"[{target_date_str}] Mentor register {absence['mentor_class']} - nearest available {adjacent_teacher['venue_code']}",
                              request_id)
                     
                     day_result['roll_call'] = {
@@ -469,7 +499,7 @@ def process_absence(absence_id):
                     conn.commit()
                     
                     log_event(absence_id, 'allocated', kea_id,
-                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - assigned to Deputy (unmapped room {absence['venue_code']})",
+                             f"[{target_date_str}] Mentor register {absence['mentor_class']} - assigned to Deputy (unmapped room {absence['venue_code']})",
                              request_id)
                     
                     day_result['roll_call'] = {
@@ -496,9 +526,9 @@ def process_absence(absence_id):
                 
                 total_periods += 1
                 
-                # Find substitute
+                # Find substitute (now passes target_date for absence checking)
                 sub_teacher, new_pointer = get_next_substitute(
-                    slot['period_id'], cycle_day, already_assigned_today, pointer
+                    slot['period_id'], cycle_day, already_assigned_today, pointer, target_date=target_date
                 )
                 
                 if sub_teacher:
@@ -631,6 +661,9 @@ def reassign_declined_request(request_id, declined_by_id):
         assigned_today = get_teachers_assigned_on_date(target_date)
         assigned_today = set(assigned_today); assigned_today.discard(declined_by_id)  # Decliner is available again
         
+        # Get absent staff on this date
+        absent_staff = get_absent_staff_on_date(target_date)
+        
         # Get cycle day (default to 1 for now)
         cycle_day = get_cycle_day()  # Use current cycle day
         if False:  # cycle_day_config table not implemented yet
@@ -678,10 +711,15 @@ def reassign_declined_request(request_id, declined_by_id):
                   AND s.can_substitute = 1
                   AND s.id != ?
                   AND s.id != ?
+                  AND s.id NOT IN (
+                      SELECT staff_id FROM absence 
+                      WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
+                        AND status != 'Cancelled'
+                  )
                 ORDER BY 
                     CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
                     s.surname
-            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, pointer))
+            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date, pointer))
         
         candidates = [dict(row) for row in cursor.fetchall()]
         

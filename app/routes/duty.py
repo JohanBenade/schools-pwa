@@ -604,7 +604,7 @@ def decline_terrain_duty(duty_id):
             VALUES (?, ?, 'terrain', ?, ?, ?, ?, ?)
         """, (decline_id, TENANT_ID, staff_id, staff_name, duty_description, duty['duty_date'], reason or None))
         
-        # Find replacement: next eligible staff alphabetically who isn't on terrain THIS WEEK
+        # Find replacement: next eligible staff alphabetically who isn't on terrain THIS WEEK and not absent
         cursor.execute("""
             SELECT id, display_name, first_name
             FROM staff
@@ -615,9 +615,14 @@ def decline_terrain_duty(duty_id):
                     AND duty_date >= ? AND duty_date <= ?
                     AND duty_type = 'terrain'
               )
+              AND id NOT IN (
+                  SELECT staff_id FROM absence
+                  WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
+                    AND status != 'Cancelled'
+              )
             ORDER BY first_name ASC, surname ASC
             LIMIT 1
-        """, (TENANT_ID, TENANT_ID, week_monday.isoformat(), week_friday.isoformat()))
+        """, (TENANT_ID, TENANT_ID, week_monday.isoformat(), week_friday.isoformat(), duty['duty_date'], duty['duty_date']))
         replacement = cursor.fetchone()
         
         if replacement:
