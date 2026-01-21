@@ -549,8 +549,9 @@ def terrain_roster():
 
 @duty_bp.route('/terrain/decline/<duty_id>', methods=['POST'])
 def decline_terrain_duty(duty_id):
-    """Decline a terrain duty assignment."""
+    """Decline a terrain duty assignment with auto-reassign."""
     import uuid
+    from datetime import datetime, date, time
     
     staff_id = session.get('staff_id')
     if not staff_id:
@@ -576,6 +577,15 @@ def decline_terrain_duty(duty_id):
         if not duty:
             return redirect(return_to)
         
+        # Check cutoff: can't decline after 06:30 on duty day
+        duty_date = date.fromisoformat(duty['duty_date'])
+        now = datetime.now()
+        cutoff = datetime.combine(duty_date, time(6, 30))
+        
+        if now >= cutoff:
+            # Too late to decline - redirect back with no action
+            return redirect(return_to)
+        
         # Get staff name for audit
         cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
         staff_row = cursor.fetchone()
@@ -589,8 +599,31 @@ def decline_terrain_duty(duty_id):
             VALUES (?, ?, 'terrain', ?, ?, ?, ?, ?)
         """, (decline_id, TENANT_ID, staff_id, staff_name, duty_description, duty['duty_date'], reason or None))
         
-        # Delete the duty assignment
-        cursor.execute("DELETE FROM duty_roster WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+        # Find replacement: next eligible staff alphabetically who isn't on terrain that day
+        cursor.execute("""
+            SELECT id, display_name, first_name
+            FROM staff
+            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
+              AND id NOT IN (
+                  SELECT staff_id FROM duty_roster 
+                  WHERE tenant_id = ? AND duty_date = ? AND duty_type = 'terrain'
+              )
+            ORDER BY first_name ASC, surname ASC
+            LIMIT 1
+        """, (TENANT_ID, TENANT_ID, duty['duty_date']))
+        replacement = cursor.fetchone()
+        
+        if replacement:
+            # Reassign to replacement
+            cursor.execute("""
+                UPDATE duty_roster 
+                SET staff_id = ?
+                WHERE id = ? AND tenant_id = ?
+            """, (replacement['id'], duty_id, TENANT_ID))
+        else:
+            # No replacement available - delete the duty
+            cursor.execute("DELETE FROM duty_roster WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+        
         conn.commit()
     
     return redirect(return_to)
