@@ -202,33 +202,93 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
     return teacher, next_pointer
 
 
+# Room proximity map based on Maragon building layout
+# Each room maps to an ordered list of nearest rooms
+ROOM_PROXIMITY = {
+    # Ground Floor Row 1 (facing Peace Park)
+    'A005': ['A004', 'A006', 'A003', 'A007', 'A008'],
+    'A004': ['A005', 'A003', 'A006', 'A002', 'A007'],
+    'A003': ['A004', 'A002', 'A005', 'A001', 'A006'],
+    'A002': ['A003', 'A001', 'A004', 'B001', 'A005'],
+    'A001': ['A002', 'B001', 'A003', 'B002', 'A004'],
+    'B001': ['A001', 'B002', 'A002', 'B003', 'A003'],
+    'B002': ['B001', 'B003', 'A001', 'A002'],
+    'B003': ['B002', 'B001', 'A001'],
+    
+    # Ground Floor Row 2 (vertical near A005)
+    'A006': ['A005', 'A007', 'A004', 'A003', 'A008'],
+    'A007': ['A006', 'A005', 'A008', 'A004', 'A009'],
+    
+    # Ground Floor Row 3
+    'A008': ['A007', 'A009', 'A006', 'A010', 'A005'],
+    'A009': ['A008', 'A010', 'A007', 'A011', 'A006'],
+    'A010': ['A009', 'A011', 'A008', 'A012', 'A007'],
+    'A011': ['A010', 'A012', 'A009', 'A008'],
+    'A012': ['A011', 'A010', 'A009'],
+    
+    # First Floor Row 1
+    'A105': ['A104', 'A106', 'A103', 'A107', 'A005'],
+    'A104': ['A105', 'A103', 'A106', 'A102', 'A004'],
+    'A103': ['A104', 'A102', 'A105', 'A101', 'A003'],
+    'A102': ['A103', 'A101', 'A104', 'B101', 'A002'],
+    'A101': ['A102', 'B101', 'A103', 'B102', 'A001'],
+    'B101': ['A101', 'B102', 'A102', 'B103', 'B001'],
+    'B102': ['B101', 'B103', 'A101', 'B001', 'B002'],
+    'B103': ['B102', 'B101', 'A101', 'B003'],
+    
+    # First Floor Row 2 (corner)
+    'A106': ['A105', 'A107', 'A104', 'A108', 'A006'],
+    
+    # First Floor Row 3
+    'A107': ['A106', 'A108', 'A105', 'A109', 'A007'],
+    'A108': ['A107', 'A109', 'A106', 'A110', 'A008'],
+    'A109': ['A108', 'A110', 'A107', 'A111', 'A009'],
+    'A110': ['A109', 'A111', 'A108', 'A112', 'A010'],
+    'A111': ['A110', 'A112', 'A109', 'A108'],
+    'A112': ['A111', 'A110', 'A109'],
+    
+    # Admin Block / CAT venue
+    'A113': ['A118', 'A112', 'A111'],
+    
+    # Staffroom Wing
+    'A118': ['A119', 'A113', 'A120'],
+    'A119': ['A118', 'A120', 'A113', 'A121'],
+    'A120': ['A119', 'A121', 'A118', 'A113'],
+    'A121': ['A120', 'A119', 'A118'],
+}
+
+
 def get_adjacent_teacher(venue_code):
     """
-    Find teacher in adjacent classroom for mentor roll call.
-    Returns first teacher found in adjacent room.
+    Find teacher in nearest classroom for mentor roll call.
+    Uses building layout proximity map for accurate neighbor detection.
+    Returns first available teacher found in nearby rooms (ordered by proximity).
     """
-    if not venue_code or len(venue_code) < 4:
+    if not venue_code:
         return None
     
-    block = venue_code[0]
-    try:
-        room_num = int(venue_code[1:])
-    except ValueError:
-        return None
+    # Normalize venue code (uppercase)
+    venue_code = venue_code.upper()
     
-    # Check adjacent rooms in order: +1, -1, +2, -2
-    adjacent_offsets = [1, -1, 2, -2]
+    # Get ordered list of nearby rooms
+    nearby_rooms = ROOM_PROXIMITY.get(venue_code, [])
+    
+    if not nearby_rooms:
+        # Fallback for unmapped rooms: try simple +1/-1 logic
+        if len(venue_code) >= 4:
+            block = venue_code[0]
+            try:
+                room_num = int(venue_code[1:])
+                nearby_rooms = [f"{block}{room_num + 1:03d}", f"{block}{room_num - 1:03d}"]
+            except ValueError:
+                return None
+        else:
+            return None
     
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        for offset in adjacent_offsets:
-            adj_num = room_num + offset
-            if adj_num <= 0:
-                continue
-            
-            adj_code = f"{block}{adj_num:03d}"
-            
+        for adj_code in nearby_rooms:
             # Find teacher assigned to this room
             cursor.execute("""
                 SELECT s.id, s.display_name, s.surname, v.venue_code
@@ -243,6 +303,7 @@ def get_adjacent_teacher(venue_code):
                 return dict(row)
     
     return None
+
 
 
 def log_event(absence_id, event_type, staff_id=None, details=None, substitute_request_id=None):
@@ -384,7 +445,7 @@ def process_absence(absence_id):
                     conn.commit()
                     
                     log_event(absence_id, 'allocated', adjacent_teacher['id'],
-                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - adjacent room {adjacent_teacher['venue_code']}",
+                             f"[{target_date_str}] Mentor roll call {absence['mentor_class']} - nearest available {adjacent_teacher['venue_code']}",
                              request_id)
                     
                     day_result['roll_call'] = {
@@ -587,7 +648,7 @@ def reassign_declined_request(request_id, declined_by_id):
             """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date,
                   req['period_id'], cycle_day, pointer))
         else:
-            # Mentor duty - find adjacent room teacher or any available
+            # Mentor duty - find nearest available teacher or any available
             cursor.execute("""
                 SELECT s.id, s.surname, s.display_name
                 FROM staff s
