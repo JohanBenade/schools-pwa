@@ -770,3 +770,250 @@ def reassign_declined_request(request_id, declined_by_id):
             
             conn.commit()
             return None
+
+
+def get_eligible_terrain_staff(exclude_ids=None, target_date=None):
+    """
+    Get staff eligible for terrain duty, sorted by first name.
+    Excludes: already assigned terrain this week, absent staff, explicitly excluded.
+    """
+    exclude_ids = exclude_ids or []
+    
+    if target_date is None:
+        target_date = date.today()
+    elif isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, '%Y-%m-%d').date()
+    
+    # Get week boundaries (Mon-Fri of target date's week)
+    weekday = target_date.weekday()
+    monday = target_date - timedelta(days=weekday)
+    friday = monday + timedelta(days=4)
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get all staff who can do duty
+        cursor.execute("""
+            SELECT id, display_name, first_name, surname
+            FROM staff
+            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
+            ORDER BY first_name ASC, surname ASC
+        """, (TENANT_ID,))
+        all_staff = [dict(row) for row in cursor.fetchall()]
+        
+        # Get staff already assigned terrain this week
+        cursor.execute("""
+            SELECT DISTINCT staff_id 
+            FROM duty_roster 
+            WHERE tenant_id = ? AND duty_type = 'terrain'
+              AND duty_date >= ? AND duty_date <= ?
+        """, (TENANT_ID, monday.isoformat(), friday.isoformat()))
+        assigned_this_week = {row['staff_id'] for row in cursor.fetchall()}
+        
+        # Get absent staff
+        absent_staff = set(get_absent_staff_on_date(target_date))
+        
+        # Filter eligible
+        eligible = []
+        for staff in all_staff:
+            if staff['id'] in exclude_ids:
+                continue
+            if staff['id'] in assigned_this_week:
+                continue
+            if staff['id'] in absent_staff:
+                continue
+            eligible.append(staff)
+        
+        return eligible
+
+
+def reassign_terrain_duty(duty_id, original_staff_id):
+    """
+    Reassign a terrain duty to the next eligible teacher.
+    Returns the new assignee dict or None if no one available.
+    """
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get the duty details
+        cursor.execute("""
+            SELECT dr.*, ta.area_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.id = ?
+        """, (duty_id,))
+        duty = cursor.fetchone()
+        
+        if not duty:
+            return None
+        
+        duty = dict(duty)
+        target_date = duty['duty_date']
+        
+        # Get eligible staff (excluding original)
+        eligible = get_eligible_terrain_staff(
+            exclude_ids=[original_staff_id],
+            target_date=target_date
+        )
+        
+        if not eligible:
+            print(f"TERRAIN: No eligible staff to reassign duty {duty_id}")
+            return None
+        
+        # Pick first eligible (alphabetical by first name)
+        new_assignee = eligible[0]
+        
+        # Update the duty roster
+        cursor.execute("""
+            UPDATE duty_roster
+            SET staff_id = ?, updated_at = datetime('now')
+            WHERE id = ?
+        """, (new_assignee['id'], duty_id))
+        
+        # Log to duty_decline for audit trail
+        cursor.execute("""
+            INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason, declined_at)
+            VALUES (?, ?, 'terrain', ?, ?, ?, ?, 'absent', datetime('now'))
+        """, (
+            str(uuid.uuid4()),
+            TENANT_ID,
+            original_staff_id,
+            duty.get('staff_name', 'Unknown'),
+            f"Terrain: {duty.get('area_name', 'Unknown area')} - auto-reassigned due to absence",
+            target_date
+        ))
+        
+        conn.commit()
+        
+        print(f"TERRAIN: Reassigned {duty.get('area_name')} on {target_date} from {original_staff_id} to {new_assignee['display_name']}")
+        return new_assignee
+
+
+def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
+    """
+    Check if absent teacher has any duties and handle them:
+    1. Substitute assignments -> auto-reassign via existing function
+    2. Terrain duty -> auto-reassign to next eligible
+    3. Sport duty -> notify coordinator (Delene)
+    
+    Called after process_absence() in substitute.py
+    Returns dict with results.
+    """
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date is None:
+        end_date = start_date
+    elif isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    results = {
+        'substitute_reassigned': [],
+        'terrain_reassigned': [],
+        'sport_orphaned': [],
+        'errors': []
+    }
+    
+    # Get all dates in the absence range (weekdays only)
+    absence_dates = get_weekdays_between(start_date, end_date)
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get staff display name for logging
+        cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
+        staff_row = cursor.fetchone()
+        staff_name = staff_row['display_name'] if staff_row else 'Unknown'
+        
+        for target_date in absence_dates:
+            target_date_str = target_date.isoformat()
+            
+            # === 1. CHECK SUBSTITUTE ASSIGNMENTS ===
+            cursor.execute("""
+                SELECT sr.id, sr.period_id, p.period_name, a.staff_id as absent_teacher_id,
+                       s.display_name as absent_teacher_name
+                FROM substitute_request sr
+                JOIN absence a ON sr.absence_id = a.id
+                JOIN staff s ON a.staff_id = s.id
+                LEFT JOIN period p ON sr.period_id = p.id
+                WHERE sr.substitute_id = ? 
+                  AND sr.request_date = ?
+                  AND sr.status = 'Assigned'
+            """, (staff_id, target_date_str))
+            
+            sub_assignments = [dict(row) for row in cursor.fetchall()]
+            
+            for sub in sub_assignments:
+                # Use existing reassign function
+                new_sub = reassign_declined_request(sub['id'], staff_id)
+                if new_sub:
+                    results['substitute_reassigned'].append({
+                        'date': target_date_str,
+                        'period': sub.get('period_name', 'Roll Call'),
+                        'for_teacher': sub['absent_teacher_name'],
+                        'new_sub': new_sub['display_name']
+                    })
+                    print(f"SUB CLASH: {staff_name} was covering {sub['absent_teacher_name']} {sub.get('period_name', 'Roll Call')} on {target_date_str} -> reassigned to {new_sub['display_name']}")
+                else:
+                    results['errors'].append(f"No sub available for {sub.get('period_name', 'Roll Call')} on {target_date_str}")
+            
+            # === 2. CHECK TERRAIN DUTY ===
+            cursor.execute("""
+                SELECT dr.id, dr.duty_type, ta.area_name
+                FROM duty_roster dr
+                LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+                WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.duty_type IN ('terrain', 'homework')
+            """, (staff_id, target_date_str))
+            
+            terrain_duties = [dict(row) for row in cursor.fetchall()]
+            
+            for duty in terrain_duties:
+                new_assignee = reassign_terrain_duty(duty['id'], staff_id)
+                if new_assignee:
+                    results['terrain_reassigned'].append({
+                        'date': target_date_str,
+                        'duty_type': duty['duty_type'],
+                        'area': duty.get('area_name', 'Homework Venue'),
+                        'new_assignee': new_assignee['display_name']
+                    })
+                    print(f"TERRAIN CLASH: {staff_name} had {duty['duty_type']} on {target_date_str} -> reassigned to {new_assignee['display_name']}")
+                else:
+                    results['errors'].append(f"No one available for {duty['duty_type']} on {target_date_str}")
+            
+            # === 3. CHECK SPORT DUTY ===
+            cursor.execute("""
+                SELECT sd.id, sd.duty_type, sd.event_id, se.event_name, se.coordinator_id,
+                       c.display_name as coordinator_name
+                FROM sport_duty sd
+                JOIN sport_event se ON sd.event_id = se.id
+                LEFT JOIN staff c ON se.coordinator_id = c.id
+                WHERE sd.staff_id = ? AND se.event_date = ?
+            """, (staff_id, target_date_str))
+            
+            sport_duties = [dict(row) for row in cursor.fetchall()]
+            
+            for sport in sport_duties:
+                results['sport_orphaned'].append({
+                    'date': target_date_str,
+                    'event_name': sport['event_name'],
+                    'duty_type': sport['duty_type'],
+                    'coordinator_id': sport.get('coordinator_id'),
+                    'coordinator_name': sport.get('coordinator_name', 'Unassigned'),
+                    'sport_duty_id': sport['id']
+                })
+                print(f"SPORT CLASH: {staff_name} had sport duty ({sport['duty_type']}) for {sport['event_name']} on {target_date_str}")
+                
+                # Send push notification to coordinator
+                try:
+                    from app.routes.push import send_sport_duty_orphaned_push
+                    if sport.get('coordinator_id'):
+                        send_sport_duty_orphaned_push(
+                            coordinator_id=sport['coordinator_id'],
+                            event_name=sport['event_name'],
+                            duty_type=sport['duty_type'],
+                            absent_staff_name=staff_name,
+                            event_date=target_date_str
+                        )
+                except Exception as e:
+                    print(f"Sport push error: {e}")
+    
+    return results

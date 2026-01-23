@@ -479,3 +479,49 @@ def send_absence_reported_push(absent_teacher_name, date_str, period_count):
             success_count += 1
     
     return success_count
+
+
+def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_staff_name, event_date):
+    """
+    Send push to sport event coordinator when assigned staff reports absent.
+    Coordinator needs to manually reassign via coordination page.
+    """
+    print(f"PUSH DEBUG: send_sport_duty_orphaned_push for {event_name}")
+    access_token = get_access_token()
+    if not access_token:
+        print("PUSH DEBUG: No access token")
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, coordinator_id))
+        tokens = cursor.fetchall()
+    
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens for coordinator")
+    if not tokens:
+        return 0
+    
+    # Format date for display
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(event_date, '%Y-%m-%d')
+        date_display = dt.strftime('%a %d %b')
+    except:
+        date_display = event_date
+    
+    title = f"⚠️ Sport Duty Gap: {event_name}"
+    body = f"{absent_staff_name} ({duty_type}) is absent on {date_display}. Please reassign."
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'sport_duty_gap', 'link': '/sport/coordination'}
+        ):
+            print(f"PUSH DEBUG: Sport duty gap notification sent to coordinator")
+            success_count += 1
+    
+    return success_count

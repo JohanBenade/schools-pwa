@@ -148,6 +148,14 @@ def report_absence():
     
     results = process_absence(absence_id)
     
+    # Handle duty clashes - reassign duties where absent teacher was assigned
+    try:
+        from app.services.substitute_engine import handle_absent_teacher_duties
+        duty_clash_results = handle_absent_teacher_duties(staff_id, start_date, end_date)
+        print(f"Duty clash handling: {duty_clash_results}")
+    except Exception as e:
+        print(f"Duty clash handling error: {e}")
+    
     # Send push notification to principal (Pierre)
     try:
         from app.routes.push import send_absence_reported_push
