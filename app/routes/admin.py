@@ -1383,3 +1383,50 @@ def migrate_duty_decline():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_duty_decline_type ON duty_decline(duty_type)")
         conn.commit()
     return "duty_decline table created successfully"
+
+
+@admin_bp.route('/add-junior-janine')
+def add_junior_janine():
+    """Add Junior (Office) and Janine (Management) user sessions."""
+    import uuid
+    
+    results = {'added': [], 'errors': []}
+    
+    users_to_add = [
+        {'surname': 'Letsoalo', 'first_name': 'Junior', 'magic_code': 'junior', 'role': 'teacher', 'display': 'Mr Junior'},
+        {'surname': 'Willemse', 'first_name': 'Janine', 'magic_code': 'janine', 'role': 'deputy', 'display': 'Ms Janine'},
+    ]
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for user in users_to_add:
+            cursor.execute(
+                "SELECT id, display_name FROM staff WHERE surname = ? AND first_name = ? AND tenant_id = 'MARAGON'",
+                (user['surname'], user['first_name'])
+            )
+            staff = cursor.fetchone()
+            
+            if not staff:
+                results['errors'].append(f"{user['first_name']} {user['surname']} not found in staff")
+                continue
+            
+            cursor.execute("SELECT id FROM user_session WHERE magic_code = ?", (user['magic_code'],))
+            if cursor.fetchone():
+                results['errors'].append(f"{user['magic_code']} already exists")
+                continue
+            
+            cursor.execute("""
+                INSERT INTO user_session (id, tenant_id, staff_id, magic_code, display_name, role, can_resolve)
+                VALUES (?, 'MARAGON', ?, ?, ?, ?, ?)
+            """, (str(uuid.uuid4()), staff['id'], user['magic_code'], user['display'], user['role'], 1 if user['role'] == 'deputy' else 0))
+            
+            results['added'].append({
+                'name': user['display'],
+                'role': user['role'],
+                'link': f"https://schoolops.co.za/?u={user['magic_code']}"
+            })
+        
+        conn.commit()
+    
+    return jsonify(results)
