@@ -458,59 +458,61 @@ def process_absence(absence_id):
             # Get teachers already assigned on this specific date
             already_assigned_today = get_teachers_assigned_on_date(target_date)
             
-            # === MENTOR ROLL CALL (only first day for simplicity) ===
+            # === MENTOR ROLL CALL ===
             if absence['mentor_group_id']:
-                adjacent_teacher = get_adjacent_teacher(absence['venue_code'])
+                # New logic: Grade Backup -> Grade Head -> No Cover
+                cover = get_mentor_register_cover(absence['mentor_group_id'], target_date)
                 
-                if adjacent_teacher:
+                if cover:
                     request_id = str(uuid.uuid4())
                     cursor.execute("""
                         INSERT INTO substitute_request
                         (id, tenant_id, absence_id, period_id, substitute_id, status,
                          is_mentor_duty, mentor_group_id, class_name, venue_name, assigned_at, request_date)
                         VALUES (?, ?, ?, ?, ?, 'Assigned', 1, ?, ?, ?, ?, ?)
-                    """, (request_id, TENANT_ID, absence_id, None, adjacent_teacher['id'],
+                    """, (request_id, TENANT_ID, absence_id, None, cover['staff_id'],
                           absence['mentor_group_id'], absence['mentor_class'],
                           absence['venue_code'], datetime.now().isoformat(), target_date_str))
                     conn.commit()
                     
-                    log_event(absence_id, 'allocated', adjacent_teacher['id'],
-                             f"[{target_date_str}] Mentor register {absence['mentor_class']} - nearest available {adjacent_teacher['venue_code']}",
+                    fallback_note = f" ({cover['fallback_level']})" if cover['fallback_level'] == 'grade_head' else ""
+                    log_event(absence_id, 'allocated', cover['staff_id'],
+                             f"[{target_date_str}] Mentor register {absence['mentor_class']} -> {cover['display_name']}{fallback_note}",
                              request_id)
                     
                     day_result['roll_call'] = {
-                        'substitute': adjacent_teacher['display_name'],
-                        'venue': adjacent_teacher['venue_code'],
-                        'mentor_class': absence['mentor_class'],
-                        'request_id': request_id
-                    }
-                else:
-                    # Fallback to Deputy (Kea) for unmapped rooms
-                    kea_id = '0f9674b4-2cdf-438b-b960-48bfedd4be61'
-                    request_id = str(uuid.uuid4())
-                    cursor.execute("""
-                        INSERT INTO substitute_request
-                        (id, tenant_id, absence_id, period_id, substitute_id, status,
-                         is_mentor_duty, mentor_group_id, class_name, venue_name, assigned_at, request_date)
-                        VALUES (?, ?, ?, ?, ?, 'Assigned', 1, ?, ?, ?, ?, ?)
-                    """, (request_id, TENANT_ID, absence_id, None, kea_id,
-                          absence['mentor_group_id'], absence['mentor_class'],
-                          absence['venue_code'], datetime.now().isoformat(), target_date_str))
-                    conn.commit()
-                    
-                    log_event(absence_id, 'allocated', kea_id,
-                             f"[{target_date_str}] Mentor register {absence['mentor_class']} - assigned to Deputy (unmapped room {absence['venue_code']})",
-                             request_id)
-                    
-                    day_result['roll_call'] = {
-                        'substitute': 'Ms Kea',
+                        'substitute': cover['display_name'],
                         'venue': absence['venue_code'],
                         'mentor_class': absence['mentor_class'],
                         'request_id': request_id,
-                        'note': 'Deputy assigned - unmapped room'
+                        'fallback_level': cover['fallback_level']
+                    }
+                else:
+                    # No cover available - create Pending request for manual assignment
+                    request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         is_mentor_duty, mentor_group_id, class_name, venue_name, request_date)
+                        VALUES (?, ?, ?, ?, NULL, 'Pending', 1, ?, ?, ?, ?)
+                    """, (request_id, TENANT_ID, absence_id, None,
+                          absence['mentor_group_id'], absence['mentor_class'],
+                          absence['venue_code'], target_date_str))
+                    conn.commit()
+                    
+                    log_event(absence_id, 'no_cover', None,
+                             f"[{target_date_str}] Mentor register {absence['mentor_class']} - no cover (backup & head absent)",
+                             request_id)
+                    
+                    day_result['roll_call'] = {
+                        'substitute': None,
+                        'venue': absence['venue_code'],
+                        'mentor_class': absence['mentor_class'],
+                        'request_id': request_id,
+                        'status': 'no_cover'
                     }
             
-            # === TEACHING PERIODS ===
+                        # === TEACHING PERIODS ===
             schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
             
             for slot in schedule:
@@ -1017,3 +1019,72 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
                     print(f"Sport push error: {e}")
     
     return results
+
+
+def get_mentor_register_cover(mentor_group_id, target_date=None):
+    """
+    Get the teacher to cover mentor register for an absent mentor.
+    New logic (Jan 2026):
+    1. Grade Backup Teacher
+    2. Grade Head (if backup absent)
+    3. None (flag for manual assignment at 07:15 meeting)
+    
+    Returns dict with 'staff_id', 'display_name', 'fallback_level' or None
+    """
+    if target_date is None:
+        target_date = date.today()
+    
+    absent_staff = set(get_absent_staff_on_date(target_date))
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get grade_id from mentor_group
+        cursor.execute("""
+            SELECT grade_id FROM mentor_group WHERE id = ?
+        """, (mentor_group_id,))
+        mg_row = cursor.fetchone()
+        
+        if not mg_row or not mg_row['grade_id']:
+            print(f"MENTOR COVER: No grade found for mentor_group {mentor_group_id}")
+            return None
+        
+        grade_id = mg_row['grade_id']
+        
+        # Get backup config for this grade
+        cursor.execute("""
+            SELECT gbc.backup_staff_id, gbc.grade_head_staff_id,
+                   b.display_name as backup_name,
+                   h.display_name as head_name
+            FROM grade_backup_config gbc
+            JOIN staff b ON gbc.backup_staff_id = b.id
+            JOIN staff h ON gbc.grade_head_staff_id = h.id
+            WHERE gbc.grade_id = ?
+        """, (grade_id,))
+        config = cursor.fetchone()
+        
+        if not config:
+            print(f"MENTOR COVER: No backup config for grade {grade_id}")
+            return None
+        
+        # Try backup teacher first
+        if config['backup_staff_id'] not in absent_staff:
+            print(f"MENTOR COVER: Using backup {config['backup_name']}")
+            return {
+                'staff_id': config['backup_staff_id'],
+                'display_name': config['backup_name'],
+                'fallback_level': 'backup'
+            }
+        
+        # Try grade head
+        if config['grade_head_staff_id'] not in absent_staff:
+            print(f"MENTOR COVER: Backup absent, using grade head {config['head_name']}")
+            return {
+                'staff_id': config['grade_head_staff_id'],
+                'display_name': config['head_name'],
+                'fallback_level': 'grade_head'
+            }
+        
+        # Both absent - no cover available
+        print(f"MENTOR COVER: Both backup ({config['backup_name']}) and head ({config['head_name']}) absent")
+        return None

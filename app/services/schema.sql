@@ -573,3 +573,18 @@ CREATE TABLE IF NOT EXISTS duty_decline (
 CREATE INDEX IF NOT EXISTS idx_duty_decline_tenant ON duty_decline(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_duty_decline_date ON duty_decline(duty_date);
 CREATE INDEX IF NOT EXISTS idx_duty_decline_type ON duty_decline(duty_type);
+
+-- ============================================
+-- MIGRATION 007: Grade Backup Config (Jan 2026)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS grade_backup_config (
+    grade_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    backup_staff_id TEXT NOT NULL,
+    grade_head_staff_id TEXT NOT NULL,
+    created_at TEXT
+);
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (7, 'Grade backup teachers for mentor register coverage');
