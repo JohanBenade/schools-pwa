@@ -219,9 +219,9 @@ def my_day():
         """, (staff_id,))
         mentor_row = cursor.fetchone()
 
-        # Check if this teacher is absent on target date (get id for coverage lookup)
+        # Check if this teacher is absent on target date
         cursor.execute("""
-            SELECT id, absence_type, status FROM absence
+            SELECT absence_type, status FROM absence
             WHERE staff_id = ? AND tenant_id = ?
             AND absence_date <= ? AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
             AND status IN ('Reported', 'Covered', 'Partial')
@@ -230,63 +230,33 @@ def my_day():
         absence_row = cursor.fetchone()
         is_absent = absence_row is not None
         absence_type = absence_row['absence_type'] if absence_row else None
-        absence_id = absence_row['id'] if absence_row else None
-        
-        # If absent, get coverage info for this teacher's classes
-        coverage_by_period = {}
-        mentor_coverage = None
-        if is_absent and absence_id:
-            cursor.execute("""
-                SELECT sr.*, p.period_number, p.period_name, s.display_name as substitute_name
-                FROM substitute_request sr
-                LEFT JOIN period p ON sr.period_id = p.id
-                LEFT JOIN staff s ON sr.substitute_id = s.id
-                WHERE sr.absence_id = ? AND sr.request_date = ?
-                ORDER BY sr.is_mentor_duty DESC, p.sort_order
-            """, (absence_id, target_date_str))
-            for row in cursor.fetchall():
-                if row['is_mentor_duty']:
-                    mentor_coverage = {
-                        'substitute_name': row['substitute_name'],
-                        'status': row['status']
-                    }
-                elif row['period_number']:
-                    coverage_by_period[row['period_number']] = {
-                        'substitute_name': row['substitute_name'],
-                        'status': row['status'],
-                        'class_name': row['class_name'],
-                        'subject': row['subject']
-                    }
-        
         mentor_group = dict(mentor_row) if mentor_row else None
         
         schedule = []
         
-        # Sport duties at top (only show if not absent)
-        if not is_absent:
-            for sport in sport_duties:
-                schedule.append({
-                    'slot_type': 'sport',
-                    'slot_name': sport['event_name'],
-                    'start_time': sport['event_start'] or '08:00',
-                    'end_time': sport['event_end'],
-                    'content': f"{sport['duty_type']}" + (f": {sport['notes']}" if sport.get('notes') else ''),
-                    'badge': sport['sport_type'],
-                    'badge_color': 'teal',
-                    'is_duty': False,
-                    'is_sub': False,
-                    'is_free': False,
-                    'is_free_occupied': False,
-                    'room_occupant': None,
-                    'is_sport': True,
-                    'request_id': None,
-                    'event_id': sport['event_id'],
-                    'sport_duty_id': sport['id'],
-                    'affects_timetable': sport['affects_timetable']
-                })
+        # Sport duties at top
+        for sport in sport_duties:
+            schedule.append({
+                'slot_type': 'sport',
+                'slot_name': sport['event_name'],
+                'start_time': sport['event_start'] or '08:00',
+                'end_time': sport['event_end'],
+                'content': f"{sport['duty_type']}" + (f": {sport['notes']}" if sport.get('notes') else ''),
+                'badge': sport['sport_type'],
+                'badge_color': 'teal',
+                'is_duty': False,
+                'is_sub': False,
+                'is_free': False,
+                'is_free_occupied': False,
+                'room_occupant': None,
+                'is_sport': True,
+                'request_id': None,
+                'event_id': sport['event_id'],
+                'sport_duty_id': sport['id'],
+                'affects_timetable': sport['affects_timetable']
+            })
         
-        # Morning terrain duty (only show if not absent)
-        if terrain_duty and not is_absent:
+        if terrain_duty:
             schedule.append({
                 'slot_type': 'duty',
                 'slot_name': 'Morning Duty',
@@ -320,35 +290,11 @@ def my_day():
                 'is_free_occupied': False,
                 'room_occupant': None,
                 'is_sport': False,
-                'request_id': None,
-                'is_covered': False,
-                'is_no_cover': False
+                'request_id': None
             }
             
             if slot['slot_type'] == 'register':
-                if is_absent:
-                    # Show coverage for absent teacher's register
-                    if mentor_coverage:
-                        if mentor_coverage['substitute_name']:
-                            item['content'] = f"Covered by {mentor_coverage['substitute_name']}"
-                            item['badge'] = 'COVERED'
-                            item['badge_color'] = 'green'
-                            item['is_covered'] = True
-                        else:
-                            item['content'] = "No cover assigned"
-                            item['badge'] = 'PENDING'
-                            item['badge_color'] = 'red'
-                            item['is_no_cover'] = True
-                    elif mentor_group:
-                        # Has mentor group but no coverage record yet
-                        item['content'] = "No cover assigned"
-                        item['badge'] = 'PENDING'
-                        item['badge_color'] = 'red'
-                        item['is_no_cover'] = True
-                    else:
-                        # Not a mentor teacher
-                        item['content'] = "Register"
-                elif mentor_sub:
+                if mentor_sub:
                     item['content'] = f"Covering for {mentor_sub['absent_teacher']}" + (f" • {mentor_sub['venue_name']}" if mentor_sub.get('venue_name') else "")
                     item['badge'] = 'SUB'
                     item['badge_color'] = 'orange'
@@ -365,35 +311,7 @@ def my_day():
             elif slot['slot_type'] == 'period':
                 p_num = slot['slot_number']
                 
-                if is_absent:
-                    # Show coverage for absent teacher's periods
-                    if p_num and p_num in coverage_by_period:
-                        cov = coverage_by_period[p_num]
-                        if cov['substitute_name']:
-                            class_info = f"{cov.get('class_name', '')} {cov.get('subject', '')}".strip()
-                            item['content'] = f"Covered by {cov['substitute_name']}" + (f" • {class_info}" if class_info else "")
-                            item['badge'] = 'COVERED'
-                            item['badge_color'] = 'green'
-                            item['is_covered'] = True
-                        else:
-                            class_info = f"{cov.get('class_name', '')} {cov.get('subject', '')}".strip()
-                            item['content'] = "No cover assigned" + (f" • {class_info}" if class_info else "")
-                            item['badge'] = 'PENDING'
-                            item['badge_color'] = 'red'
-                            item['is_no_cover'] = True
-                    elif p_num and p_num in teaching_slots:
-                        # Has teaching but no coverage record
-                        ts = teaching_slots[p_num]
-                        class_info = f"{ts.get('class_name', '')} {ts.get('subject', '')}".strip()
-                        item['content'] = "No cover assigned" + (f" • {class_info}" if class_info else "")
-                        item['badge'] = 'PENDING'
-                        item['badge_color'] = 'red'
-                        item['is_no_cover'] = True
-                    else:
-                        # Free period - no coverage needed
-                        item['content'] = "Free"
-                        item['is_free'] = True
-                elif p_num and p_num in sub_by_period:
+                if p_num and p_num in sub_by_period:
                     # Sub duty takes priority
                     sub = sub_by_period[p_num]
                     venue = sub.get('venue_name') or 'TBC'
@@ -418,9 +336,7 @@ def my_day():
                         item['is_free'] = True
             
             elif slot['slot_type'] == 'break':
-                if is_absent:
-                    item['content'] = "Break"
-                elif terrain_duty:
+                if terrain_duty:
                     item['content'] = f"Terrain: {terrain_duty['area_name']}"
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'blue'
@@ -429,9 +345,7 @@ def my_day():
                     item['content'] = "Break"
             
             elif slot['slot_type'] == 'study':
-                if is_absent:
-                    item['content'] = slot['slot_name']
-                elif homework_duty:
+                if homework_duty:
                     item['content'] = "Homework Venue"
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'purple'
@@ -476,6 +390,7 @@ def my_day():
                           viewing_name=viewing_name)
 
 
+@duty_bp.route('/terrain')
 @duty_bp.route('/terrain')
 def terrain_roster():
     """Weekly terrain duty roster - shows all staff assignments."""
