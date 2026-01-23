@@ -167,7 +167,9 @@ CREATE TABLE IF NOT EXISTS staff (
     can_substitute INTEGER DEFAULT 0,
     can_do_duty INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
-    synced_at TEXT
+    synced_at TEXT,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT
 );
 
 CREATE TABLE IF NOT EXISTS learner (
@@ -179,7 +181,9 @@ CREATE TABLE IF NOT EXISTS learner (
     mentor_group_id TEXT,
     house_id TEXT,
     is_active INTEGER DEFAULT 1,
-    synced_at TEXT
+    synced_at TEXT,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT
 );
 
 CREATE TABLE IF NOT EXISTS mentor_group (
@@ -189,7 +193,9 @@ CREATE TABLE IF NOT EXISTS mentor_group (
     mentor_id TEXT,
     grade_id TEXT,
     venue_id TEXT,
-    synced_at TEXT
+    synced_at TEXT,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT
 );
 
 CREATE TABLE IF NOT EXISTS grade (
@@ -199,7 +205,9 @@ CREATE TABLE IF NOT EXISTS grade (
     grade_code TEXT,
     grade_number INTEGER,
     sort_order INTEGER,
-    synced_at TEXT
+    synced_at TEXT,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_learner_mentor_group ON learner(mentor_group_id);
