@@ -888,6 +888,18 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         conn.commit()
         
         print(f"TERRAIN: Reassigned {duty.get('area_name')} on {target_date} from {original_staff_id} to {new_assignee['display_name']}")
+        
+        # Send push notification to new assignee
+        try:
+            from app.routes.push import send_terrain_reassigned_push
+            send_terrain_reassigned_push(
+                staff_id=new_assignee['id'],
+                area_name=duty.get('area_name', 'Terrain'),
+                duty_date=target_date
+            )
+        except Exception as e:
+            print(f"Terrain push error: {e}")
+        
         return new_assignee
 
 

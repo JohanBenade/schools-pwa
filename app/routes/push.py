@@ -525,3 +525,48 @@ def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_
             success_count += 1
     
     return success_count
+
+
+def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence'):
+    """
+    Send push to teacher when assigned terrain duty due to reassignment.
+    """
+    print(f"PUSH DEBUG: send_terrain_reassigned_push for {staff_id}")
+    access_token = get_access_token()
+    if not access_token:
+        print("PUSH DEBUG: No access token")
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, staff_id))
+        tokens = cursor.fetchall()
+    
+    print(f"PUSH DEBUG: Found {len(tokens)} tokens for terrain assignee")
+    if not tokens:
+        return 0
+    
+    # Format date for display
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(duty_date, '%Y-%m-%d')
+        date_display = dt.strftime('%a %d %b')
+    except:
+        date_display = duty_date
+    
+    title = f"🗺️ Terrain Duty Assigned"
+    body = f"{area_name} on {date_display} (reassigned)"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'terrain_assigned', 'link': '/duty/my-day'}
+        ):
+            print(f"PUSH DEBUG: Terrain reassigned notification sent")
+            success_count += 1
+    
+    return success_count
