@@ -237,7 +237,7 @@ def my_day():
         mentor_coverage = None
         if is_absent and absence_id:
             cursor.execute("""
-                SELECT sr.*, p.period_number, p.period_name, s.display_name as substitute_name
+                SELECT sr.*, p.period_number, p.period_name, s.display_name as substitute_name, sr.venue_name
                 FROM substitute_request sr
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN staff s ON sr.substitute_id = s.id
@@ -255,7 +255,8 @@ def my_day():
                         'substitute_name': row['substitute_name'],
                         'status': row['status'],
                         'class_name': row['class_name'],
-                        'subject': row['subject']
+                        'subject': row['subject'],
+                        'venue_name': row['venue_name']
                     }
         
         mentor_group = dict(mentor_row) if mentor_row else None
@@ -371,7 +372,8 @@ def my_day():
                         cov = coverage_by_period[p_num]
                         if cov['substitute_name']:
                             class_info = f"{cov.get('class_name', '')} {cov.get('subject', '')}".strip()
-                            item['content'] = f"Covered by {cov['substitute_name']}" + (f" • {class_info}" if class_info else "")
+                            venue_info = f" → {cov['venue_name']}" if cov.get('venue_name') else ""
+                            item['content'] = f"Covered by {cov['substitute_name']}" + (f" • {class_info}" if class_info else "") + venue_info
                             item['badge'] = 'COVERED'
                             item['badge_color'] = 'green'
                             item['is_covered'] = True
