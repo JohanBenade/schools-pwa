@@ -167,6 +167,8 @@ CREATE TABLE IF NOT EXISTS staff (
     can_substitute INTEGER DEFAULT 0,
     can_do_duty INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT,
     synced_at TEXT,
     is_subject_head INTEGER DEFAULT 0,
     subject_head_of TEXT
@@ -181,6 +183,8 @@ CREATE TABLE IF NOT EXISTS learner (
     mentor_group_id TEXT,
     house_id TEXT,
     is_active INTEGER DEFAULT 1,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT,
     synced_at TEXT,
     is_subject_head INTEGER DEFAULT 0,
     subject_head_of TEXT
@@ -244,6 +248,8 @@ CREATE TABLE IF NOT EXISTS venue (
     block TEXT,                 -- A_Ground, A_First, A_Admin, B, C, D, Outdoor
     sort_order INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -477,6 +483,8 @@ CREATE TABLE IF NOT EXISTS terrain_area (
     area_name TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
     is_active INTEGER DEFAULT 1,
+    is_subject_head INTEGER DEFAULT 0,
+    subject_head_of TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
