@@ -212,9 +212,10 @@ def my_day():
         sport_duties = [dict(row) for row in cursor.fetchall()]
         
         cursor.execute("""
-            SELECT mg.group_name, g.grade_name
+            SELECT mg.group_name, g.grade_name, v.venue_code as mentor_venue
             FROM mentor_group mg
             LEFT JOIN grade g ON mg.grade_id = g.id
+            LEFT JOIN venue v ON mg.venue_id = v.id
             WHERE mg.mentor_id = ?
         """, (staff_id,))
         mentor_row = cursor.fetchone()
@@ -356,7 +357,8 @@ def my_day():
                     item['is_sub'] = True
                     item['request_id'] = mentor_sub['id']
                 elif mentor_group:
-                    item['content'] = mentor_group['group_name']
+                    venue_suffix = f" → {mentor_group['mentor_venue']}" if mentor_group.get('mentor_venue') else ""
+                    item['content'] = f"{mentor_group['group_name']}{venue_suffix}"
                 else:
                     item['content'] = "Register"
             
