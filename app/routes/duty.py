@@ -332,7 +332,8 @@ def my_day():
                     # Show coverage for absent teacher's register
                     if mentor_coverage:
                         if mentor_coverage['substitute_name']:
-                            item['content'] = f"Covered by {mentor_coverage['substitute_name']}"
+                            venue_suffix = f" → {mentor_group['mentor_venue']}" if mentor_group and mentor_group.get('mentor_venue') else ""
+                            item['content'] = f"Covered by {mentor_coverage['substitute_name']}{venue_suffix}"
                             item['badge'] = 'COVERED'
                             item['badge_color'] = 'green'
                             item['is_covered'] = True
