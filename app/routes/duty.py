@@ -189,11 +189,14 @@ def my_day():
         
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   s.display_name as absent_teacher, sr.venue_name, a.absence_type as absence_reason
+                   s.display_name as absent_teacher, sr.venue_name, a.absence_type as absence_reason,
+                   v_mg.venue_code as absent_mentor_venue
             FROM substitute_request sr
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
+            LEFT JOIN mentor_group mg ON mg.mentor_id = a.staff_id
+            LEFT JOIN venue v_mg ON mg.venue_id = v_mg.id
             WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
             ORDER BY sr.is_mentor_duty DESC, p.sort_order
         """, (staff_id, target_date_str))
@@ -352,7 +355,8 @@ def my_day():
                         # Not a mentor teacher
                         item['content'] = "Register"
                 elif mentor_sub:
-                    item['content'] = f"Covering for {mentor_sub['absent_teacher']}" + (f" • {mentor_sub['venue_name']}" if mentor_sub.get('venue_name') else "")
+                    venue_info = mentor_sub.get('venue_name') or mentor_sub.get('absent_mentor_venue')
+                    item['content'] = f"Covering for {mentor_sub['absent_teacher']}" + (f" • {venue_info}" if venue_info else "")
                     item['badge'] = 'SUB'
                     item['badge_color'] = 'orange'
                     item['is_sub'] = True
