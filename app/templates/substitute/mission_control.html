@@ -94,7 +94,7 @@
                 {% if absence.requests %}
                     {% for req_date, reqs in absence.requests|groupby('request_date') %}
                     <div class="date-section">
-                        <div class="date-label">📅 {{ req_date }}</div>
+                        <div class="date-label">📅 {{ req_date }}{% if reqs[0].cycle_day %} • D{{ reqs[0].cycle_day }}{% endif %}</div>
                         <div class="period-list">
                             {% for req in reqs %}
                             <span class="period-chip {{ 'assigned' if req.substitute_id else 'pending' }}">

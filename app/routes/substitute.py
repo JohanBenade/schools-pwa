@@ -290,10 +290,11 @@ def absence_status(absence_id):
         
         cursor.execute("""
             SELECT sr.*, p.period_name, p.period_number, p.start_time, p.end_time,
-                   sub.display_name as substitute_name
+                   sub.display_name as substitute_name, sc.cycle_day
             FROM substitute_request sr
             LEFT JOIN period p ON sr.period_id = p.id
             LEFT JOIN staff sub ON sr.substitute_id = sub.id
+                LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
             WHERE sr.absence_id = ?
             ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
         """, (absence_id,))
@@ -377,10 +378,11 @@ def mission_control():
             placeholders = ','.join(['?' for _ in filter_dates])
             cursor.execute(f"""
                 SELECT sr.*, p.period_name, p.period_number,
-                       sub.display_name as substitute_name
+                       sub.display_name as substitute_name, sc.cycle_day
                 FROM substitute_request sr
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN staff sub ON sr.substitute_id = sub.id
+                LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
                 WHERE sr.absence_id = ?
                   AND sr.request_date IN ({placeholders})
                 ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
