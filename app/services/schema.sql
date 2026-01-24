@@ -167,8 +167,6 @@ CREATE TABLE IF NOT EXISTS staff (
     can_substitute INTEGER DEFAULT 0,
     can_do_duty INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
-    is_subject_head INTEGER DEFAULT 0,
-    subject_head_of TEXT,
     synced_at TEXT,
     is_subject_head INTEGER DEFAULT 0,
     subject_head_of TEXT
