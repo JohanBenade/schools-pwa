@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Absent - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 4px; }
+        .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
+        
+        /* Search Section */
+        .search-section { margin-bottom: 20px; }
+        .search-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            outline: none;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.5); }
+        .search-input:focus { border-color: #f97316; background: rgba(255,255,255,0.15); }
+        
+        .staff-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+        .staff-list.hidden { display: none; }
+        .staff-option {
+            padding: 14px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.2s;
+        }
+        .staff-option:hover { background: rgba(255,255,255,0.1); }
+        .staff-option.hidden { display: none; }
+        .staff-option:last-child { border-bottom: none; }
+        .staff-name { font-weight: 500; }
+        .staff-role { font-size: 12px; opacity: 0.6; }
+        
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            opacity: 0.6;
+            display: none;
+        }
+        .no-results.show { display: block; }
+        
+        /* Selected State */
+        .selected-staff {
+            display: none;
+            background: #f97316;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 12px;
+        }
+        .selected-staff.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .selected-staff .clear {
+            cursor: pointer;
+            opacity: 0.8;
+            font-size: 18px;
+        }
+        .selected-staff .clear:hover { opacity: 1; }
+        
+        /* Form Section */
+        .form-section {
+            display: none;
+            margin-top: 24px;
+        }
+        .form-section.show { display: block; }
+        
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .form-group select, .form-group input[type="date"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .form-group select option { background: #1e293b; color: white; }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #f97316;
+        }
+        .date-row {
+            display: flex;
+            gap: 12px;
+        }
+        .date-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .date-row small { color: rgba(255,255,255,0.5); font-size: 12px; }
+        
+        .radio-group { display: flex; gap: 12px; }
+        .radio-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .radio-option:has(input:checked) {
+            border-color: #f97316;
+            background: rgba(249,115,22,0.2);
+        }
+        .radio-option input[type="radio"] { display: none; }
+        .radio-option span { font-size: 14px; }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: rgba(249,115,22,0.2);
+            border: 1px solid #f97316;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✋ Mark Absent</h1>
+            <p>Select a teacher and report their absence</p>
+        </div>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <input type="text" class="search-input" id="staffSearch" placeholder="Search by name..." autocomplete="off" autofocus>
+            
+            <div class="staff-list" id="staffList">
+                {% for staff in all_staff %}
+                <div class="staff-option" data-id="{{ staff.id }}" data-name="{{ staff.display_name }}" data-firstname="{{ staff.sort_name|lower }}">
+                    <div class="staff-name">{{ staff.display_name }}</div>
+                    <div class="staff-role">{{ staff.role or 'Teacher' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="no-results" id="noResults">No staff match your search</div>
+            
+            <div class="selected-staff" id="selectedStaff">
+                <span id="selectedName"></span>
+                <span class="clear" onclick="clearSelection()">✕</span>
+            </div>
+        </div>
+        
+        <!-- Form Section (hidden until staff selected) -->
+        <div class="form-section" id="formSection">
+            <div class="card">
+                <div class="info-box">
+                    ⚡ Substitutes will be assigned automatically and notified.
+                </div>
+                
+                <form method="POST" action="{{ url_for('substitute.mark_absent_submit') }}" id="absenceForm">
+                    <input type="hidden" name="staff_id" id="staffIdInput">
+                    
+                    <div class="form-group">
+                        <label>Dates</label>
+                        <div class="date-row">
+                            <div class="form-group">
+                                <input type="date" name="start_date" id="startDate" value="{{ today }}" min="{{ today }}" required>
+                                <small>Start</small>
+                            </div>
+                            <div class="form-group">
+                                <input type="date" name="end_date" id="endDate" value="{{ today }}" min="{{ today }}">
+                                <small>End</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Reason</label>
+                        <select name="absence_type" required>
+                            <option value="Sick">Sick</option>
+                            <option value="Personal">Personal</option>
+                            <option value="School_Duty">School Duty</option>
+                            <option value="Training">Training</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="is_full_day" value="1" checked>
+                                <span>Full Day</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="is_full_day" value="0">
+                                <span>Partial Day</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">
+                        🚀 Report & Find Substitutes
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <a href="/" class="back-link">← Cancel</a>
+    </div>
+    
+    <script>
+        const searchInput = document.getElementById('staffSearch');
+        const staffList = document.getElementById('staffList');
+        const staffOptions = document.querySelectorAll('.staff-option');
+        const noResults = document.getElementById('noResults');
+        const selectedStaff = document.getElementById('selectedStaff');
+        const selectedName = document.getElementById('selectedName');
+        const staffIdInput = document.getElementById('staffIdInput');
+        const formSection = document.getElementById('formSection');
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        
+        // Filter as user types
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            staffList.classList.remove('hidden');
+            let visibleCount = 0;
+            
+            staffOptions.forEach(opt => {
+                const firstname = opt.dataset.firstname;
+                if (query === '' || firstname.startsWith(query)) {
+                    opt.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    opt.classList.add('hidden');
+                }
+            });
+            
+            noResults.classList.toggle('show', visibleCount === 0 && query !== '');
+        });
+        
+        // Show list on focus
+        searchInput.addEventListener('focus', function() {
+            if (!selectedStaff.classList.contains('show')) {
+                staffList.classList.remove('hidden');
+            }
+        });
+        
+        // Select staff on click
+        staffOptions.forEach(opt => {
+            opt.addEventListener('click', function() {
+                staffIdInput.value = this.dataset.id;
+                selectedName.textContent = this.dataset.name;
+                selectedStaff.classList.add('show');
+                staffList.classList.add('hidden');
+                searchInput.style.display = 'none';
+                formSection.classList.add('show');
+            });
+        });
+        
+        // Clear selection
+        function clearSelection() {
+            staffIdInput.value = '';
+            selectedStaff.classList.remove('show');
+            searchInput.style.display = '';
+            searchInput.value = '';
+            searchInput.focus();
+            formSection.classList.remove('show');
+        }
+        
+        // Sync end date min with start date
+        startDate.addEventListener('change', function() {
+            endDate.min = this.value;
+            if (endDate.value < this.value) {
+                endDate.value = this.value;
+            }
+        });
+    </script>
+</body>
+</html>

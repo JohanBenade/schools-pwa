@@ -651,3 +651,62 @@ def sub_duties():
                           days_count=days_count,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
+
+
+@substitute_bp.route('/mark-absent')
+def mark_absent():
+    """Management/Office: Search and mark a teacher absent."""
+    # Check permission - only management and office
+    role = session.get('role')
+    if role not in ['principal', 'deputy', 'office', 'admin']:
+        return redirect('/')
+    
+    # Get all teaching staff for search
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, display_name, role,
+                   LOWER(SUBSTR(display_name, INSTR(display_name, ' ') + 1)) as sort_name
+            FROM staff
+            WHERE tenant_id = ? AND is_active = 1
+            ORDER BY display_name
+        """, (TENANT_ID,))
+        all_staff = [dict(row) for row in cursor.fetchall()]
+    
+    return render_template('substitute/mark_absent.html',
+                          all_staff=all_staff,
+                          today=date.today().isoformat())
+
+
+@substitute_bp.route('/mark-absent/submit', methods=['POST'])
+def mark_absent_submit():
+    """Process absence reported by management/office."""
+    # Check permission
+    role = session.get('role')
+    if role not in ['principal', 'deputy', 'office', 'admin']:
+        return redirect('/')
+    
+    staff_id = request.form.get('staff_id')
+    if not staff_id:
+        return redirect('/substitute/mark-absent')
+    
+    absence_type = request.form.get('absence_type', 'Sick')
+    start_date = request.form.get('start_date', date.today().isoformat())
+    end_date = request.form.get('end_date', start_date)
+    is_full_day = request.form.get('is_full_day', '1') == '1'
+    
+    # Create absence using existing function
+    absence_id = create_absence_multiday(
+        staff_id=staff_id,
+        start_date=start_date,
+        end_date=end_date,
+        is_open_ended=False,
+        absence_type=absence_type,
+        reason=f"Reported by {session.get('display_name', 'Office')}",
+        is_full_day=is_full_day
+    )
+    
+    # Process and assign substitutes
+    results = process_absence(absence_id)
+    
+    return redirect('/substitute/mission-control')
