@@ -665,7 +665,7 @@ def mark_absent():
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, display_name, role,
+            SELECT id, display_name,
                    LOWER(SUBSTR(display_name, INSTR(display_name, ' ') + 1)) as sort_name
             FROM staff
             WHERE tenant_id = ? AND is_active = 1
