@@ -445,6 +445,7 @@ def my_day():
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'purple'
                     item['is_duty'] = True
+                    item['homework_duty_id'] = homework_duty['id']
                 else:
                     item['content'] = slot['slot_name']
             
@@ -732,4 +733,78 @@ def decline_terrain_duty(duty_id):
         
         conn.commit()
     
+    return redirect(return_to)
+
+@duty_bp.route('/homework/decline/<duty_id>', methods=["POST"])
+def decline_homework_duty(duty_id):
+    """Decline a homework duty assignment with auto-reassign."""
+    import uuid
+    from datetime import datetime, date, time, timedelta
+
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+
+    reason = request.form.get('reason', '').strip()
+    return_to = request.form.get('return_to', '/duty/my-day')
+
+    TENANT_ID = "MARAGON"
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM duty_roster
+            WHERE id = ? AND staff_id = ? AND tenant_id = ? AND duty_type = 'homework'
+        """, (duty_id, staff_id, TENANT_ID))
+        duty = cursor.fetchone()
+
+        if not duty:
+            return redirect(return_to)
+
+        duty_date = date.fromisoformat(duty['duty_date'])
+        now = datetime.now()
+        cutoff = datetime.combine(duty_date, time(6, 30))
+
+        if now >= cutoff:
+            return redirect(return_to)
+
+        cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
+        staff_row = cursor.fetchone()
+        staff_name = staff_row['display_name'] if staff_row else 'Unknown'
+
+        decline_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason)
+            VALUES (?, ?, 'homework', ?, ?, 'Homework Venue', ?, ?)
+        """, (decline_id, TENANT_ID, staff_id, staff_name, duty['duty_date'], reason or None))
+
+        cursor.execute("""
+            SELECT id, display_name, first_name
+            FROM staff
+            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
+              AND id != ?
+              AND id NOT IN (
+                  SELECT staff_id FROM duty_roster
+                  WHERE tenant_id = ? AND duty_date = ?
+              )
+              AND id NOT IN (
+                  SELECT staff_id FROM absence
+                  WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
+                    AND status != 'Cancelled'
+              )
+            ORDER BY first_name ASC
+            LIMIT 1
+        """, (TENANT_ID, staff_id, TENANT_ID, duty['duty_date'], duty['duty_date'], duty['duty_date']))
+        replacement = cursor.fetchone()
+
+        if replacement:
+            cursor.execute("""
+                UPDATE duty_roster SET staff_id = ? WHERE id = ? AND tenant_id = ?
+            """, (replacement['id'], duty_id, TENANT_ID))
+        else:
+            cursor.execute("DELETE FROM duty_roster WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
+
+        conn.commit()
+
     return redirect(return_to)

@@ -241,6 +241,18 @@
                 {% endif %}
                 {% if not viewing_other %}<button class="decline-btn" onclick="openDecline('{{ slot.terrain_duty_id }}', 'terrain', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>{% endif %}
             </div>
+            {% elif slot.is_duty and slot.homework_duty_id %}
+            <div class="slot is-duty">
+                <div class="slot-time">{{ slot.start_time }}</div>
+                <div class="slot-content">
+                    <div class="slot-name">{{ slot.slot_name }}</div>
+                    <div class="slot-detail">{{ slot.content }}</div>
+                </div>
+                {% if slot.badge %}
+                <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
+                {% endif %}
+                {% if not viewing_other %}<button class="decline-btn" onclick="openDecline('{{ slot.homework_duty_id }}', 'homework', '{{ slot.slot_name }}', '{{ slot.content }}')">✕ Decline</button>{% endif %}
+            </div>
             {% else %}
             <div class="slot {% if slot.is_duty %}is-duty{% endif %} {% if slot.is_sub %}is-sub{% endif %} {% if slot.is_free %}is-free{% endif %} {% if slot.is_free_occupied %}is-free-occupied{% endif %} {% if slot.slot_type == 'break' and not slot.is_duty %}is-break{% endif %}">
                 <div class="slot-time">{{ slot.start_time }}</div>
@@ -296,6 +308,8 @@
                 document.getElementById('declineForm').action = '/sport/decline/' + dutyId;
             } else if (dutyType === 'terrain') {
                 document.getElementById('declineForm').action = '/duty/terrain/decline/' + dutyId;
+            } else if (dutyType === 'homework') {
+                document.getElementById('declineForm').action = '/duty/homework/decline/' + dutyId;
             }
             document.getElementById('declineModal').classList.add('active');
         }
