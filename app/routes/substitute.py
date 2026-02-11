@@ -709,4 +709,12 @@ def mark_absent_submit():
     # Process and assign substitutes
     results = process_absence(absence_id)
     
+    # Handle duty clashes - reassign duties where absent teacher was assigned
+    try:
+        from app.services.substitute_engine import handle_absent_teacher_duties
+        duty_clash_results = handle_absent_teacher_duties(staff_id, start_date, end_date)
+        print(f"Management mark-absent duty clash handling: {duty_clash_results}")
+    except Exception as e:
+        print(f"Management mark-absent duty clash error: {e}")
+    
     return redirect('/substitute/mission-control')

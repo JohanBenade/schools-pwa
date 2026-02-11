@@ -862,8 +862,11 @@ def reassign_terrain_duty(duty_id, original_staff_id):
             print(f"TERRAIN: No eligible staff to reassign duty {duty_id}")
             return None
         
-        # Pick first eligible (alphabetical by first name)
-        new_assignee = eligible[0]
+        # Pick first eligible - ASC for terrain, DESC for homework
+        if duty['duty_type'] == 'homework':
+            new_assignee = eligible[-1]  # Last in ASC list = first in DESC
+        else:
+            new_assignee = eligible[0]
         
         # Update the duty roster
         cursor.execute("""
