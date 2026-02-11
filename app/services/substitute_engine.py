@@ -864,19 +864,40 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         
         # Pick replacement based on rotation direction
         if duty['duty_type'] == 'homework':
-            # Homework rotates DESC (Z→A) - find next after absent teacher
-            cursor.execute("SELECT first_name FROM staff WHERE id = ?", (staff_id,))
+            # Homework rotates DESC (Z->A) - find next after original teacher
+            cursor.execute("SELECT first_name FROM staff WHERE id = ?", (original_staff_id,))
             staff_row = cursor.fetchone()
-            absent_name = staff_row['first_name'].lower() if staff_row else ''
-            # Sort DESC for homework
-            eligible_desc = sorted(eligible, key=lambda x: x['first_name'].lower(), reverse=True)
+            original_name = staff_row['first_name'].lower() if staff_row else ''
+            
+            # Exclude anyone already on homework this week
+            if isinstance(target_date, str):
+                from datetime import datetime as dt
+                target_d = dt.strptime(target_date, '%Y-%m-%d').date()
+            else:
+                target_d = target_date
+            wd = target_d.weekday()
+            mon = target_d - timedelta(days=wd)
+            fri = mon + timedelta(days=4)
+            cursor.execute("""
+                SELECT DISTINCT staff_id FROM duty_roster
+                WHERE tenant_id = ? AND duty_type = 'homework'
+                  AND duty_date >= ? AND duty_date <= ?
+            """, (TENANT_ID, mon.isoformat(), fri.isoformat()))
+            hw_this_week = {row['staff_id'] for row in cursor.fetchall()}
+            
+            eligible_hw = [e for e in eligible if e['id'] not in hw_this_week]
+            if not eligible_hw:
+                eligible_hw = eligible  # Fallback if all excluded
+            
+            # Sort DESC and find next after original teacher (toward A)
+            eligible_desc = sorted(eligible_hw, key=lambda x: x['first_name'].lower(), reverse=True)
             chosen = None
             for e in eligible_desc:
-                if e['first_name'].lower() < absent_name:
+                if e['first_name'].lower() < original_name:
                     chosen = e
                     break
             if not chosen:
-                chosen = eligible_desc[0]  # Wrap to Z
+                chosen = eligible_desc[0]  # Wrap to Z (start of DESC)
             new_assignee = chosen
         else:
             new_assignee = eligible[0]
@@ -889,15 +910,22 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         """, (new_assignee['id'], duty_id))
         
         # Log to duty_decline for audit trail
+        # Look up staff name (duty_roster doesn't have it)
+        cursor.execute("SELECT display_name FROM staff WHERE id = ?", (original_staff_id,))
+        orig_staff_row = cursor.fetchone()
+        orig_staff_name = orig_staff_row['display_name'] if orig_staff_row else 'Unknown'
+        
+        area_label = duty.get('area_name', 'Homework Venue') if duty['duty_type'] == 'terrain' else 'Homework Venue'
         cursor.execute("""
             INSERT INTO duty_decline (id, tenant_id, duty_type, staff_id, staff_name, duty_description, duty_date, reason, declined_at)
-            VALUES (?, ?, 'terrain', ?, ?, ?, ?, 'absent', datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'absent', datetime('now'))
         """, (
             str(uuid.uuid4()),
             TENANT_ID,
+            duty['duty_type'],
             original_staff_id,
-            duty.get('staff_name', 'Unknown'),
-            f"Terrain: {duty.get('area_name', 'Unknown area')} - auto-reassigned due to absence",
+            orig_staff_name,
+            f"{area_label} - auto-reassigned due to absence",
             target_date
         ))
         
