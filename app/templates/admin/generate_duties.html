@@ -31,12 +31,12 @@
             display: inline-block; padding: 14px 24px; border-radius: 12px;
             font-size: 16px; font-weight: 600; border: none; cursor: pointer;
             text-decoration: none; text-align: center; width: 100%;
-            transition: transform 0.1s, opacity 0.2s;
+            transition: transform 0.1s, opacity 0.2s; color: white;
         }
         .btn:active { transform: scale(0.97); }
-        .btn-preview { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white; }
-        .btn-confirm { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; margin-top: 12px; }
-        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; margin-top: 12px; }
+        .btn-preview { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); }
+        .btn-confirm { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); margin-top: 12px; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); margin-top: 12px; }
 
         #preview-area { margin-top: 24px; }
 
@@ -72,32 +72,34 @@
         .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Confirmation Modal */
+        /* Styled Modal */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.7); z-index: 200;
             justify-content: center; align-items: center; padding: 20px;
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
         }
         .modal-overlay.show { display: flex; }
         .modal-box {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
-            padding: 28px 24px; max-width: 360px; width: 100%; text-align: center;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+            padding: 32px 24px; max-width: 340px; width: 100%; text-align: center;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             animation: modal-in 0.25s ease-out;
         }
-        @keyframes modal-in { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .modal-icon { font-size: 40px; margin-bottom: 12px; }
+        @keyframes modal-in { 0% { transform: scale(0.9) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .modal-icon { font-size: 44px; margin-bottom: 16px; }
         .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-        .modal-detail { font-size: 14px; opacity: 0.6; margin-bottom: 24px; }
+        .modal-detail { font-size: 13px; opacity: 0.5; margin-bottom: 28px; line-height: 1.4; }
         .modal-actions { display: flex; gap: 12px; }
         .modal-btn {
-            flex: 1; padding: 12px; border-radius: 10px; font-size: 15px;
+            flex: 1; padding: 14px; border-radius: 12px; font-size: 15px;
             font-weight: 600; border: none; cursor: pointer; transition: transform 0.1s;
         }
         .modal-btn:active { transform: scale(0.96); }
-        .modal-btn-cancel { background: rgba(255,255,255,0.1); color: white; }
+        .modal-btn-cancel { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
         .modal-btn-go { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
+        .modal-btn-warn { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
     </style>
 </head>
 <body>
@@ -132,56 +134,55 @@
     <!-- Confirmation Modal -->
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box">
-            <div class="modal-icon">📋</div>
-            <div class="modal-title" id="modalTitle">Generate Duties?</div>
+            <div class="modal-icon" id="modalIcon">📋</div>
+            <div class="modal-title" id="modalTitle"></div>
             <div class="modal-detail" id="modalDetail"></div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
-                <button class="modal-btn modal-btn-go" id="modalConfirmBtn">Generate</button>
+                <button class="modal-btn" id="modalConfirmBtn">Confirm</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Modal functions
-        function showConfirmModal(count, startDate, endDate, action) {
+        function showGenerateModal(count, startDate, endDate) {
+            document.getElementById('modalIcon').textContent = '📋';
             document.getElementById('modalTitle').textContent = 'Generate ' + count + ' Duties?';
-            document.getElementById('modalDetail').textContent = 'This will create terrain and homework assignments for the selected dates.';
-            document.getElementById('confirmModal').classList.add('show');
-
-            const confirmBtn = document.getElementById('modalConfirmBtn');
-            confirmBtn.onclick = function() {
+            document.getElementById('modalDetail').textContent = 'Terrain and homework duty assignments will be created for the selected dates.';
+            var btn = document.getElementById('modalConfirmBtn');
+            btn.textContent = 'Generate';
+            btn.className = 'modal-btn modal-btn-go';
+            btn.onclick = function() {
                 closeModal();
-                // Trigger HTMX request
-                htmx.ajax('POST', action, {
+                htmx.ajax('POST', '/admin/terrain/generate/confirm', {
                     target: '#preview-area',
                     values: { start_date: startDate, end_date: endDate }
                 });
             };
+            document.getElementById('confirmModal').classList.add('show');
         }
 
         function showClearModal(startDate, endDate) {
+            document.getElementById('modalIcon').textContent = '⚠️';
             document.getElementById('modalTitle').textContent = 'Clear & Regenerate?';
-            document.getElementById('modalDetail').textContent = 'This will remove existing duties for the selected dates and generate new ones.';
-            document.getElementById('confirmModal').classList.add('show');
-            document.getElementById('modalConfirmBtn').textContent = 'Clear & Regenerate';
-
-            const confirmBtn = document.getElementById('modalConfirmBtn');
-            confirmBtn.onclick = function() {
+            document.getElementById('modalDetail').textContent = 'Existing duties will be removed, pointers reset, and a fresh roster generated.';
+            var btn = document.getElementById('modalConfirmBtn');
+            btn.textContent = 'Clear & Regenerate';
+            btn.className = 'modal-btn modal-btn-warn';
+            btn.onclick = function() {
                 closeModal();
-                confirmBtn.textContent = 'Generate';
                 htmx.ajax('POST', '/admin/terrain/generate/clear', {
                     target: '#preview-area',
                     values: { start_date: startDate, end_date: endDate }
                 });
             };
+            document.getElementById('confirmModal').classList.add('show');
         }
 
         function closeModal() {
             document.getElementById('confirmModal').classList.remove('show');
         }
 
-        // Close modal on overlay click
         document.getElementById('confirmModal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
         });

@@ -330,7 +330,7 @@ def generate_duties(start_date: date, end_date: date) -> Dict:
 
 
 def clear_duties_in_range(start_date: date, end_date: date) -> Dict:
-    """Clear all duties in a date range."""
+    """Clear all duties in a date range and reset pointers to 0."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -338,5 +338,13 @@ def clear_duties_in_range(start_date: date, end_date: date) -> Dict:
             WHERE tenant_id = ? AND duty_date >= ? AND duty_date <= ?
         """, (TENANT_ID, start_date.isoformat(), end_date.isoformat()))
         deleted = cursor.rowcount
+        # Reset pointers so regeneration starts fresh
+        cursor.execute("""
+            UPDATE terrain_config
+            SET pointer_index = 0, homework_pointer_index = 0,
+                pointer_updated_at = datetime('now'), homework_pointer_updated_at = datetime('now'),
+                updated_at = datetime('now')
+            WHERE tenant_id = ?
+        """, (TENANT_ID,))
         conn.commit()
         return {'success': True, 'deleted': deleted}

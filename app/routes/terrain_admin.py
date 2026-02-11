@@ -15,13 +15,11 @@ TENANT_ID = "MARAGON"
 def _get_default_dates():
     """Calculate default start/end dates for generation."""
     today = date.today()
-    weekday = today.weekday()  # 0=Mon, 6=Sun
+    weekday = today.weekday()
 
-    # Find this week's Monday and next week's Friday
     this_monday = today - timedelta(days=weekday)
-    next_friday = this_monday + timedelta(days=11)  # This Mon + 11 = next Fri
+    next_friday = this_monday + timedelta(days=11)
 
-    # Get dates that already have duties
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -31,9 +29,8 @@ def _get_default_dates():
         """, (TENANT_ID, today.isoformat()))
         existing_dates = {row['duty_date'] for row in cursor.fetchall()}
 
-    # Find first date without duties (starting from today or next Monday if weekend)
-    if weekday >= 5:  # Weekend
-        search_start = this_monday + timedelta(days=7)  # Next Monday
+    if weekday >= 5:
+        search_start = this_monday + timedelta(days=7)
     else:
         search_start = today
 
@@ -48,18 +45,15 @@ def _get_default_dates():
     if not default_start:
         default_start = search_start
 
-    # End date: Friday of the week containing default_start, or next Friday
     start_weekday = default_start.weekday()
     days_to_friday = 4 - start_weekday
     if days_to_friday < 0:
         days_to_friday += 7
     default_end = default_start + timedelta(days=days_to_friday)
 
-    # Cap at next Friday
     if default_end > next_friday:
         default_end = next_friday
 
-    # Min/max for date pickers
     min_date = today if weekday < 5 else this_monday + timedelta(days=7)
     max_date = next_friday
 
@@ -121,18 +115,17 @@ def generate_preview():
 
     # Build preview HTML
     days = result['days']
+    total = result['total_count']
     html = f'''
     <div class="preview-summary">
         <div class="summary-text">
-            {result["terrain_count"]} terrain + {result["homework_count"]} homework = {result["total_count"]} assignments
+            {result["terrain_count"]} terrain + {result["homework_count"]} homework = {total} assignments
         </div>
     </div>
     <div class="preview-grid">'''
 
     for day in days:
         d = day['date']
-        day_label = day.get('day_name', day['weekday'].capitalize())
-        # Format date nicely
         try:
             from datetime import datetime
             dt = datetime.strptime(d, '%Y-%m-%d')
@@ -142,11 +135,9 @@ def generate_preview():
 
         html += f'<div class="preview-day"><div class="day-header">{date_display}</div>'
 
-        # Terrain assignments
         for t in day['terrain']:
             html += f'<div class="preview-row terrain-row"><span class="area-badge">{t["area_name"]}</span> {t["display_name"]}</div>'
 
-        # Homework
         if day['homework']:
             html += f'<div class="preview-row homework-row"><span class="area-badge hw-badge">Homework</span> {day["homework"]}</div>'
         elif day['weekday'].lower() != 'friday':
@@ -158,8 +149,8 @@ def generate_preview():
     </div>
     <div class="preview-actions">
         <button class="btn btn-confirm"
-                onclick="showConfirmModal({result['total_count']}, '{start_str}', '{end_str}', '/admin/terrain/generate/confirm')">
-            Generate {result['total_count']} Duties
+                onclick="showGenerateModal({total}, '{start_str}', '{end_str}')">
+            Generate {total} Duties
         </button>
     </div>'''
 
@@ -206,7 +197,7 @@ def generate_confirm():
 
 @terrain_admin_bp.route('/generate/clear', methods=['POST'])
 def generate_clear():
-    """Clear duties in range and return preview via HTMX."""
+    """Clear duties in range, reset pointers, and return preview via HTMX."""
     staff_id = session.get('staff_id')
     if not staff_id:
         return '<div class="error-msg">Not authenticated</div>', 401
@@ -222,21 +213,19 @@ def generate_clear():
 
     clear_result = clear_duties_in_range(start_date, end_date)
 
-    # Now return preview
     result = preview_duties(start_date, end_date)
 
     if result.get('error') and result['error'] != 'duties_exist':
         return f'<div class="error-msg">{result["error"]}</div>'
 
-    # Cleared message + preview
-    cleared_msg = f'<div class="cleared-msg">Cleared {clear_result["deleted"]} existing duties</div>'
-
-    # Reuse preview logic
     days = result.get('days', [])
-    html = cleared_msg + f'''
+    total = result.get('total_count', 0)
+
+    html = f'<div class="cleared-msg">Cleared {clear_result["deleted"]} duties &amp; reset pointers</div>'
+    html += f'''
     <div class="preview-summary">
         <div class="summary-text">
-            {result.get("terrain_count", 0)} terrain + {result.get("homework_count", 0)} homework = {result.get("total_count", 0)} assignments
+            {result.get("terrain_count", 0)} terrain + {result.get("homework_count", 0)} homework = {total} assignments
         </div>
     </div>
     <div class="preview-grid">'''
@@ -261,11 +250,8 @@ def generate_clear():
     </div>
     <div class="preview-actions">
         <button class="btn btn-confirm"
-                hx-post="/admin/terrain/generate/confirm"
-                hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
-                hx-target="#preview-area"
-                hx-confirm="Generate {result.get('total_count', 0)} duty assignments?">
-            Generate {result.get('total_count', 0)} Duties
+                onclick="showGenerateModal({total}, '{start_str}', '{end_str}')">
+            Generate {total} Duties
         </button>
     </div>'''
 
