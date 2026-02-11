@@ -793,7 +793,7 @@ def decline_homework_duty(duty_id):
                   WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
                     AND status != 'Cancelled'
               )
-            ORDER BY first_name ASC
+            ORDER BY first_name DESC
             LIMIT 1
         """, (TENANT_ID, staff_id, TENANT_ID, duty['duty_date'], duty['duty_date'], duty['duty_date']))
         replacement = cursor.fetchone()
