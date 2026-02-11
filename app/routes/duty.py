@@ -779,11 +779,18 @@ def decline_homework_duty(duty_id):
             VALUES (?, ?, 'homework', ?, ?, 'Homework Venue', ?, ?)
         """, (decline_id, TENANT_ID, staff_id, staff_name, duty['duty_date'], reason or None))
 
+        # Get decliner's first_name for rotation position
+        cursor.execute("SELECT first_name FROM staff WHERE id = ?", (staff_id,))
+        decliner_row = cursor.fetchone()
+        decliner_name = decliner_row['first_name'] if decliner_row else ''
+
+        # Find next person in DESC (Z->A) rotation after decliner
         cursor.execute("""
             SELECT id, display_name, first_name
             FROM staff
             WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
               AND id != ?
+              AND first_name < ?
               AND id NOT IN (
                   SELECT staff_id FROM duty_roster
                   WHERE tenant_id = ? AND duty_date = ?
@@ -795,8 +802,29 @@ def decline_homework_duty(duty_id):
               )
             ORDER BY first_name DESC
             LIMIT 1
-        """, (TENANT_ID, staff_id, TENANT_ID, duty['duty_date'], duty['duty_date'], duty['duty_date']))
+        """, (TENANT_ID, staff_id, decliner_name, TENANT_ID, duty['duty_date'], duty['duty_date'], duty['duty_date']))
         replacement = cursor.fetchone()
+
+        # Wrap around to Z if no one found below decliner
+        if not replacement:
+            cursor.execute("""
+                SELECT id, display_name, first_name
+                FROM staff
+                WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
+                  AND id != ?
+                  AND id NOT IN (
+                      SELECT staff_id FROM duty_roster
+                      WHERE tenant_id = ? AND duty_date = ?
+                  )
+                  AND id NOT IN (
+                      SELECT staff_id FROM absence
+                      WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
+                        AND status != 'Cancelled'
+                  )
+                ORDER BY first_name DESC
+                LIMIT 1
+            """, (TENANT_ID, staff_id, TENANT_ID, duty['duty_date'], duty['duty_date'], duty['duty_date']))
+            replacement = cursor.fetchone()
 
         if replacement:
             cursor.execute("""
