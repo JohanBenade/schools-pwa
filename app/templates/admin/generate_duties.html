@@ -14,7 +14,6 @@
         .top-bar-title { font-size: 17px; font-weight: 600; }
 
         .page-content { max-width: 500px; margin: 0 auto; padding-top: 20px; }
-
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
 
         .form-group { margin-bottom: 16px; }
@@ -26,7 +25,6 @@
             -webkit-appearance: none; appearance: none;
         }
         .form-group input[type="date"]:focus { border-color: #a855f7; outline: none; }
-        /* Fix date picker icon color on webkit */
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
 
         .btn {
@@ -73,6 +71,33 @@
 
         .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Confirmation Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 200;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+            padding: 28px 24px; max-width: 360px; width: 100%; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: modal-in 0.25s ease-out;
+        }
+        @keyframes modal-in { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-icon { font-size: 40px; margin-bottom: 12px; }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .modal-detail { font-size: 14px; opacity: 0.6; margin-bottom: 24px; }
+        .modal-actions { display: flex; gap: 12px; }
+        .modal-btn {
+            flex: 1; padding: 12px; border-radius: 10px; font-size: 15px;
+            font-weight: 600; border: none; cursor: pointer; transition: transform 0.1s;
+        }
+        .modal-btn:active { transform: scale(0.96); }
+        .modal-btn-cancel { background: rgba(255,255,255,0.1); color: white; }
+        .modal-btn-go { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
     </style>
 </head>
 <body>
@@ -87,11 +112,11 @@
         <form hx-post="/admin/terrain/generate/preview" hx-target="#preview-area" hx-indicator="#loading">
             <div class="form-group">
                 <label>Start Date</label>
-                <input type="date" name="start_date" value="{{ default_start }}" min="{{ min_date }}" max="{{ max_date }}" required>
+                <input type="date" name="start_date" id="startDate" value="{{ default_start }}" min="{{ min_date }}" max="{{ max_date }}" required>
             </div>
             <div class="form-group">
                 <label>End Date</label>
-                <input type="date" name="end_date" value="{{ default_end }}" min="{{ min_date }}" max="{{ max_date }}" required>
+                <input type="date" name="end_date" id="endDate" value="{{ default_end }}" min="{{ min_date }}" max="{{ max_date }}" required>
             </div>
             <button type="submit" class="btn btn-preview">Preview</button>
         </form>
@@ -103,5 +128,63 @@
 
         <div id="preview-area"></div>
     </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <div class="modal-icon">📋</div>
+            <div class="modal-title" id="modalTitle">Generate Duties?</div>
+            <div class="modal-detail" id="modalDetail"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn modal-btn-go" id="modalConfirmBtn">Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal functions
+        function showConfirmModal(count, startDate, endDate, action) {
+            document.getElementById('modalTitle').textContent = 'Generate ' + count + ' Duties?';
+            document.getElementById('modalDetail').textContent = 'This will create terrain and homework assignments for the selected dates.';
+            document.getElementById('confirmModal').classList.add('show');
+
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+            confirmBtn.onclick = function() {
+                closeModal();
+                // Trigger HTMX request
+                htmx.ajax('POST', action, {
+                    target: '#preview-area',
+                    values: { start_date: startDate, end_date: endDate }
+                });
+            };
+        }
+
+        function showClearModal(startDate, endDate) {
+            document.getElementById('modalTitle').textContent = 'Clear & Regenerate?';
+            document.getElementById('modalDetail').textContent = 'This will remove existing duties for the selected dates and generate new ones.';
+            document.getElementById('confirmModal').classList.add('show');
+            document.getElementById('modalConfirmBtn').textContent = 'Clear & Regenerate';
+
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+            confirmBtn.onclick = function() {
+                closeModal();
+                confirmBtn.textContent = 'Generate';
+                htmx.ajax('POST', '/admin/terrain/generate/clear', {
+                    target: '#preview-area',
+                    values: { start_date: startDate, end_date: endDate }
+                });
+            };
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('confirmModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
 </body>
 </html>

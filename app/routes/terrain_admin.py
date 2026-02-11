@@ -110,11 +110,8 @@ def generate_preview():
         return f'''
         <div class="error-msg">
             <p>Duties already exist for: {dates_list}</p>
-            <button class="btn btn-warning" 
-                    hx-post="/admin/terrain/generate/clear"
-                    hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
-                    hx-target="#preview-area"
-                    hx-confirm="Clear all duties from {start_str} to {end_str} and regenerate?">
+            <button class="btn btn-warning"
+                    onclick="showClearModal('{start_str}', '{end_str}')">
                 Clear these dates and regenerate
             </button>
         </div>'''
@@ -161,10 +158,7 @@ def generate_preview():
     </div>
     <div class="preview-actions">
         <button class="btn btn-confirm"
-                hx-post="/admin/terrain/generate/confirm"
-                hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
-                hx-target="#preview-area"
-                hx-confirm="Generate {result['total_count']} duty assignments?">
+                onclick="showConfirmModal({result['total_count']}, '{start_str}', '{end_str}', '/admin/terrain/generate/confirm')">
             Generate {result['total_count']} Duties
         </button>
     </div>'''
