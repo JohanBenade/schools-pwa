@@ -1,278 +1,296 @@
 """
-Terrain duty generation - admin routes
+Terrain duty admin routes - generation UI and reset
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, render_template, request, session, redirect
 from datetime import date, timedelta
 from app.services.db import get_connection
-import uuid
+from app.services.duty_generator import preview_duties, generate_duties, clear_duties_in_range
 
 terrain_admin_bp = Blueprint('terrain_admin', __name__, url_prefix='/admin/terrain')
 
 TENANT_ID = "MARAGON"
 
 
-@terrain_admin_bp.route('/generate-week')
-def generate_week():
-    """Generate terrain + homework duties for current week (Mon-Fri)."""
-    
-    results = {'cleared': 0, 'terrain': [], 'homework': [], 'staff': [], 'errors': []}
-    
+def _get_default_dates():
+    """Calculate default start/end dates for generation."""
+    today = date.today()
+    weekday = today.weekday()  # 0=Mon, 6=Sun
+
+    # Find this week's Monday and next week's Friday
+    this_monday = today - timedelta(days=weekday)
+    next_friday = this_monday + timedelta(days=11)  # This Mon + 11 = next Fri
+
+    # Get dates that already have duties
     with get_connection() as conn:
         cursor = conn.cursor()
-        
-        # Step 1: Clear existing duties
-        cursor.execute("DELETE FROM duty_roster WHERE tenant_id = ?", (TENANT_ID,))
-        results['cleared'] = cursor.rowcount
-        
-        # Step 2: Get eligible staff sorted alphabetically by first name
         cursor.execute("""
-            SELECT id, display_name, first_name, surname
-            FROM staff
-            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
-            ORDER BY first_name ASC, surname ASC
-        """, (TENANT_ID,))
-        staff = [dict(row) for row in cursor.fetchall()]
-        results['staff'] = [s['display_name'] for s in staff]
-        
-        if not staff:
-            results['errors'].append('No eligible staff found')
-            return jsonify(results)
-        
-        # Step 3: Get terrain areas (exclude homework)
-        cursor.execute("""
-            SELECT id, area_name
-            FROM terrain_area
-            WHERE tenant_id = ? AND is_active = 1 AND area_name NOT LIKE '%Homework%'
-            ORDER BY sort_order
-        """, (TENANT_ID,))
-        areas = [dict(row) for row in cursor.fetchall()]
-        
-        if not areas:
-            results['errors'].append('No terrain areas found')
-            return jsonify(results)
-        
-        # Step 4: Get current week Mon-Fri
-        today = date.today()
-        weekday = today.weekday()
-        if weekday == 5:
-            monday = today + timedelta(days=2)
-        elif weekday == 6:
-            monday = today + timedelta(days=1)
-        else:
-            monday = today - timedelta(days=weekday)
-        
-        week_days = [monday + timedelta(days=i) for i in range(5)]
-        homework_days = week_days[:4]
-        
-        # Step 5: Generate terrain duties and track assigned staff
-        terrain_pointer = 0
-        staff_count = len(staff)
-        terrain_assigned_ids = set()
-        
-        for day in week_days:
-            day_str = day.isoformat()
-            day_label = day.strftime('%a %d')
-            
-            for i, area in enumerate(areas):
-                staff_idx = (terrain_pointer + i) % staff_count
-                assigned = staff[staff_idx]
-                terrain_assigned_ids.add(assigned['id'])
-                
-                duty_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
-                    VALUES (?, ?, ?, ?, ?, 'terrain', 'Scheduled')
-                """, (duty_id, TENANT_ID, day_str, area['id'], assigned['id']))
-                
-                results['terrain'].append(f"{day_label}: {area['area_name']} -> {assigned['display_name']}")
-            
-            terrain_pointer = (terrain_pointer + len(areas)) % staff_count
-        
-        # Step 6: Generate homework duties - skip anyone with terrain this week
-        # Build list of staff NOT on terrain duty
-        homework_eligible = [s for s in staff if s['id'] not in terrain_assigned_ids]
-        
-        if len(homework_eligible) < 4:
-            results['errors'].append(f'Only {len(homework_eligible)} staff available for homework (need 4)')
-            # Fall back to full list if not enough
-            homework_eligible = staff
-        
-        results['homework_pool'] = [s['display_name'] for s in homework_eligible]
-        
-        homework_pointer = 0
-        for day in homework_days:
-            day_str = day.isoformat()
-            day_label = day.strftime('%a %d')
-            assigned = homework_eligible[homework_pointer % len(homework_eligible)]
-            
-            duty_id = str(uuid.uuid4())
-            cursor.execute("""
-                INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
-                VALUES (?, ?, ?, NULL, ?, 'homework', 'Scheduled')
-            """, (duty_id, TENANT_ID, day_str, assigned['id']))
-            
-            results['homework'].append(f"{day_label}: {assigned['display_name']}")
-            homework_pointer = (homework_pointer + 1) % len(homework_eligible)
-        
-        # Step 7: Update pointers
-        cursor.execute("""
-            UPDATE terrain_config 
-            SET pointer_index = ?, homework_pointer_index = ?, updated_at = datetime('now')
-            WHERE tenant_id = ?
-        """, (terrain_pointer, homework_pointer, TENANT_ID))
-        
-        results['pointers'] = {'terrain': terrain_pointer, 'homework': homework_pointer}
-        results['week'] = f"{monday.strftime('%d %b')} - {(monday + timedelta(days=4)).strftime('%d %b %Y')}"
-        results['terrain_count'] = len(terrain_assigned_ids)
-        
-        conn.commit()
-    
-    return jsonify(results)
+            SELECT DISTINCT duty_date FROM duty_roster
+            WHERE tenant_id = ? AND duty_date >= ?
+            ORDER BY duty_date ASC
+        """, (TENANT_ID, today.isoformat()))
+        existing_dates = {row['duty_date'] for row in cursor.fetchall()}
+
+    # Find first date without duties (starting from today or next Monday if weekend)
+    if weekday >= 5:  # Weekend
+        search_start = this_monday + timedelta(days=7)  # Next Monday
+    else:
+        search_start = today
+
+    default_start = None
+    d = search_start
+    while d <= next_friday:
+        if d.weekday() < 5 and d.isoformat() not in existing_dates:
+            default_start = d
+            break
+        d += timedelta(days=1)
+
+    if not default_start:
+        default_start = search_start
+
+    # End date: Friday of the week containing default_start, or next Friday
+    start_weekday = default_start.weekday()
+    days_to_friday = 4 - start_weekday
+    if days_to_friday < 0:
+        days_to_friday += 7
+    default_end = default_start + timedelta(days=days_to_friday)
+
+    # Cap at next Friday
+    if default_end > next_friday:
+        default_end = next_friday
+
+    # Min/max for date pickers
+    min_date = today if weekday < 5 else this_monday + timedelta(days=7)
+    max_date = next_friday
+
+    return default_start, default_end, min_date, max_date
+
+
+@terrain_admin_bp.route('/generate')
+def generate_page():
+    """Render the duty generation page."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+
+    default_start, default_end, min_date, max_date = _get_default_dates()
+
+    return render_template('admin/generate_duties.html',
+        default_start=default_start.isoformat(),
+        default_end=default_end.isoformat(),
+        min_date=min_date.isoformat(),
+        max_date=max_date.isoformat(),
+        user_name=session.get('display_name', '')
+    )
+
+
+@terrain_admin_bp.route('/generate/preview', methods=['POST'])
+def generate_preview():
+    """Return preview HTML via HTMX."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return '<div class="error-msg">Not authenticated</div>', 401
+
+    start_str = request.form.get('start_date', '')
+    end_str = request.form.get('end_date', '')
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return '<div class="error-msg">Invalid date format</div>'
+
+    if start_date > end_date:
+        return '<div class="error-msg">Start date must be before end date</div>'
+
+    result = preview_duties(start_date, end_date)
+
+    if result.get('error') == 'duties_exist':
+        dates_list = ', '.join(result['existing_dates'])
+        return f'''
+        <div class="error-msg">
+            <p>Duties already exist for: {dates_list}</p>
+            <button class="btn btn-warning" 
+                    hx-post="/admin/terrain/generate/clear"
+                    hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
+                    hx-target="#preview-area"
+                    hx-confirm="Clear all duties from {start_str} to {end_str} and regenerate?">
+                Clear these dates and regenerate
+            </button>
+        </div>'''
+
+    if result.get('error'):
+        return f'<div class="error-msg">{result["error"]}</div>'
+
+    # Build preview HTML
+    days = result['days']
+    html = f'''
+    <div class="preview-summary">
+        <div class="summary-text">
+            {result["terrain_count"]} terrain + {result["homework_count"]} homework = {result["total_count"]} assignments
+        </div>
+    </div>
+    <div class="preview-grid">'''
+
+    for day in days:
+        d = day['date']
+        day_label = day.get('day_name', day['weekday'].capitalize())
+        # Format date nicely
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(d, '%Y-%m-%d')
+            date_display = dt.strftime('%a %d %b')
+        except:
+            date_display = d
+
+        html += f'<div class="preview-day"><div class="day-header">{date_display}</div>'
+
+        # Terrain assignments
+        for t in day['terrain']:
+            html += f'<div class="preview-row terrain-row"><span class="area-badge">{t["area_name"]}</span> {t["display_name"]}</div>'
+
+        # Homework
+        if day['homework']:
+            html += f'<div class="preview-row homework-row"><span class="area-badge hw-badge">Homework</span> {day["homework"]}</div>'
+        elif day['weekday'].lower() != 'friday':
+            html += '<div class="preview-row homework-row muted"><span class="area-badge hw-badge">Homework</span> No one available</div>'
+
+        html += '</div>'
+
+    html += f'''
+    </div>
+    <div class="preview-actions">
+        <button class="btn btn-confirm"
+                hx-post="/admin/terrain/generate/confirm"
+                hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
+                hx-target="#preview-area"
+                hx-confirm="Generate {result['total_count']} duty assignments?">
+            Generate {result['total_count']} Duties
+        </button>
+    </div>'''
+
+    return html
+
+
+@terrain_admin_bp.route('/generate/confirm', methods=['POST'])
+def generate_confirm():
+    """Execute generation and return success HTML via HTMX."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return '<div class="error-msg">Not authenticated</div>', 401
+
+    start_str = request.form.get('start_date', '')
+    end_str = request.form.get('end_date', '')
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return '<div class="error-msg">Invalid date format</div>'
+
+    result = generate_duties(start_date, end_date)
+
+    if result.get('error'):
+        if result['error'] == 'duties_exist':
+            return '<div class="error-msg">Duties already exist. Clear first.</div>'
+        return f'<div class="error-msg">{result["error"]}</div>'
+
+    return f'''
+    <div class="success-area">
+        <div class="success-icon">✅</div>
+        <div class="success-text">
+            Generated {result["total_count"]} duties across {result["days"]} school days
+        </div>
+        <div class="success-detail">
+            {result["terrain_count"]} terrain + {result["homework_count"]} homework
+        </div>
+        <div class="success-actions">
+            <a href="/duty/terrain" class="btn btn-confirm">View Full Roster</a>
+        </div>
+    </div>'''
+
+
+@terrain_admin_bp.route('/generate/clear', methods=['POST'])
+def generate_clear():
+    """Clear duties in range and return preview via HTMX."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return '<div class="error-msg">Not authenticated</div>', 401
+
+    start_str = request.form.get('start_date', '')
+    end_str = request.form.get('end_date', '')
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return '<div class="error-msg">Invalid date format</div>'
+
+    clear_result = clear_duties_in_range(start_date, end_date)
+
+    # Now return preview
+    result = preview_duties(start_date, end_date)
+
+    if result.get('error') and result['error'] != 'duties_exist':
+        return f'<div class="error-msg">{result["error"]}</div>'
+
+    # Cleared message + preview
+    cleared_msg = f'<div class="cleared-msg">Cleared {clear_result["deleted"]} existing duties</div>'
+
+    # Reuse preview logic
+    days = result.get('days', [])
+    html = cleared_msg + f'''
+    <div class="preview-summary">
+        <div class="summary-text">
+            {result.get("terrain_count", 0)} terrain + {result.get("homework_count", 0)} homework = {result.get("total_count", 0)} assignments
+        </div>
+    </div>
+    <div class="preview-grid">'''
+
+    for day in days:
+        d = day['date']
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(d, '%Y-%m-%d')
+            date_display = dt.strftime('%a %d %b')
+        except:
+            date_display = d
+
+        html += f'<div class="preview-day"><div class="day-header">{date_display}</div>'
+        for t in day['terrain']:
+            html += f'<div class="preview-row terrain-row"><span class="area-badge">{t["area_name"]}</span> {t["display_name"]}</div>'
+        if day['homework']:
+            html += f'<div class="preview-row homework-row"><span class="area-badge hw-badge">Homework</span> {day["homework"]}</div>'
+        html += '</div>'
+
+    html += f'''
+    </div>
+    <div class="preview-actions">
+        <button class="btn btn-confirm"
+                hx-post="/admin/terrain/generate/confirm"
+                hx-vals='{{"start_date": "{start_str}", "end_date": "{end_str}"}}'
+                hx-target="#preview-area"
+                hx-confirm="Generate {result.get('total_count', 0)} duty assignments?">
+            Generate {result.get('total_count', 0)} Duties
+        </button>
+    </div>'''
+
+    return html
 
 
 @terrain_admin_bp.route('/reset')
 def reset_terrain():
-    """Clear ALL terrain duties (for testing)."""
+    """Clear ALL terrain duties and reset pointers (testing only)."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM duty_roster WHERE tenant_id = ?", (TENANT_ID,))
         deleted = cursor.rowcount
-        
-        # Reset pointers
         cursor.execute("""
             UPDATE terrain_config 
             SET pointer_index = 0, homework_pointer_index = 0, updated_at = datetime('now')
             WHERE tenant_id = ?
         """, (TENANT_ID,))
-        
         conn.commit()
-    
-    return jsonify({'success': True, 'deleted': deleted, 'message': 'All terrain duties cleared, pointers reset'})
 
-
-@terrain_admin_bp.route('/generate-next-week')
-def generate_next_week():
-    """Generate terrain + homework duties for NEXT week (Mon-Fri)."""
-    
-    results = {'terrain': [], 'homework': [], 'staff': [], 'errors': []}
-    
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Get current pointers
-        cursor.execute("SELECT pointer_index, homework_pointer_index FROM terrain_config WHERE tenant_id = ?", (TENANT_ID,))
-        config = cursor.fetchone()
-        terrain_pointer = config['pointer_index'] if config else 0
-        homework_pointer = config['homework_pointer_index'] if config else 0
-        
-        # Get eligible staff sorted alphabetically by first name
-        cursor.execute("""
-            SELECT id, display_name, first_name, surname
-            FROM staff
-            WHERE tenant_id = ? AND can_do_duty = 1 AND is_active = 1
-            ORDER BY first_name ASC, surname ASC
-        """, (TENANT_ID,))
-        staff = [dict(row) for row in cursor.fetchall()]
-        results['staff'] = [s['display_name'] for s in staff]
-        
-        if not staff:
-            results['errors'].append('No eligible staff found')
-            return jsonify(results)
-        
-        # Get terrain areas (exclude homework)
-        cursor.execute("""
-            SELECT id, area_name
-            FROM terrain_area
-            WHERE tenant_id = ? AND is_active = 1 AND area_name NOT LIKE '%Homework%'
-            ORDER BY sort_order
-        """, (TENANT_ID,))
-        areas = [dict(row) for row in cursor.fetchall()]
-        
-        if not areas:
-            results['errors'].append('No terrain areas found')
-            return jsonify(results)
-        
-        # Calculate NEXT week Mon-Fri
-        today = date.today()
-        weekday = today.weekday()
-        # Get this week's Monday first
-        this_monday = today - timedelta(days=weekday)
-        # Next Monday
-        next_monday = this_monday + timedelta(days=7)
-        
-        week_days = [next_monday + timedelta(days=i) for i in range(5)]
-        homework_days = week_days[:4]  # Mon-Thu only
-        
-        # Check if next week already has duties
-        cursor.execute("""
-            SELECT COUNT(*) as cnt FROM duty_roster 
-            WHERE tenant_id = ? AND duty_date >= ? AND duty_date <= ?
-        """, (TENANT_ID, week_days[0].isoformat(), week_days[4].isoformat()))
-        existing = cursor.fetchone()['cnt']
-        
-        if existing > 0:
-            results['errors'].append(f'Next week already has {existing} duties. Run /admin/terrain/reset first to clear.')
-            results['week'] = f"{next_monday.strftime('%d %b')} - {(next_monday + timedelta(days=4)).strftime('%d %b %Y')}"
-            return jsonify(results)
-        
-        # Generate terrain duties
-        staff_count = len(staff)
-        terrain_assigned_ids = set()
-        
-        for day in week_days:
-            day_str = day.isoformat()
-            day_label = day.strftime('%a %d')
-            
-            for i, area in enumerate(areas):
-                staff_idx = (terrain_pointer + i) % staff_count
-                assigned = staff[staff_idx]
-                terrain_assigned_ids.add(assigned['id'])
-                
-                duty_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
-                    VALUES (?, ?, ?, ?, ?, 'terrain', 'Scheduled')
-                """, (duty_id, TENANT_ID, day_str, area['id'], assigned['id']))
-                
-                results['terrain'].append(f"{day_label}: {area['area_name']} -> {assigned['display_name']}")
-            
-            terrain_pointer = (terrain_pointer + len(areas)) % staff_count
-        
-        # Generate homework duties - skip anyone with terrain this week
-        homework_eligible = [s for s in staff if s['id'] not in terrain_assigned_ids]
-        
-        if len(homework_eligible) < 4:
-            results['errors'].append(f'Only {len(homework_eligible)} staff available for homework (need 4)')
-            homework_eligible = staff
-        
-        results['homework_pool'] = [s['display_name'] for s in homework_eligible]
-        
-        for day in homework_days:
-            day_str = day.isoformat()
-            day_label = day.strftime('%a %d')
-            assigned = homework_eligible[homework_pointer % len(homework_eligible)]
-            
-            duty_id = str(uuid.uuid4())
-            cursor.execute("""
-                INSERT INTO duty_roster (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
-                VALUES (?, ?, ?, NULL, ?, 'homework', 'Scheduled')
-            """, (duty_id, TENANT_ID, day_str, assigned['id']))
-            
-            results['homework'].append(f"{day_label}: {assigned['display_name']}")
-            homework_pointer = (homework_pointer + 1) % len(homework_eligible)
-        
-        # Update pointers for next run
-        cursor.execute("""
-            UPDATE terrain_config 
-            SET pointer_index = ?, homework_pointer_index = ?, updated_at = datetime('now')
-            WHERE tenant_id = ?
-        """, (terrain_pointer, homework_pointer, TENANT_ID))
-        
-        results['pointers'] = {'terrain': terrain_pointer, 'homework': homework_pointer}
-        results['week'] = f"{next_monday.strftime('%d %b')} - {(next_monday + timedelta(days=4)).strftime('%d %b %Y')}"
-        results['terrain_count'] = len(terrain_assigned_ids)
-        
-        conn.commit()
-    
-    return jsonify(results)
+    from flask import jsonify
+    return jsonify({'success': True, 'deleted': deleted, 'message': 'All duties cleared, pointers reset'})

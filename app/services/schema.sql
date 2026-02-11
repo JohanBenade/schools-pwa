@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS duty_roster (
     id TEXT PRIMARY KEY,                    -- UUID
     tenant_id TEXT NOT NULL,
     duty_date TEXT NOT NULL,                -- ISO date
-    zone_id TEXT NOT NULL,                  -- Notion zone page ID
+    terrain_area_id TEXT,                   -- FK to terrain_area (NULL for homework)
     staff_id TEXT NOT NULL,                 -- Notion staff page ID
     status TEXT NOT NULL DEFAULT 'Scheduled', -- Scheduled, Confirmed, Completed, Missed, Swapped
     confirmed_at TEXT,                      -- ISO datetime

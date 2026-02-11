@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Generate Duties - SchoolOps</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }
+        .top-bar { position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; display: flex; align-items: center; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .back-btn { color: white; text-decoration: none; font-size: 24px; margin-right: 16px; }
+        .top-bar-title { font-size: 17px; font-weight: 600; }
+
+        .page-content { max-width: 500px; margin: 0 auto; padding-top: 20px; }
+
+        .section-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; opacity: 0.7; margin-bottom: 6px; }
+        .form-group input[type="date"] {
+            width: 100%; padding: 12px 14px; font-size: 16px;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+            background: rgba(255,255,255,0.1); color: white;
+            -webkit-appearance: none; appearance: none;
+        }
+        .form-group input[type="date"]:focus { border-color: #a855f7; outline: none; }
+        /* Fix date picker icon color on webkit */
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+        .btn {
+            display: inline-block; padding: 14px 24px; border-radius: 12px;
+            font-size: 16px; font-weight: 600; border: none; cursor: pointer;
+            text-decoration: none; text-align: center; width: 100%;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-preview { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white; }
+        .btn-confirm { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; margin-top: 12px; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; margin-top: 12px; }
+
+        #preview-area { margin-top: 24px; }
+
+        .preview-summary { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 16px; text-align: center; }
+        .summary-text { font-size: 16px; font-weight: 600; }
+
+        .preview-grid { display: flex; flex-direction: column; gap: 12px; }
+        .preview-day { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 14px; }
+        .day-header { font-size: 15px; font-weight: 700; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .preview-row { font-size: 14px; padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+        .area-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(168,85,247,0.3); white-space: nowrap; }
+        .hw-badge { background: rgba(20,184,166,0.3); }
+        .muted { opacity: 0.4; }
+
+        .preview-actions { margin-top: 20px; }
+
+        .error-msg { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; text-align: center; color: #fca5a5; }
+        .error-msg p { margin-bottom: 12px; }
+        .cleared-msg { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 12px; text-align: center; color: #86efac; margin-bottom: 16px; }
+
+        .success-area { text-align: center; padding: 30px 0; }
+        .success-icon { font-size: 48px; margin-bottom: 16px; animation: pop-in 0.4s ease-out; }
+        .success-text { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .success-detail { font-size: 14px; opacity: 0.7; margin-bottom: 24px; }
+        .success-actions .btn { width: auto; padding: 12px 32px; display: inline-block; }
+
+        @keyframes pop-in { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+
+        .htmx-indicator { display: none; text-align: center; padding: 20px; }
+        .htmx-request .htmx-indicator { display: block; }
+        .htmx-request .btn-preview { opacity: 0.5; pointer-events: none; }
+
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="/" class="back-btn">←</a>
+        <span class="top-bar-title">Generate Duties</span>
+    </div>
+
+    <div class="page-content">
+        <div class="section-title">⚙️ Duty Roster Generator</div>
+
+        <form hx-post="/admin/terrain/generate/preview" hx-target="#preview-area" hx-indicator="#loading">
+            <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" name="start_date" value="{{ default_start }}" min="{{ min_date }}" max="{{ max_date }}" required>
+            </div>
+            <div class="form-group">
+                <label>End Date</label>
+                <input type="date" name="end_date" value="{{ default_end }}" min="{{ min_date }}" max="{{ max_date }}" required>
+            </div>
+            <button type="submit" class="btn btn-preview">Preview</button>
+        </form>
+
+        <div id="loading" class="htmx-indicator">
+            <div class="spinner"></div>
+            <div style="margin-top: 8px; opacity: 0.6;">Calculating roster...</div>
+        </div>
+
+        <div id="preview-area"></div>
+    </div>
+</body>
+</html>

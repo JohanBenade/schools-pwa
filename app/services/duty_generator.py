@@ -3,338 +3,340 @@ Duty Generator Service
 Generates terrain duty and homework venue duty schedules.
 
 Terrain Duty:
-- 5 areas, 5 teachers per school day
-- A-Z rotation by surname, advances by 5 each day
-- Mon-Fri school days
+- 5 areas, 5 teachers per school day (Mon-Fri)
+- Rotation by first_name ASC, advances by 5+ per day
+- Skips teachers with homework duty or active absence
 
 Homework Venue:
-- 1 teacher per day
-- A-Z rotation by surname, advances by 1 each day
-- Mon-Thu only (not Friday)
+- 1 teacher per day (Mon-Thu only)
+- Rotation by first_name DESC, advances by 1 per day
+- Skips teachers with active absence
+
+Generation order: homework FIRST, then terrain (homework wins overlap).
 """
 
-import sqlite3
 import uuid
-from pathlib import Path
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional
+from datetime import date
+from typing import List, Dict, Optional, Tuple
+from app.services.db import get_connection
 
-def get_db_path():
-    import os
-    default_path = Path(__file__).parent.parent / "data" / "schoolops.db"
-    return Path(os.environ.get("DATABASE_PATH", default_path))
+TENANT_ID = "MARAGON"
+
 
 def generate_id():
     return str(uuid.uuid4())
 
-def get_connection():
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
-    return conn
 
-def get_duty_eligible_staff(tenant_id: str = "MARAGON") -> List[Dict]:
-    """Get teaching staff eligible for duty, sorted A-Z by surname."""
-    conn = get_connection()
+def get_eligible_staff_asc(conn) -> List[Dict]:
+    """Get duty-eligible staff sorted by first_name ASC (for terrain)."""
     cursor = conn.cursor()
-    
-    # Get staff who can do duty, sorted by surname then first_name
     cursor.execute("""
         SELECT id, first_name, surname, display_name
         FROM staff
-        WHERE tenant_id = ? 
-        AND is_active = 1
-        AND can_do_duty = 1
-        ORDER BY surname ASC, first_name ASC
-    """, (tenant_id,))
-    
-    staff = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return staff
+        WHERE tenant_id = ? AND is_active = 1 AND can_do_duty = 1
+        ORDER BY first_name ASC, surname ASC
+    """, (TENANT_ID,))
+    return [dict(row) for row in cursor.fetchall()]
 
-def get_terrain_areas(tenant_id: str = "MARAGON") -> List[Dict]:
-    """Get terrain areas sorted by sort_order."""
-    conn = get_connection()
+
+def get_eligible_staff_desc(conn) -> List[Dict]:
+    """Get duty-eligible staff sorted by first_name DESC (for homework)."""
     cursor = conn.cursor()
-    
+    cursor.execute("""
+        SELECT id, first_name, surname, display_name
+        FROM staff
+        WHERE tenant_id = ? AND is_active = 1 AND can_do_duty = 1
+        ORDER BY first_name DESC, surname DESC
+    """, (TENANT_ID,))
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def get_terrain_areas(conn) -> List[Dict]:
+    """Get active terrain areas (excludes Homework Venue)."""
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT id, area_code, area_name, sort_order
         FROM terrain_area
         WHERE tenant_id = ? AND is_active = 1
         ORDER BY sort_order ASC
-    """, (tenant_id,))
-    
-    areas = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return areas
+    """, (TENANT_ID,))
+    return [dict(row) for row in cursor.fetchall()]
 
-def get_school_days(tenant_id: str, start_date: date, count: int, exclude_friday: bool = False) -> List[Dict]:
-    """Get next N school days from start_date."""
-    conn = get_connection()
+
+def get_school_days_in_range(conn, start_date: date, end_date: date) -> List[Dict]:
+    """Get school days in date range from school_calendar."""
     cursor = conn.cursor()
-    
-    weekday_filter = "AND weekday != 'friday'" if exclude_friday else ""
-    
-    cursor.execute(f"""
-        SELECT date, cycle_day, day_type, day_name, weekday, bell_schedule
+    cursor.execute("""
+        SELECT date, cycle_day, day_name, weekday
         FROM school_calendar
-        WHERE tenant_id = ?
-        AND date >= ?
-        AND is_school_day = 1
-        {weekday_filter}
+        WHERE tenant_id = ? AND date >= ? AND date <= ? AND is_school_day = 1
         ORDER BY date ASC
-        LIMIT ?
-    """, (tenant_id, start_date.isoformat(), count))
-    
-    days = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return days
+    """, (TENANT_ID, start_date.isoformat(), end_date.isoformat()))
+    return [dict(row) for row in cursor.fetchall()]
 
-def get_config(tenant_id: str = "MARAGON") -> Dict:
-    """Get duty configuration."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM terrain_config WHERE tenant_id = ?", (tenant_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if row:
-        return dict(row)
-    return {
-        'pointer_index': 0,
-        'homework_pointer_index': 0,
-        'days_to_generate': 5
-    }
 
-def update_config(tenant_id: str, pointer_index: int = None, homework_pointer_index: int = None):
-    """Update duty configuration."""
-    conn = get_connection()
+def get_absent_staff_ids(conn, date_str: str) -> set:
+    """Get staff IDs with active absence on a specific date."""
     cursor = conn.cursor()
-    
-    now = datetime.now().isoformat()
-    
-    if pointer_index is not None:
-        cursor.execute("""
-            UPDATE terrain_config 
-            SET pointer_index = ?, pointer_updated_at = ?, updated_at = ?
-            WHERE tenant_id = ?
-        """, (pointer_index, now, now, tenant_id))
-    
-    if homework_pointer_index is not None:
-        cursor.execute("""
-            UPDATE terrain_config 
-            SET homework_pointer_index = ?, homework_pointer_updated_at = ?, updated_at = ?
-            WHERE tenant_id = ?
-        """, (homework_pointer_index, now, now, tenant_id))
-    
-    conn.commit()
-    conn.close()
+    cursor.execute("""
+        SELECT staff_id FROM absence
+        WHERE tenant_id = ?
+        AND absence_date <= ?
+        AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
+        AND status IN ('Reported', 'Covered', 'Partial')
+    """, (TENANT_ID, date_str, date_str))
+    return {row['staff_id'] for row in cursor.fetchall()}
 
-def get_existing_duties(tenant_id: str, duty_type: str, from_date: date) -> List[str]:
-    """Get dates that already have duties scheduled."""
-    conn = get_connection()
+
+def get_existing_duty_dates(conn, start_date: date, end_date: date) -> List[str]:
+    """Get dates that already have duties in the range."""
     cursor = conn.cursor()
-    
     cursor.execute("""
         SELECT DISTINCT duty_date
         FROM duty_roster
-        WHERE tenant_id = ? AND duty_type = ? AND duty_date >= ?
-    """, (tenant_id, duty_type, from_date.isoformat()))
-    
-    dates = [row['duty_date'] for row in cursor.fetchall()]
-    conn.close()
-    return dates
+        WHERE tenant_id = ? AND duty_date >= ? AND duty_date <= ?
+        ORDER BY duty_date
+    """, (TENANT_ID, start_date.isoformat(), end_date.isoformat()))
+    return [row['duty_date'] for row in cursor.fetchall()]
 
-def create_duty(tenant_id: str, duty_date: str, staff_id: str, 
-                terrain_area_id: str = None, duty_type: str = 'terrain'):
-    """Create a single duty roster entry."""
-    conn = get_connection()
+
+def get_config(conn) -> Dict:
+    """Get terrain_config pointers."""
     cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT INTO duty_roster 
-        (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'Scheduled')
-    """, (generate_id(), tenant_id, duty_date, terrain_area_id, staff_id, duty_type))
-    
-    conn.commit()
-    conn.close()
+    cursor.execute("SELECT pointer_index, homework_pointer_index FROM terrain_config WHERE tenant_id = ?", (TENANT_ID,))
+    row = cursor.fetchone()
+    if row:
+        return dict(row)
+    return {'pointer_index': 0, 'homework_pointer_index': 0}
 
-def generate_terrain_duty(tenant_id: str = "MARAGON", days: int = 5) -> Dict:
+
+def _assign_homework_for_day(staff_desc: List[Dict], pointer: int, absent_ids: set) -> Tuple[Optional[Dict], int]:
     """
-    Generate terrain duty schedule for next N school days.
-    Returns summary of what was created.
+    Assign 1 homework teacher for a day.
+    Returns (assigned_staff_dict_or_None, new_pointer).
     """
-    config = get_config(tenant_id)
-    staff = get_duty_eligible_staff(tenant_id)
-    areas = get_terrain_areas(tenant_id)
-    
-    if not staff:
-        return {'error': 'No eligible staff found', 'created': 0}
-    
-    if not areas:
-        return {'error': 'No terrain areas found', 'created': 0}
-    
-    # Get school days (Mon-Fri)
-    today = date.today()
-    school_days = get_school_days(tenant_id, today, days, exclude_friday=False)
-    
-    # Get already scheduled dates
-    existing = get_existing_duties(tenant_id, 'terrain', today)
-    
-    # Filter out already scheduled days
-    days_to_schedule = [d for d in school_days if d['date'] not in existing]
-    
-    if not days_to_schedule:
-        return {'message': 'All days already scheduled', 'created': 0}
-    
-    pointer = config.get('pointer_index', 0)
-    staff_count = len(staff)
+    staff_count = len(staff_desc)
+    checked = 0
+    while checked < staff_count:
+        idx = pointer % staff_count
+        candidate = staff_desc[idx]
+        pointer += 1
+        checked += 1
+        if candidate['id'] not in absent_ids:
+            return candidate, pointer % staff_count
+    return None, pointer % staff_count
+
+
+def _assign_terrain_for_day(staff_asc: List[Dict], pointer: int, areas: List[Dict],
+                            absent_ids: set, homework_staff_id: Optional[str]) -> Tuple[List[Dict], int]:
+    """
+    Assign 5 terrain teachers for a day.
+    Returns (list_of_assignments, new_pointer).
+    Each assignment: {staff_id, display_name, area_id, area_name, area_code}
+    """
+    staff_count = len(staff_asc)
     area_count = len(areas)
-    created = 0
-    
-    for day in days_to_schedule:
-        # Assign 5 consecutive staff to 5 areas
-        for i, area in enumerate(areas):
-            staff_index = (pointer + i) % staff_count
-            assigned_staff = staff[staff_index]
-            
-            create_duty(
-                tenant_id=tenant_id,
-                duty_date=day['date'],
-                staff_id=assigned_staff['id'],
-                terrain_area_id=area['id'],
-                duty_type='terrain'
-            )
-            created += 1
-        
-        # Advance pointer by 5 (number of areas)
-        pointer = (pointer + area_count) % staff_count
-    
-    # Save new pointer
-    update_config(tenant_id, pointer_index=pointer)
-    
-    return {
-        'message': f'Generated terrain duty for {len(days_to_schedule)} days',
-        'created': created,
-        'days': [d['date'] for d in days_to_schedule],
-        'new_pointer': pointer
-    }
+    assignments = []
+    area_idx = 0
+    checked = 0
 
-def generate_homework_duty(tenant_id: str = "MARAGON", days: int = 5) -> Dict:
+    while area_idx < area_count and checked < staff_count:
+        idx = pointer % staff_count
+        candidate = staff_asc[idx]
+        pointer += 1
+        checked += 1
+
+        # Skip if absent or has homework today
+        if candidate['id'] in absent_ids:
+            continue
+        if homework_staff_id and candidate['id'] == homework_staff_id:
+            continue
+
+        area = areas[area_idx]
+        assignments.append({
+            'staff_id': candidate['id'],
+            'display_name': candidate['display_name'],
+            'area_id': area['id'],
+            'area_name': area['area_name'],
+            'area_code': area['area_code']
+        })
+        area_idx += 1
+
+    return assignments, pointer % staff_count
+
+
+def preview_duties(start_date: date, end_date: date) -> Dict:
     """
-    Generate homework venue duty schedule for next N school days (Mon-Thu only).
+    Generate a preview without committing to database.
+    Returns preview data structure for UI display.
+    """
+    with get_connection() as conn:
+        # Validate
+        staff_asc = get_eligible_staff_asc(conn)
+        staff_desc = get_eligible_staff_desc(conn)
+        areas = get_terrain_areas(conn)
+
+        if not staff_asc:
+            return {'error': 'No eligible staff found'}
+        if not areas:
+            return {'error': 'No terrain areas found'}
+
+        school_days = get_school_days_in_range(conn, start_date, end_date)
+        if not school_days:
+            return {'error': 'No school days in selected range'}
+
+        existing = get_existing_duty_dates(conn, start_date, end_date)
+        if existing:
+            return {'error': 'duties_exist', 'existing_dates': existing}
+
+        config = get_config(conn)
+        terrain_pointer = config['pointer_index']
+        homework_pointer = config['homework_pointer_index']
+
+        days_preview = []
+        terrain_count = 0
+        homework_count = 0
+
+        for day in school_days:
+            date_str = day['date']
+            weekday = day['weekday'].lower()
+            is_friday = weekday == 'friday'
+            absent_ids = get_absent_staff_ids(conn, date_str)
+
+            day_data = {
+                'date': date_str,
+                'day_name': day.get('day_name') or weekday.capitalize(),
+                'weekday': weekday,
+                'terrain': [],
+                'homework': None,
+                'skipped': []
+            }
+
+            # Step 1: Homework (Mon-Thu only)
+            homework_staff_id = None
+            if not is_friday:
+                hw_staff, homework_pointer = _assign_homework_for_day(
+                    staff_desc, homework_pointer, absent_ids
+                )
+                if hw_staff:
+                    day_data['homework'] = hw_staff['display_name']
+                    homework_staff_id = hw_staff['id']
+                    homework_count += 1
+
+            # Step 2: Terrain (Mon-Fri)
+            terrain_assignments, terrain_pointer = _assign_terrain_for_day(
+                staff_asc, terrain_pointer, areas, absent_ids, homework_staff_id
+            )
+            day_data['terrain'] = terrain_assignments
+            terrain_count += len(terrain_assignments)
+
+            days_preview.append(day_data)
+
+        return {
+            'success': True,
+            'days': days_preview,
+            'terrain_count': terrain_count,
+            'homework_count': homework_count,
+            'total_count': terrain_count + homework_count,
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat()
+        }
+
+
+def generate_duties(start_date: date, end_date: date) -> Dict:
+    """
+    Generate and commit duties to database.
     Returns summary of what was created.
     """
-    config = get_config(tenant_id)
-    staff = get_duty_eligible_staff(tenant_id)
-    
-    if not staff:
-        return {'error': 'No eligible staff found', 'created': 0}
-    
-    # Get school days (Mon-Thu only, exclude Friday)
-    today = date.today()
-    school_days = get_school_days(tenant_id, today, days, exclude_friday=True)
-    
-    # Get already scheduled dates
-    existing = get_existing_duties(tenant_id, 'homework', today)
-    
-    # Filter out already scheduled days
-    days_to_schedule = [d for d in school_days if d['date'] not in existing]
-    
-    if not days_to_schedule:
-        return {'message': 'All days already scheduled', 'created': 0}
-    
-    pointer = config.get('homework_pointer_index', 0)
-    staff_count = len(staff)
-    created = 0
-    
-    for day in days_to_schedule:
-        assigned_staff = staff[pointer % staff_count]
-        
-        create_duty(
-            tenant_id=tenant_id,
-            duty_date=day['date'],
-            staff_id=assigned_staff['id'],
-            terrain_area_id=None,  # No area for homework
-            duty_type='homework'
-        )
-        created += 1
-        
-        # Advance pointer by 1
-        pointer = (pointer + 1) % staff_count
-    
-    # Save new pointer
-    update_config(tenant_id, homework_pointer_index=pointer)
-    
-    return {
-        'message': f'Generated homework duty for {len(days_to_schedule)} days',
-        'created': created,
-        'days': [d['date'] for d in days_to_schedule],
-        'new_pointer': pointer
-    }
+    with get_connection() as conn:
+        cursor = conn.cursor()
 
-def generate_all_duties(tenant_id: str = "MARAGON", days: int = 5) -> Dict:
-    """Generate both terrain and homework duties."""
-    terrain_result = generate_terrain_duty(tenant_id, days)
-    homework_result = generate_homework_duty(tenant_id, days)
-    
-    return {
-        'terrain': terrain_result,
-        'homework': homework_result
-    }
+        # Validate
+        staff_asc = get_eligible_staff_asc(conn)
+        staff_desc = get_eligible_staff_desc(conn)
+        areas = get_terrain_areas(conn)
 
-def get_duties_for_date(tenant_id: str, duty_date: date, duty_type: str = None) -> List[Dict]:
-    """Get all duties for a specific date."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    if duty_type:
+        if not staff_asc:
+            return {'error': 'No eligible staff found'}
+        if not areas:
+            return {'error': 'No terrain areas found'}
+
+        school_days = get_school_days_in_range(conn, start_date, end_date)
+        if not school_days:
+            return {'error': 'No school days in selected range'}
+
+        existing = get_existing_duty_dates(conn, start_date, end_date)
+        if existing:
+            return {'error': 'duties_exist', 'existing_dates': existing}
+
+        config = get_config(conn)
+        terrain_pointer = config['pointer_index']
+        homework_pointer = config['homework_pointer_index']
+
+        terrain_count = 0
+        homework_count = 0
+
+        for day in school_days:
+            date_str = day['date']
+            weekday = day['weekday'].lower()
+            is_friday = weekday == 'friday'
+            absent_ids = get_absent_staff_ids(conn, date_str)
+
+            # Step 1: Homework (Mon-Thu only)
+            homework_staff_id = None
+            if not is_friday:
+                hw_staff, homework_pointer = _assign_homework_for_day(
+                    staff_desc, homework_pointer, absent_ids
+                )
+                if hw_staff:
+                    cursor.execute("""
+                        INSERT INTO duty_roster
+                        (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
+                        VALUES (?, ?, ?, NULL, ?, 'homework', 'Scheduled')
+                    """, (generate_id(), TENANT_ID, date_str, hw_staff['id']))
+                    homework_staff_id = hw_staff['id']
+                    homework_count += 1
+
+            # Step 2: Terrain (Mon-Fri)
+            terrain_assignments, terrain_pointer = _assign_terrain_for_day(
+                staff_asc, terrain_pointer, areas, absent_ids, homework_staff_id
+            )
+            for assignment in terrain_assignments:
+                cursor.execute("""
+                    INSERT INTO duty_roster
+                    (id, tenant_id, duty_date, terrain_area_id, staff_id, duty_type, status)
+                    VALUES (?, ?, ?, ?, ?, 'terrain', 'Scheduled')
+                """, (generate_id(), TENANT_ID, date_str, assignment['area_id'], assignment['staff_id']))
+                terrain_count += 1
+
+            # Save updated pointers
+            cursor.execute("""
+                UPDATE terrain_config
+                SET pointer_index = ?, homework_pointer_index = ?,
+                    pointer_updated_at = datetime('now'), homework_pointer_updated_at = datetime('now'),
+                    updated_at = datetime('now')
+                WHERE tenant_id = ?
+            """, (terrain_pointer, homework_pointer, TENANT_ID))
+
+        conn.commit()
+
+        return {
+            'success': True,
+            'terrain_count': terrain_count,
+            'homework_count': homework_count,
+            'total_count': terrain_count + homework_count,
+            'days': len(school_days)
+        }
+
+
+def clear_duties_in_range(start_date: date, end_date: date) -> Dict:
+    """Clear all duties in a date range."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
         cursor.execute("""
-            SELECT dr.*, s.display_name, s.first_name, s.surname,
-                   ta.area_code, ta.area_name
-            FROM duty_roster dr
-            JOIN staff s ON dr.staff_id = s.id
-            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-            WHERE dr.tenant_id = ? AND dr.duty_date = ? AND dr.duty_type = ?
-            ORDER BY ta.sort_order ASC
-        """, (tenant_id, duty_date.isoformat(), duty_type))
-    else:
-        cursor.execute("""
-            SELECT dr.*, s.display_name, s.first_name, s.surname,
-                   ta.area_code, ta.area_name
-            FROM duty_roster dr
-            JOIN staff s ON dr.staff_id = s.id
-            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-            WHERE dr.tenant_id = ? AND dr.duty_date = ?
-            ORDER BY dr.duty_type ASC, ta.sort_order ASC
-        """, (tenant_id, duty_date.isoformat()))
-    
-    duties = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return duties
-
-def get_staff_duties(staff_id: str, from_date: date, to_date: date) -> List[Dict]:
-    """Get all duties for a staff member in date range."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT dr.*, ta.area_code, ta.area_name
-        FROM duty_roster dr
-        LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-        WHERE dr.staff_id = ? AND dr.duty_date BETWEEN ? AND ?
-        ORDER BY dr.duty_date ASC, dr.duty_type ASC
-    """, (staff_id, from_date.isoformat(), to_date.isoformat()))
-    
-    duties = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return duties
-
-
-if __name__ == "__main__":
-    # Test generation
-    print("Generating duties...")
-    result = generate_all_duties()
-    print(f"Terrain: {result['terrain']}")
-    print(f"Homework: {result['homework']}")
+            DELETE FROM duty_roster
+            WHERE tenant_id = ? AND duty_date >= ? AND duty_date <= ?
+        """, (TENANT_ID, start_date.isoformat(), end_date.isoformat()))
+        deleted = cursor.rowcount
+        conn.commit()
+        return {'success': True, 'deleted': deleted}
