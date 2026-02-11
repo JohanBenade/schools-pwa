@@ -865,7 +865,9 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         # Pick replacement based on rotation direction
         if duty['duty_type'] == 'homework':
             # Homework rotates DESC (Z→A) - find next after absent teacher
-            absent_name = duty.get('first_name', '').lower()
+            cursor.execute("SELECT first_name FROM staff WHERE id = ?", (staff_id,))
+            staff_row = cursor.fetchone()
+            absent_name = staff_row['first_name'].lower() if staff_row else ''
             # Sort DESC for homework
             eligible_desc = sorted(eligible, key=lambda x: x['first_name'].lower(), reverse=True)
             chosen = None
