@@ -111,7 +111,7 @@
     <div class="page-content">
         <div class="section-title">⚙️ Duty Roster Generator</div>
 
-        <form hx-post="/admin/terrain/generate/preview" hx-target="#preview-area" hx-indicator="#loading">
+        <form id="generateForm" hx-post="/admin/terrain/generate/preview" hx-target="#preview-area" hx-indicator="#loading">
             <div class="form-group">
                 <label>Start Date</label>
                 <input type="date" name="start_date" id="startDate" value="{{ default_start }}" min="{{ min_date }}" max="{{ max_date }}" required>

@@ -181,6 +181,7 @@ def generate_confirm():
         return f'<div class="error-msg">{result["error"]}</div>'
 
     return f'''
+    <script>document.getElementById('generateForm').style.display='none';</script>
     <div class="success-area">
         <div class="success-icon">✅</div>
         <div class="success-text">
