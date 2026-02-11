@@ -862,9 +862,20 @@ def reassign_terrain_duty(duty_id, original_staff_id):
             print(f"TERRAIN: No eligible staff to reassign duty {duty_id}")
             return None
         
-        # Pick first eligible - ASC for terrain, DESC for homework
+        # Pick replacement based on rotation direction
         if duty['duty_type'] == 'homework':
-            new_assignee = eligible[-1]  # Last in ASC list = first in DESC
+            # Homework rotates DESC (Z→A) - find next after absent teacher
+            absent_name = duty.get('first_name', '').lower()
+            # Sort DESC for homework
+            eligible_desc = sorted(eligible, key=lambda x: x['first_name'].lower(), reverse=True)
+            chosen = None
+            for e in eligible_desc:
+                if e['first_name'].lower() < absent_name:
+                    chosen = e
+                    break
+            if not chosen:
+                chosen = eligible_desc[0]  # Wrap to Z
+            new_assignee = chosen
         else:
             new_assignee = eligible[0]
         
