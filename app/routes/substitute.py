@@ -276,6 +276,77 @@ def early_return():
     return redirect(url_for('substitute.absence_status', absence_id=absence_id))
 
 
+
+
+@substitute_bp.route('/mark-back', methods=['POST'])
+def mark_back():
+    """Management marks a teacher as returned - cancels remaining substitute assignments."""
+    role = session.get('role')
+    if role not in ['principal', 'deputy', 'office', 'admin']:
+        return redirect('/')
+    
+    absence_id = request.form.get('absence_id')
+    return_date = request.form.get('return_date', date.today().isoformat())
+    
+    if not absence_id:
+        return redirect('/substitute/mission-control')
+    
+    # end_date = day before return (teacher is NOT absent on return day)
+    return_dt = datetime.strptime(return_date, '%Y-%m-%d').date()
+    adjusted_end_date = (return_dt - timedelta(days=1)).isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify absence exists
+        cursor.execute("SELECT id, staff_id FROM absence WHERE id = ?", (absence_id,))
+        absence = cursor.fetchone()
+        
+        if not absence:
+            return redirect('/substitute/mission-control')
+        
+        reported_by_id = session.get('staff_id') or 'management'
+        
+        # Update absence record
+        cursor.execute("""
+            UPDATE absence 
+            SET returned_early = 1, 
+                returned_at = ?,
+                return_reported_by_id = ?,
+                end_date = ?,
+                status = 'Resolved',
+                updated_at = ?
+            WHERE id = ?
+        """, (datetime.now().isoformat(), reported_by_id, adjusted_end_date, 
+              datetime.now().isoformat(), absence_id))
+        
+        # Cancel all substitute requests from return_date onwards
+        cursor.execute("""
+            UPDATE substitute_request
+            SET status = 'Cancelled',
+                cancelled_at = ?,
+                cancel_reason = 'early_return',
+                updated_at = ?
+            WHERE absence_id = ? 
+            AND request_date >= ?
+            AND status IN ('Pending', 'Assigned')
+        """, (datetime.now().isoformat(), datetime.now().isoformat(), absence_id, return_date))
+        
+        cancelled_count = cursor.rowcount
+        
+        # Log it
+        cursor.execute("""
+            INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
+            VALUES (?, ?, ?, 'early_return', ?, ?, ?)
+        """, (str(uuid.uuid4()), TENANT_ID, absence_id, reported_by_id,
+              f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}, "marked_by": "management"}}',
+              datetime.now().isoformat()))
+        
+        conn.commit()
+    
+    return redirect('/substitute/mission-control')
+
+
 @substitute_bp.route('/status/<absence_id>')
 def absence_status(absence_id):
     """View status of an absence."""
@@ -429,6 +500,7 @@ def mission_control():
                           config=config,
                           cycle_day=get_cycle_day(),
                           today=today.strftime('%a %d %b'),
+                          today_iso=today.isoformat(),
                           stats={'total': total_periods, 'covered': covered_periods, 
                                  'pending': pending_periods, 'absences': total_absences},
                           nav_header=nav_header,
