@@ -83,7 +83,7 @@ def learners():
             LEFT JOIN staff s ON mg.mentor_id = s.id
             LEFT JOIN learner_absent_tracking lat ON l.id = lat.learner_id
             WHERE l.is_active = 1
-            ORDER BY COALESCE(lat.consecutive_absent_days, 1) DESC, l.surname, l.first_name
+            ORDER BY l.first_name ASC
         """, (TENANT_ID, last_date, TENANT_ID))
         
         rows = cursor.fetchall()
@@ -139,7 +139,7 @@ def teachers():
                   COALESCE(a.end_date, a.absence_date) >= ?
                   OR a.is_open_ended = 1
               )
-            ORDER BY a.absence_date ASC
+            ORDER BY s.display_name ASC
         """, (TENANT_ID, today.isoformat()))
         
         absences = []
