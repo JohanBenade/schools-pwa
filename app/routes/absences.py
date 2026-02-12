@@ -139,7 +139,7 @@ def teachers():
                   COALESCE(a.end_date, a.absence_date) >= ?
                   OR a.is_open_ended = 1
               )
-            ORDER BY s.display_name ASC
+            ORDER BY s.first_name ASC, s.surname ASC
         """, (TENANT_ID, today.isoformat()))
         
         absences = []
