@@ -481,6 +481,8 @@ def my_day():
                           current_tab=tab,
                           school_days=school_days,
                           is_absent=is_absent,
+                          absence_id=absence_id,
+                          target_date_str=target_date_str,
                           absence_type=absence_type,
                           viewing_other=viewing_other,
                           viewing_name=viewing_name)

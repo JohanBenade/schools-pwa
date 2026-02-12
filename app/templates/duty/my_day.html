@@ -175,6 +175,13 @@
         <div class="absent-banner">
             <h3>⚠️ You are marked absent</h3>
             <p>{{ absence_type|replace("_", " ")|title }} Leave</p>
+            <form method="POST" action="/substitute/early-return" style="margin-top: 12px;">
+                <input type="hidden" name="absence_id" value="{{ absence_id }}">
+                <input type="hidden" name="return_date" value="{{ target_date_str }}">
+                <button type="submit" style="padding: 8px 20px; border-radius: 10px; border: none; background: white; color: #dc2626; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✅ I'm Back
+                </button>
+            </form>
         </div>
         {% endif %}
         {% if day_type in ['weekend', 'holiday', 'public_holiday'] %}

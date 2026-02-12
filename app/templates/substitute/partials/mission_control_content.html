@@ -39,16 +39,10 @@
                 
                 {% if absence.status not in ['Resolved', 'Cancelled'] %}
                 <div style="margin: 12px 0;">
-                    <form method="POST" action="/substitute/mark-back" style="display: flex; gap: 8px; align-items: center;">
-                        <input type="hidden" name="absence_id" value="{{ absence.id }}">
-                        <label style="font-size: 13px; opacity: 0.7;">First day back:</label>
-                        <input type="date" name="return_date" value="{{ today_iso }}" 
-                               style="padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 13px;">
-                        <button type="submit" onclick="return confirm('Mark {{ absence.teacher_name }} as back and cancel remaining cover?')"
-                                style="padding: 6px 14px; border-radius: 8px; border: none; background: #22c55e; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
-                            ✅ Mark Back
-                        </button>
-                    </form>
+                    <button onclick="openMarkBack('{{ absence.id }}', '{{ absence.teacher_name }}')"
+                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        ✅ Mark Back
+                    </button>
                 </div>
                 {% endif %}
                 
