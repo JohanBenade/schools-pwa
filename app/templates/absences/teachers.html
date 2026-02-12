@@ -70,7 +70,7 @@
                 📅 {{ absence.start_display }}{% if absence.end_display and absence.end_display != absence.start_display %} → {{ absence.end_display }}{% endif %}
                 {% if absence.is_open_ended %}<span> (until further notice)</span>{% endif %}
             </div>
-            <a href="/substitute/mission-control?staff={{ absence.staff_id }}" class="view-btn">View Coverage →</a>
+            <a href="/substitute/overview?staff={{ absence.staff_id }}" class="view-btn">View Coverage →</a>
         </div>
         {% endfor %}
     </div>

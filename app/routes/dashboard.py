@@ -189,7 +189,7 @@ def index():
                 <div class="big-number">{total_absences}</div>
                 <div class="big-label">teacher{'s' if total_absences != 1 else ''} absent today</div>
                 {absences_html}
-                <a href="/substitute/mission-control" class="card-link">Mission Control →</a>
+                <a href="/substitute/overview" class="card-link">Substitute Overview →</a>
             </div>
         </div>
     </div>

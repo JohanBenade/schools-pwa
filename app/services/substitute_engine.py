@@ -337,7 +337,7 @@ def get_adjacent_teacher(venue_code):
 
 
 def log_event(absence_id, event_type, staff_id=None, details=None, substitute_request_id=None):
-    """Log an event to substitute_log for Mission Control."""
+    """Log an event to substitute_log for Substitute Overview."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -382,7 +382,7 @@ def process_absence(absence_id):
        a. Get sick teacher's schedule for that cycle day
        b. Check if mentor teacher - assign roll call
        c. For each teaching period, find and assign substitute
-    3. Log everything for Mission Control
+    3. Log everything for Substitute Overview
     4. Return results for display
     
     Returns dict with allocation results.
@@ -560,7 +560,7 @@ def process_absence(absence_id):
                     pointer = new_pointer
                     
                 else:
-                    # Create a Pending request so it shows in Mission Control
+                    # Create a Pending request so it shows in Substitute Overview
                     request_id = str(uuid.uuid4())
                     cursor.execute("""
                         INSERT INTO substitute_request

@@ -473,7 +473,7 @@ def send_absence_reported_push(absent_teacher_name, date_str, period_count):
     for row in tokens:
         if send_push_notification(
             row['token'], title, body,
-            data={'type': 'absence_reported', 'link': '/substitute/mission-control'}
+            data={'type': 'absence_reported', 'link': '/substitute/overview'}
         ):
             print(f"PUSH DEBUG: Absence notification sent to Pierre")
             success_count += 1

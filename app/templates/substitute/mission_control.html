@@ -54,7 +54,7 @@
         </div>
         
         <div id="live-content"
-             hx-get="/substitute/mission-control-partial?tab={{ current_tab }}"
+             hx-get="/substitute/overview-partial?tab={{ current_tab }}"
              hx-trigger="every 5s"
              hx-swap="innerHTML">
         <div class="stats-context">📊 Periods for {% if filter_start == filter_end %}{{ filter_start }}{% else %}{{ filter_start }} - {{ filter_end }}{% endif %}</div>

@@ -1,5 +1,5 @@
 """
-Substitute routes - Report absence, view assignments, Mission Control
+Substitute routes - Report absence, view assignments, Substitute Overview
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
@@ -289,7 +289,7 @@ def mark_back():
     return_date = request.form.get('return_date', date.today().isoformat())
     
     if not absence_id:
-        return redirect('/substitute/mission-control')
+        return redirect('/substitute/overview')
     
     # end_date = day before return (teacher is NOT absent on return day)
     return_dt = datetime.strptime(return_date, '%Y-%m-%d').date()
@@ -303,7 +303,7 @@ def mark_back():
         absence = cursor.fetchone()
         
         if not absence:
-            return redirect('/substitute/mission-control')
+            return redirect('/substitute/overview')
         
         reported_by_id = session.get('staff_id') or 'management'
         
@@ -344,7 +344,7 @@ def mark_back():
         
         conn.commit()
     
-    return redirect('/substitute/mission-control')
+    return redirect('/substitute/overview')
 
 
 @substitute_bp.route('/mission-control-partial')
