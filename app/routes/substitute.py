@@ -347,8 +347,8 @@ def mark_back():
     return redirect('/substitute/overview')
 
 
-@substitute_bp.route('/mission-control-partial')
-def mission_control_partial():
+@substitute_bp.route('/overview-partial')
+def substitute_overview_partial():
     """HTMX partial - returns just the stats + absence cards for polling."""
     day1, day1_label, day2, day2_label = get_school_days()
     today = date.today()
@@ -468,8 +468,8 @@ def absence_status(absence_id):
                           events=events)
 
 
-@substitute_bp.route('/mission-control')
-def mission_control():
+@substitute_bp.route('/overview')
+def substitute_overview():
     """Principal's view - all absences and coverage status."""
     # All staff can view substitute coverage
     

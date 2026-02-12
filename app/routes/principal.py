@@ -1,5 +1,5 @@
 """
-Principal routes - Eagle Eye Dashboard
+Principal routes - Management Dashboard
 Real-time school-wide attendance visibility for leadership.
 Performance-first design: <100ms target with parallel API calls.
 """
@@ -15,7 +15,7 @@ TENANT_ID = "MARAGON"
 
 @principal_bp.route('/')
 def dashboard():
-    """Main Eagle Eye dashboard page."""
+    """Main Leadership dashboard page."""
     today = date.today()
     today_display = today.strftime('%A, %d %B %Y')
     return render_template('principal/dashboard.html', today_display=today_display)

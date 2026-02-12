@@ -79,7 +79,7 @@
         </a>
         
         {% if session.get('role') in ['principal', 'deputy', 'admin'] %}
-        <a href="{{ url_for('substitute.mission_control') }}" class="card">
+        <a href="{{ url_for('substitute.substitute_overview') }}" class="card">
             <div class="card-icon purple">🎛️</div>
             <h2>Substitute Overview</h2>
             <p>View all absences and coverage status</p>
