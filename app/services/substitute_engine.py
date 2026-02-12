@@ -774,10 +774,12 @@ def reassign_declined_request(request_id, declined_by_id):
             return None
 
 
-def get_eligible_terrain_staff(exclude_ids=None, target_date=None):
+def get_eligible_terrain_staff(exclude_ids=None, target_date=None, relax_weekly=False):
     """
     Get staff eligible for terrain duty, sorted by first name.
-    Excludes: already assigned terrain this week, absent staff, explicitly excluded.
+    Excludes: absent staff, explicitly excluded.
+    If relax_weekly=False (default): also excludes already assigned terrain this week.
+    If relax_weekly=True: allows double-up in same week (better than escalating).
     """
     exclude_ids = exclude_ids or []
     
@@ -820,7 +822,7 @@ def get_eligible_terrain_staff(exclude_ids=None, target_date=None):
         for staff in all_staff:
             if staff['id'] in exclude_ids:
                 continue
-            if staff['id'] in assigned_this_week:
+            if not relax_weekly and staff['id'] in assigned_this_week:
                 continue
             if staff['id'] in absent_staff:
                 continue
@@ -857,6 +859,14 @@ def reassign_terrain_duty(duty_id, original_staff_id):
             exclude_ids=[original_staff_id],
             target_date=target_date
         )
+        
+        if not eligible:
+            # Fallback: relax same-week exclusion (better to double up than escalate)
+            eligible = get_eligible_terrain_staff(
+                exclude_ids=[original_staff_id],
+                target_date=target_date,
+                relax_weekly=True
+            )
         
         if not eligible:
             print(f"TERRAIN: No eligible staff to reassign duty {duty_id}")
