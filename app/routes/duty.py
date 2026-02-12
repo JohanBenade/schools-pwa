@@ -856,3 +856,50 @@ def decline_homework_duty(duty_id):
         conn.commit()
 
     return redirect(return_to)
+
+
+@duty_bp.route('/my-terrain')
+def my_terrain():
+    """Teacher's upcoming terrain and homework duty assignments."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+
+    today = date.today()
+    today_str = today.isoformat()
+    from datetime import time as dt_time
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT dr.*, ta.area_name, ta.area_code
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.staff_id = ? AND dr.tenant_id = ? AND dr.duty_date >= ?
+            ORDER BY dr.duty_date ASC
+        """, (staff_id, TENANT_ID, today_str))
+
+        duties = []
+        for row in cursor.fetchall():
+            duty = dict(row)
+            duty_date = date.fromisoformat(duty['duty_date'])
+            duty['display_date'] = duty_date.strftime('%a %d %b')
+            duty['is_today'] = duty['duty_date'] == today_str
+            duty['day_name'] = duty_date.strftime('%A')
+
+            # Can decline if before 06:30 on duty day
+            now = datetime.now()
+            cutoff = datetime.combine(duty_date, dt_time(6, 30))
+            duty['can_decline'] = now < cutoff
+
+            duties.append(duty)
+
+    from app.services.nav import get_nav_header, get_nav_styles
+    nav_header = get_nav_header("My Terrain", "/", "Home")
+    nav_styles = get_nav_styles()
+
+    return render_template('duty/my_terrain.html',
+                          duties=duties,
+                          nav_header=nav_header,
+                          nav_styles=nav_styles)
