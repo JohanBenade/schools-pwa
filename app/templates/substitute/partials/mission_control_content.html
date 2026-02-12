@@ -1,62 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Substitute Overview - SchoolOps</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
-        .container { max-width: 800px; margin: 0 auto; }
-        {{ nav_styles|safe }}
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 12px; text-align: center; background: rgba(255,255,255,0.1); border-radius: 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; }
-        .tab:hover { background: rgba(255,255,255,0.15); }
-        .tab.active { background: #3b82f6; }
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-        .stats-context { text-align: center; font-size: 14px; opacity: 0.8; margin-bottom: 12px; }
-        .stat-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; }
-        .stat-number { font-size: 32px; font-weight: 700; }
-        .stat-label { font-size: 12px; opacity: 0.7; margin-top: 4px; }
-        .stat-green { color: #22c55e; }
-        .stat-yellow { color: #eab308; }
-        .stat-red { color: #ef4444; }
-        .config-bar { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; display: flex; justify-content: space-between; }
-        .absence-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .absence-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .absence-name { font-size: 18px; font-weight: 600; }
-        .absence-status { padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
-        .status-covered { background: #22c55e; }
-        .status-partial { background: #eab308; color: #000; }
-        .status-escalated { background: #ef4444; }
-        .absence-meta { font-size: 13px; opacity: 0.7; margin-bottom: 12px; }
-        .date-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
-        .date-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
-        .date-label { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; }
-        .period-list { display: flex; flex-wrap: wrap; gap: 8px; }
-        .period-chip { padding: 6px 12px; border-radius: 6px; font-size: 12px; background: rgba(255,255,255,0.1); }
-        .period-chip.assigned { background: rgba(34, 197, 94, 0.3); }
-        .period-chip.pending { background: rgba(239, 68, 68, 0.4); color: #fca5a5; }
-        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.7; }
-        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        {{ nav_header|safe }}
-        
-        <div class="tabs">
-            <a href="?tab=today" class="tab {{ 'active' if current_tab == 'today' else '' }}">{{ tab1_label }}</a>
-            <a href="?tab=tomorrow" class="tab {{ 'active' if current_tab == 'tomorrow' else '' }}">{{ tab2_label }}</a>
-            <a href="?tab=week" class="tab {{ 'active' if current_tab == 'week' else '' }}">This Week</a>
-            <a href="?tab=nextweek" class="tab {{ 'active' if current_tab == 'nextweek' else '' }}">Next Week</a>
-        </div>
-        
-        <div id="live-content"
-             hx-get="/substitute/mission-control-partial?tab={{ current_tab }}"
-             hx-trigger="every 5s"
-             hx-swap="innerHTML">
         <div class="stats-context">📊 Periods for {% if filter_start == filter_end %}{{ filter_start }}{% else %}{{ filter_start }} - {{ filter_end }}{% endif %}</div>
         <div class="stats">
             <div class="stat-card">
@@ -142,7 +83,6 @@
                 <p>No absences for {{ filter_start }}{% if filter_start != filter_end %} - {{ filter_end }}{% endif %}</p>
             </div>
         {% endif %}
-        </div><!-- /live-content -->
     </div>
 </body>
 </html>

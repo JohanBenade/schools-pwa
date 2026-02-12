@@ -347,6 +347,85 @@ def mark_back():
     return redirect('/substitute/mission-control')
 
 
+@substitute_bp.route('/mission-control-partial')
+def mission_control_partial():
+    """HTMX partial - returns just the stats + absence cards for polling."""
+    day1, day1_label, day2, day2_label = get_school_days()
+    today = date.today()
+    tab = request.args.get('tab', 'today')
+
+    if tab == 'tomorrow':
+        filter_start = day2; filter_end = day2
+        filter_dates = [day2.isoformat()]
+    elif tab == 'week':
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+        filter_start = monday; filter_end = friday
+        filter_dates = [(monday + timedelta(days=i)).isoformat() for i in range(5)]
+    elif tab == 'nextweek':
+        days_until_next_monday = 7 - today.weekday() if today.weekday() != 0 else 7
+        next_monday = today + timedelta(days=days_until_next_monday)
+        next_friday = next_monday + timedelta(days=4)
+        filter_start = next_monday; filter_end = next_friday
+        filter_dates = [(next_monday + timedelta(days=i)).isoformat() for i in range(5)]
+    else:
+        filter_start = day1; filter_end = day1
+        filter_dates = [day1.isoformat()]
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        query = """
+            SELECT a.*, s.display_name as teacher_name, s.surname,
+                   mg.group_name as mentor_class
+            FROM absence a
+            JOIN staff s ON a.staff_id = s.id
+            LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
+            WHERE a.tenant_id = ?
+              AND a.absence_date <= ?
+              AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
+        """
+        params = [TENANT_ID, filter_end.isoformat(), filter_start.isoformat()]
+        query += " ORDER BY a.absence_date ASC, a.reported_at ASC"
+        cursor.execute(query, params)
+        absences = [dict(row) for row in cursor.fetchall()]
+
+        for absence in absences:
+            placeholders = ','.join(['?' for _ in filter_dates])
+            cursor.execute(f"""
+                SELECT sr.*, p.period_name, p.period_number,
+                       sub.display_name as substitute_name, sc.cycle_day
+                FROM substitute_request sr
+                LEFT JOIN period p ON sr.period_id = p.id
+                LEFT JOIN staff sub ON sr.substitute_id = sub.id
+                LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
+                WHERE sr.absence_id = ?
+                  AND sr.request_date IN ({placeholders})
+                ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
+            """, (absence['id'], *filter_dates))
+            absence['requests'] = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute("SELECT * FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
+        row = cursor.fetchone()
+        config = dict(row) if row else {}
+
+        total_absences = len(absences)
+        total_periods = 0; covered_periods = 0; pending_periods = 0
+        for absence in absences:
+            for req in absence.get('requests', []):
+                total_periods += 1
+                if req.get('substitute_id'): covered_periods += 1
+                else: pending_periods += 1
+
+    return render_template('substitute/partials/mission_control_content.html',
+                          absences=absences, config=config,
+                          cycle_day=get_cycle_day(),
+                          today_iso=today.isoformat(),
+                          stats={'total': total_periods, 'covered': covered_periods,
+                                 'pending': pending_periods, 'absences': total_absences},
+                          filter_start=filter_start.strftime('%a %d %b'),
+                          filter_end=filter_end.strftime('%a %d %b'))
+
+
 @substitute_bp.route('/status/<absence_id>')
 def absence_status(absence_id):
     """View status of an absence."""
