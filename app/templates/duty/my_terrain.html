@@ -6,100 +6,189 @@
     <title>My Terrain - SchoolOps</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 100px; color: white; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 500px; margin: 0 auto; }
         {{ nav_styles|safe }}
-        .summary { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
-        .summary .number { font-size: 28px; font-weight: 700; color: #a855f7; }
-        .summary .label { font-size: 12px; opacity: 0.7; }
-        .duty-list { display: flex; flex-direction: column; gap: 10px; }
-        .duty-card { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
-        .duty-card.today { border-left: 4px solid #a855f7; }
-        .duty-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .duty-date { font-size: 16px; font-weight: 700; }
-        .duty-day { font-size: 13px; opacity: 0.6; }
-        .today-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #a855f7; color: white; }
-        .hw-badge { background: #14b8a6; }
-        .duty-area { font-size: 15px; margin-bottom: 4px; }
-        .duty-type { font-size: 12px; opacity: 0.5; }
-        .decline-form { margin-top: 10px; }
-        .decline-btn { width: 100%; padding: 10px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; color: #fca5a5; font-size: 13px; font-weight: 500; cursor: pointer; }
-        .decline-btn:active { background: rgba(239,68,68,0.4); }
-        .reason-input { width: 100%; padding: 10px; margin-top: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 13px; display: none; }
-        .reason-input::placeholder { color: rgba(255,255,255,0.4); }
-        .reason-actions { display: flex; gap: 8px; margin-top: 8px; display: none; }
-        .reason-actions .btn-cancel { flex: 1; padding: 10px; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; color: white; font-size: 13px; cursor: pointer; }
-        .reason-actions .btn-confirm { flex: 1; padding: 10px; background: #ef4444; border: none; border-radius: 8px; color: white; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
-        .empty-state p { font-size: 16px; margin-bottom: 8px; }
+
+        .page-header { text-align: center; margin-bottom: 20px; }
+        .page-header h2 { font-size: 20px; font-weight: 600; }
+        .page-header .subtitle { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+
+        .stats { display: flex; gap: 12px; margin-bottom: 20px; }
+        .stat { flex: 1; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #a855f7; }
+        .stat-label { font-size: 12px; opacity: 0.7; }
+
+        .date-group { margin-bottom: 24px; }
+        .date-label { font-size: 14px; font-weight: 600; color: #a855f7; margin-bottom: 8px; padding-left: 4px; }
+
+        .duty-card { background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+        .duty-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .duty-area { font-size: 15px; font-weight: 600; flex: 1; }
+        .duty-time { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+
+        .duty-details { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+        .duty-row { font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 4px; display: flex; gap: 8px; }
+        .duty-row span:first-child { opacity: 0.6; }
+
+        .hw-tag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #14b8a6; color: white; }
+        .terrain-tag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #a855f7; color: white; }
+
+        .decline-btn {
+            font-size: 12px;
+            color: #ef4444;
+            background: transparent;
+            border: 1px solid #ef4444;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .decline-btn:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .empty-state { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.1); border-radius: 12px; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state h3 { font-size: 18px; margin-bottom: 8px; }
+        .empty-state p { opacity: 0.7; font-size: 14px; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 8px; color: white; }
+        .modal p { font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
+        .modal textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .modal textarea::placeholder { color: #64748b; }
+        .modal-buttons { display: flex; gap: 12px; }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #94a3b8; }
+        .btn-confirm { background: #dc2626; color: white; }
     </style>
 </head>
 <body>
-    {{ nav_header|safe }}
+    <div class="container">
+        {{ nav_header|safe }}
 
-    <div class="summary">
-        <div class="number">{{ duties|length }}</div>
-        <div class="label">Upcoming {{ "Duty" if duties|length == 1 else "Duties" }}</div>
-    </div>
-
-    {% if duties %}
-    <div class="duty-list">
-        {% for duty in duties %}
-        <div class="duty-card {{ 'today' if duty.is_today else '' }}">
-            <div class="duty-top">
-                <div>
-                    <div class="duty-date">{{ duty.display_date }}</div>
-                    <div class="duty-day">{{ duty.day_name }}</div>
-                </div>
-                {% if duty.is_today %}
-                <span class="today-badge">Today</span>
-                {% endif %}
-                {% if duty.duty_type == 'homework' %}
-                <span class="today-badge hw-badge">Homework</span>
-                {% endif %}
-            </div>
-            <div class="duty-area">
-                {% if duty.duty_type == 'homework' %}
-                    Homework Venue • 14:15 - 15:00
-                {% else %}
-                    {{ duty.area_name }} • 07:15 + Breaks
-                {% endif %}
-            </div>
-            <div class="duty-type">{{ duty.duty_type|capitalize }} Duty</div>
-
-            {% if duty.can_decline %}
-            <div class="decline-form" id="decline-{{ duty.id }}">
-                <button class="decline-btn" onclick="showReason('{{ duty.id }}')">Decline</button>
-                <form method="POST" action="/duty/{{ duty.duty_type }}/decline/{{ duty.id }}">
-                    <input type="hidden" name="return_to" value="/duty/my-terrain">
-                    <input type="text" class="reason-input" id="reason-{{ duty.id }}" name="reason" placeholder="Reason (optional)">
-                    <div class="reason-actions" id="actions-{{ duty.id }}">
-                        <button type="button" class="btn-cancel" onclick="hideReason('{{ duty.id }}')">Cancel</button>
-                        <button type="submit" class="btn-confirm">Confirm Decline</button>
-                    </div>
-                </form>
-            </div>
-            {% endif %}
+        <div class="page-header">
+            <h2>🗺️ My Terrain</h2>
+            <div class="subtitle">All upcoming terrain & homework duties</div>
         </div>
-        {% endfor %}
+
+        {% if duties %}
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value">{{ duties|length }}</div>
+                <div class="stat-label">Dut{{ 'y' if duties|length == 1 else 'ies' }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ days_count }}</div>
+                <div class="stat-label">Day{{ 's' if days_count != 1 else '' }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if duties_by_date %}
+            {% for day in duties_by_date %}
+            <div class="date-group">
+                <div class="date-label">{{ day.display_date }}</div>
+                {% for duty in day.duties %}
+                <div class="duty-card">
+                    <div class="duty-header">
+                        <div class="duty-area">{{ duty.area_display }}</div>
+                        {% if duty.can_decline %}
+                        <button class="decline-btn" onclick="openDecline('{{ duty.id }}', '{{ duty.duty_type }}', '{{ duty.area_display }}', '{{ day.display_date }}')">✕ Decline</button>
+                        {% endif %}
+                    </div>
+                    <div class="duty-time">{{ duty.time_display }}</div>
+                    <div class="duty-details">
+                        <div class="duty-row">
+                            <span>🏷️</span>
+                            {% if duty.duty_type == 'homework' %}
+                            <span class="hw-tag">Homework</span>
+                            {% else %}
+                            <span class="terrain-tag">Terrain</span>
+                            {% endif %}
+                        </div>
+                        {% if duty.area_code and duty.duty_type != 'homework' %}
+                        <div class="duty-row"><span>📍</span> {{ duty.area_code }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">✅</div>
+                <h3>No Upcoming Duties</h3>
+                <p>You have no upcoming terrain or homework duty assignments</p>
+            </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div class="empty-state">
-        <p>No upcoming duties</p>
-        <span>You're not currently assigned terrain or homework duties</span>
+
+    <div class="modal-overlay" id="declineModal">
+        <div class="modal">
+            <h2>Decline Duty</h2>
+            <p id="declineInfo"></p>
+            <form id="declineForm" method="POST">
+                <input type="hidden" name="return_to" value="/duty/my-terrain">
+                <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeDecline()">Cancel</button>
+                    <button type="submit" class="btn-confirm">Confirm Decline</button>
+                </div>
+            </form>
+        </div>
     </div>
-    {% endif %}
 
     <script>
-    function showReason(id) {
-        document.getElementById('reason-' + id).style.display = 'block';
-        document.getElementById('actions-' + id).style.display = 'flex';
-        document.querySelector('#decline-' + id + ' .decline-btn').style.display = 'none';
-    }
-    function hideReason(id) {
-        document.getElementById('reason-' + id).style.display = 'none';
-        document.getElementById('actions-' + id).style.display = 'none';
-        document.querySelector('#decline-' + id + ' .decline-btn').style.display = 'block';
-    }
+        function openDecline(dutyId, dutyType, areaName, dateStr) {
+            document.getElementById('declineInfo').textContent = dateStr + ' - ' + areaName + ' (' + dutyType + ')';
+            document.getElementById('declineForm').action = '/duty/' + dutyType + '/decline/' + dutyId;
+            document.getElementById('declineModal').classList.add('active');
+        }
+        function closeDecline() {
+            document.getElementById('declineModal').classList.remove('active');
+        }
+        document.getElementById('declineModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDecline();
+        });
     </script>
 </body>
 </html>

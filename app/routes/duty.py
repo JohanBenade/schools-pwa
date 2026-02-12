@@ -868,6 +868,7 @@ def my_terrain():
     today = date.today()
     today_str = today.isoformat()
     from datetime import time as dt_time
+    from collections import OrderedDict
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -888,6 +889,14 @@ def my_terrain():
             duty['is_today'] = duty['duty_date'] == today_str
             duty['day_name'] = duty_date.strftime('%A')
 
+            # Time display
+            if duty['duty_type'] == 'homework':
+                duty['time_display'] = '14:15 - 15:00'
+                duty['area_display'] = 'Homework Venue'
+            else:
+                duty['time_display'] = '07:15 + Breaks'
+                duty['area_display'] = duty['area_name'] or 'TBC'
+
             # Can decline if before 06:30 on duty day
             now = datetime.now()
             cutoff = datetime.combine(duty_date, dt_time(6, 30))
@@ -895,11 +904,28 @@ def my_terrain():
 
             duties.append(duty)
 
-    from app.services.nav import get_nav_header, get_nav_styles
+        # Group by date
+        duties_by_date = OrderedDict()
+        for duty in duties:
+            key = duty['duty_date']
+            if key not in duties_by_date:
+                duties_by_date[key] = {
+                    'display_date': duty['display_date'],
+                    'duties': []
+                }
+            duties_by_date[key]['duties'].append(duty)
+
+        duties_by_date = list(duties_by_date.values())
+
+        # Count unique days
+        days_count = len(duties_by_date)
+
     nav_header = get_nav_header("My Terrain", "/", "Home")
     nav_styles = get_nav_styles()
 
     return render_template('duty/my_terrain.html',
                           duties=duties,
+                          duties_by_date=duties_by_date,
+                          days_count=days_count,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
