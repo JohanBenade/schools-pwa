@@ -438,16 +438,14 @@ def my_day():
                     item['content'] = "Break"
             
             elif slot['slot_type'] == 'study':
-                if is_absent:
-                    item['content'] = slot['slot_name']
-                elif homework_duty:
+                if homework_duty and not is_absent:
                     item['content'] = "Homework Venue"
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'purple'
                     item['is_duty'] = True
                     item['homework_duty_id'] = homework_duty['id']
                 else:
-                    item['content'] = slot['slot_name']
+                    continue  # Skip study slot if no homework duty
             
             else:
                 item['content'] = slot['slot_name']
