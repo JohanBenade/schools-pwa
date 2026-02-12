@@ -998,7 +998,8 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
             # === 1. CHECK SUBSTITUTE ASSIGNMENTS ===
             cursor.execute("""
                 SELECT sr.id, sr.period_id, p.period_name, a.staff_id as absent_teacher_id,
-                       s.display_name as absent_teacher_name
+                       s.display_name as absent_teacher_name,
+                       sr.is_mentor_duty, sr.mentor_group_id
                 FROM substitute_request sr
                 JOIN absence a ON sr.absence_id = a.id
                 JOIN staff s ON a.staff_id = s.id
@@ -1011,18 +1012,47 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
             sub_assignments = [dict(row) for row in cursor.fetchall()]
             
             for sub in sub_assignments:
-                # Use existing reassign function
-                new_sub = reassign_declined_request(sub['id'], staff_id)
-                if new_sub:
-                    results['substitute_reassigned'].append({
-                        'date': target_date_str,
-                        'period': sub.get('period_name', 'Roll Call'),
-                        'for_teacher': sub['absent_teacher_name'],
-                        'new_sub': new_sub['display_name']
-                    })
-                    print(f"SUB CLASH: {staff_name} was covering {sub['absent_teacher_name']} {sub.get('period_name', 'Roll Call')} on {target_date_str} -> reassigned to {new_sub['display_name']}")
+                if sub.get('is_mentor_duty') and sub.get('mentor_group_id'):
+                    # Mentor register: use grade escalation chain (backup -> grade head -> unresolved)
+                    cover = get_mentor_register_cover(sub['mentor_group_id'], target_date)
+                    if cover:
+                        # Update the substitute_request with new substitute
+                        cursor.execute("""
+                            UPDATE substitute_request 
+                            SET substitute_id = ?, status = 'Assigned', assigned_at = ?
+                            WHERE id = ?
+                        """, (cover['staff_id'], datetime.now().isoformat(), sub['id']))
+                        conn.commit()
+                        results['substitute_reassigned'].append({
+                            'date': target_date_str,
+                            'period': 'Register',
+                            'for_teacher': sub['absent_teacher_name'],
+                            'new_sub': cover['display_name']
+                        })
+                        print(f"MENTOR ESCALATION: {staff_name} was covering register for {sub['absent_teacher_name']} on {target_date_str} -> escalated to {cover['display_name']} ({cover['fallback_level']})")
+                    else:
+                        # No one in escalation chain available - mark unresolved
+                        cursor.execute("""
+                            UPDATE substitute_request 
+                            SET substitute_id = NULL, status = 'Pending'
+                            WHERE id = ?
+                        """, (sub['id'],))
+                        conn.commit()
+                        results['errors'].append(f"Mentor register for {sub['absent_teacher_name']} on {target_date_str} - no cover (backup & head absent)")
+                        print(f"MENTOR ESCALATION: {staff_name} was covering register for {sub['absent_teacher_name']} on {target_date_str} -> NO COVER (backup & head both absent)")
                 else:
-                    results['errors'].append(f"No sub available for {sub.get('period_name', 'Roll Call')} on {target_date_str}")
+                    # Regular period: use A-Z rotation pool
+                    new_sub = reassign_declined_request(sub['id'], staff_id)
+                    if new_sub:
+                        results['substitute_reassigned'].append({
+                            'date': target_date_str,
+                            'period': sub.get('period_name', 'Roll Call'),
+                            'for_teacher': sub['absent_teacher_name'],
+                            'new_sub': new_sub['display_name']
+                        })
+                        print(f"SUB CLASH: {staff_name} was covering {sub['absent_teacher_name']} {sub.get('period_name', 'Roll Call')} on {target_date_str} -> reassigned to {new_sub['display_name']}")
+                    else:
+                        results['errors'].append(f"No sub available for {sub.get('period_name', 'Roll Call')} on {target_date_str}")
             
             # === 2. CHECK TERRAIN DUTY ===
             cursor.execute("""
