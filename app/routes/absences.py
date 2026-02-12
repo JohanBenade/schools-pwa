@@ -83,7 +83,7 @@ def learners():
             LEFT JOIN staff s ON mg.mentor_id = s.id
             LEFT JOIN learner_absent_tracking lat ON l.id = lat.learner_id
             WHERE l.is_active = 1
-            ORDER BY l.first_name ASC
+            ORDER BY COALESCE(lat.consecutive_absent_days, 1) DESC, l.first_name ASC, l.surname ASC
         """, (TENANT_ID, last_date, TENANT_ID))
         
         rows = cursor.fetchall()
