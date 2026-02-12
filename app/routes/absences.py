@@ -134,6 +134,7 @@ def teachers():
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN mentor_group mg ON mg.mentor_id = s.id
             WHERE a.tenant_id = ?
+              AND a.status NOT IN ('Resolved', 'Cancelled')
               AND (
                   COALESCE(a.end_date, a.absence_date) >= ?
                   OR a.is_open_ended = 1
