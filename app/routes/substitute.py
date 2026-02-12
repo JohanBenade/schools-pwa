@@ -217,6 +217,10 @@ def early_return():
     if not absence_id:
         return redirect(url_for('substitute.report_absence'))
     
+    # end_date = day before return (teacher is NOT absent on return day)
+    return_dt = datetime.strptime(return_date, '%Y-%m-%d').date()
+    adjusted_end_date = (return_dt - timedelta(days=1)).isoformat()
+    
     with get_connection() as conn:
         cursor = conn.cursor()
         
@@ -237,9 +241,10 @@ def early_return():
                 returned_at = ?,
                 return_reported_by_id = ?,
                 end_date = ?,
+                status = 'Resolved',
                 updated_at = ?
             WHERE id = ?
-        """, (datetime.now().isoformat(), staff_id, return_date, datetime.now().isoformat(), absence_id))
+        """, (datetime.now().isoformat(), staff_id, adjusted_end_date, datetime.now().isoformat(), absence_id))
         
         # Cancel all substitute requests from return_date onwards
         cursor.execute("""
