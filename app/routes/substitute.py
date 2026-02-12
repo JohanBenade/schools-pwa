@@ -873,4 +873,4 @@ def mark_absent_submit():
     except Exception as e:
         print(f"Management mark-absent duty clash error: {e}")
     
-    return redirect('/substitute/mission-control')
+    return redirect('/substitute/status/' + absence_id)
