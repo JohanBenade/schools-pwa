@@ -61,7 +61,7 @@
         <div class="teacher-card">
             <div class="teacher-top">
                 <div>
-                    <div class="teacher-name">{{ absence.teacher_name }}</div>
+                    <div class="teacher-name">{{ absence.first_name }} {{ absence.surname }}</div>
                     <div class="teacher-type">{{ absence.absence_type }}{% if absence.mentor_class %} • {{ absence.mentor_class }}{% endif %}</div>
                 </div>
                 <span class="status-badge {{ absence.status|lower }}">{{ absence.status }}</span>

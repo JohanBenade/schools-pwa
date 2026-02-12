@@ -128,7 +128,7 @@ def teachers():
         
         # Get current/upcoming absences (today onwards, or open-ended)
         cursor.execute("""
-            SELECT a.*, s.display_name as teacher_name, s.surname,
+            SELECT a.*, s.display_name as teacher_name, s.first_name, s.surname,
                    mg.group_name as mentor_class
             FROM absence a
             JOIN staff s ON a.staff_id = s.id
