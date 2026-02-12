@@ -999,7 +999,7 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
             cursor.execute("""
                 SELECT sr.id, sr.period_id, p.period_name, a.staff_id as absent_teacher_id,
                        s.display_name as absent_teacher_name,
-                       sr.is_mentor_duty, sr.mentor_group_id
+                       sr.is_mentor_duty, sr.mentor_group_id, sr.absence_id
                 FROM substitute_request sr
                 JOIN absence a ON sr.absence_id = a.id
                 JOIN staff s ON a.staff_id = s.id
@@ -1037,6 +1037,12 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
                             SET substitute_id = NULL, status = 'Pending'
                             WHERE id = ?
                         """, (sub['id'],))
+                        # Update parent absence to Partial since register has no cover
+                        if sub.get('absence_id'):
+                            cursor.execute("""
+                                UPDATE absence SET status = 'Partial'
+                                WHERE id = ? AND status = 'Covered'
+                            """, (sub['absence_id'],))
                         conn.commit()
                         results['errors'].append(f"Mentor register for {sub['absent_teacher_name']} on {target_date_str} - no cover (backup & head absent)")
                         print(f"MENTOR ESCALATION: {staff_name} was covering register for {sub['absent_teacher_name']} on {target_date_str} -> NO COVER (backup & head both absent)")
