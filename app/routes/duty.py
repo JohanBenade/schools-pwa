@@ -177,7 +177,7 @@ def my_day():
             FROM duty_roster dr
             LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
             LEFT JOIN staff orig ON dr.staff_id = orig.id
-            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'terrain'
+            WHERE ((dr.staff_id = ? AND dr.replacement_id IS NULL) OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'terrain'
         """, (staff_id, staff_id, target_date_str))
         terrain_row = cursor.fetchone()
         terrain_duty = dict(terrain_row) if terrain_row else None
@@ -187,7 +187,7 @@ def my_day():
                    CASE WHEN dr.replacement_id IS NOT NULL THEN orig.display_name ELSE NULL END as covering_for
             FROM duty_roster dr
             LEFT JOIN staff orig ON dr.staff_id = orig.id
-            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'homework'
+            WHERE ((dr.staff_id = ? AND dr.replacement_id IS NULL) OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'homework'
         """, (staff_id, staff_id, target_date_str))
         homework_row = cursor.fetchone()
         homework_duty = dict(homework_row) if homework_row else None
@@ -892,7 +892,7 @@ def my_terrain():
             FROM duty_roster dr
             LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
             LEFT JOIN staff orig ON dr.staff_id = orig.id
-            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.tenant_id = ? AND dr.duty_date >= ?
+            WHERE ((dr.staff_id = ? AND dr.replacement_id IS NULL) OR dr.replacement_id = ?) AND dr.tenant_id = ? AND dr.duty_date >= ?
             ORDER BY dr.duty_date ASC
         """, (staff_id, staff_id, TENANT_ID, today_str))
 
