@@ -172,18 +172,23 @@ def my_day():
                 room_occupants[row['period_number']] = row['occupant_name']
         
         cursor.execute("""
-            SELECT dr.*, ta.area_name, ta.area_code
+            SELECT dr.*, ta.area_name, ta.area_code,
+                   CASE WHEN dr.replacement_id IS NOT NULL THEN orig.display_name ELSE NULL END as covering_for
             FROM duty_roster dr
             LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-            WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.duty_type = 'terrain'
-        """, (staff_id, target_date_str))
+            LEFT JOIN staff orig ON dr.staff_id = orig.id
+            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'terrain'
+        """, (staff_id, staff_id, target_date_str))
         terrain_row = cursor.fetchone()
         terrain_duty = dict(terrain_row) if terrain_row else None
         
         cursor.execute("""
-            SELECT * FROM duty_roster
-            WHERE staff_id = ? AND duty_date = ? AND duty_type = 'homework'
-        """, (staff_id, target_date_str))
+            SELECT dr.*,
+                   CASE WHEN dr.replacement_id IS NOT NULL THEN orig.display_name ELSE NULL END as covering_for
+            FROM duty_roster dr
+            LEFT JOIN staff orig ON dr.staff_id = orig.id
+            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.duty_date = ? AND dr.duty_type = 'homework'
+        """, (staff_id, staff_id, target_date_str))
         homework_row = cursor.fetchone()
         homework_duty = dict(homework_row) if homework_row else None
         
@@ -539,9 +544,13 @@ def terrain_roster():
         
         # Get all terrain duties for the week
         cursor.execute("""
-            SELECT dr.duty_date, dr.terrain_area_id, dr.staff_id, s.display_name
+            SELECT dr.duty_date, dr.terrain_area_id, 
+                   COALESCE(dr.replacement_id, dr.staff_id) as staff_id,
+                   COALESCE(rep.display_name, s.display_name) as display_name,
+                   CASE WHEN dr.replacement_id IS NOT NULL THEN s.display_name ELSE NULL END as original_name
             FROM duty_roster dr
             JOIN staff s ON dr.staff_id = s.id
+            LEFT JOIN staff rep ON dr.replacement_id = rep.id
             WHERE dr.tenant_id = ? 
               AND dr.duty_type = 'terrain'
               AND dr.duty_date >= ? AND dr.duty_date <= ?
@@ -558,9 +567,13 @@ def terrain_roster():
         
         # Get homework duties for the week
         cursor.execute("""
-            SELECT dr.duty_date, dr.staff_id, s.display_name
+            SELECT dr.duty_date, 
+                   COALESCE(dr.replacement_id, dr.staff_id) as staff_id,
+                   COALESCE(rep.display_name, s.display_name) as display_name,
+                   CASE WHEN dr.replacement_id IS NOT NULL THEN s.display_name ELSE NULL END as original_name
             FROM duty_roster dr
             JOIN staff s ON dr.staff_id = s.id
+            LEFT JOIN staff rep ON dr.replacement_id = rep.id
             WHERE dr.tenant_id = ?
               AND dr.duty_type = 'homework'
               AND dr.duty_date >= ? AND dr.duty_date <= ?
@@ -665,8 +678,8 @@ def decline_terrain_duty(duty_id):
             SELECT dr.*, ta.area_name
             FROM duty_roster dr
             LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-            WHERE dr.id = ? AND dr.staff_id = ? AND dr.tenant_id = ?
-        """, (duty_id, staff_id, TENANT_ID))
+            WHERE dr.id = ? AND (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.tenant_id = ?
+        """, (duty_id, staff_id, staff_id, TENANT_ID))
         duty = cursor.fetchone()
         
         if not duty:
@@ -755,8 +768,8 @@ def decline_homework_duty(duty_id):
 
         cursor.execute("""
             SELECT * FROM duty_roster
-            WHERE id = ? AND staff_id = ? AND tenant_id = ? AND duty_type = 'homework'
-        """, (duty_id, staff_id, TENANT_ID))
+            WHERE id = ? AND (staff_id = ? OR replacement_id = ?) AND tenant_id = ? AND duty_type = 'homework'
+        """, (duty_id, staff_id, staff_id, TENANT_ID))
         duty = cursor.fetchone()
 
         if not duty:
@@ -874,12 +887,14 @@ def my_terrain():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT dr.*, ta.area_name, ta.area_code
+            SELECT dr.*, ta.area_name, ta.area_code,
+                   CASE WHEN dr.replacement_id IS NOT NULL THEN orig.display_name ELSE NULL END as covering_for
             FROM duty_roster dr
             LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-            WHERE dr.staff_id = ? AND dr.tenant_id = ? AND dr.duty_date >= ?
+            LEFT JOIN staff orig ON dr.staff_id = orig.id
+            WHERE (dr.staff_id = ? OR dr.replacement_id = ?) AND dr.tenant_id = ? AND dr.duty_date >= ?
             ORDER BY dr.duty_date ASC
-        """, (staff_id, TENANT_ID, today_str))
+        """, (staff_id, staff_id, TENANT_ID, today_str))
 
         duties = []
         for row in cursor.fetchall():

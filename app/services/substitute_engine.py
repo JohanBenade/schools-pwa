@@ -912,10 +912,10 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         else:
             new_assignee = eligible[0]
         
-        # Update the duty roster
+        # Update the duty roster - keep original staff_id, set replacement_id
         cursor.execute("""
             UPDATE duty_roster
-            SET staff_id = ?, updated_at = datetime('now')
+            SET replacement_id = ?, updated_at = datetime('now')
             WHERE id = ?
         """, (new_assignee['id'], duty_id))
         

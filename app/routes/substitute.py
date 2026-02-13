@@ -334,6 +334,14 @@ def mark_back():
         
         cancelled_count = cursor.rowcount
         
+        # Restore terrain/homework duties from return_date onwards
+        cursor.execute("""
+            UPDATE duty_roster
+            SET replacement_id = NULL, updated_at = datetime('now')
+            WHERE staff_id = ? AND duty_date >= ? AND replacement_id IS NOT NULL
+        """, (absence['staff_id'], return_date))
+        restored_duties = cursor.rowcount
+        
         # Log it
         cursor.execute("""
             INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
