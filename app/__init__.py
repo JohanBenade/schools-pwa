@@ -55,15 +55,21 @@ def create_app():
             return
         if request.method == 'POST' and request.path == '/gate':
             return
+        magic_code = request.args.get('u')
+        if magic_code:
+            return redirect(f'/gate?u={magic_code}')
         return redirect('/gate')
     
     @app.route('/gate', methods=['GET', 'POST'])
     def password_gate():
         error = None
+        magic_code = request.args.get('u', '') or request.form.get('u', '')
         if request.method == 'POST':
             password = request.form.get('password', '')
             if password == 'maragon2026':
                 session['gate_passed'] = True
+                if magic_code:
+                    return redirect(f'/?u={magic_code}')
                 return redirect('/')
             else:
                 error = 'Incorrect password'
@@ -93,6 +99,7 @@ def create_app():
         <p>Pilot access only</p>
         {"<div class='error'>" + error + "</div>" if error else ""}
         <form method="POST">
+            {'<input type="hidden" name="u" value="' + magic_code + '">' if magic_code else ''}
             <input type="password" name="password" placeholder="Enter password" autofocus>
             <button type="submit">Enter</button>
         </form>
@@ -167,33 +174,10 @@ def create_app():
         if user_role in ['teacher', 'grade_head', 'admin']:
             return render_template('home/staff.html', user_name=user_name, active_alert=active_alert)
         
-        # Not logged in - show login prompt
-        return '''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maragon Mooikloof</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .login-box { text-align: center; max-width: 320px; }
-        h1 { font-size: 24px; color: #1E293B; margin-bottom: 8px; opacity: 0.7; }
-        h2 { font-size: 28px; color: #1E293B; margin-bottom: 24px; }
-        p { color: #64748b; font-size: 14px; }
-    </style>
-</head>
-<body>
-    <div class="login-box">
-        <h1>Maragon Mooikloof</h1>
-        <h2>SchoolOps</h2>
-        <p>Use your magic link to login</p>
-    </div>
-</body>
-</html>
-'''
-    
+        # Not logged in - show code entry form (PWA friendly)
+        login_error = request.args.get('error')
+        return render_template('home/login.html', error=login_error)
+
     @app.route('/principal/')
     def old_eagle_eye():
         return redirect('/dashboard/')
@@ -202,4 +186,32 @@ def create_app():
     def firebase_sw():
         return app.send_static_file('firebase-messaging-sw.js')
     
+
+    @app.route('/login-code', methods=['POST'])
+    def login_code():
+        code = request.form.get('code', '').strip().lower()
+        if code:
+            from app.services.db import get_connection
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT us.*, sv.venue_id as default_venue_id, v.venue_name as default_venue_name
+                    FROM user_session us
+                    LEFT JOIN staff_venue sv ON us.staff_id = sv.staff_id
+                    LEFT JOIN venue v ON sv.venue_id = v.id
+                    WHERE us.magic_code = ? AND us.tenant_id = ?
+                """, (code, TENANT_ID))
+                row = cursor.fetchone()
+                if row:
+                    session['staff_id'] = row['staff_id']
+                    session['display_name'] = row['display_name']
+                    session['role'] = row['role']
+                    session['can_resolve'] = bool(row['can_resolve'])
+                    session['default_venue_id'] = row['default_venue_id']
+                    session['default_venue_name'] = row['default_venue_name']
+                    session['tenant_id'] = TENANT_ID
+                    return redirect('/')
+        return redirect('/?error=invalid')
+
     return app
+

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>SchoolOps</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 16px; text-align: center; max-width: 320px; width: 100%; }
+        h1 { color: white; font-size: 28px; margin-bottom: 4px; }
+        .subtitle { color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 32px; }
+        .prompt { color: rgba(255,255,255,0.9); font-size: 15px; margin-bottom: 16px; }
+        input { width: 100%; padding: 14px 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 16px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.1); color: white; -webkit-appearance: none; }
+        input::placeholder { color: rgba(255,255,255,0.4); }
+        input:focus { outline: none; border-color: #3b82f6; }
+        button { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; -webkit-appearance: none; }
+        button:active { background: #2563eb; }
+        .error { color: #f87171; font-size: 14px; margin-bottom: 16px; }
+        .hint { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>SchoolOps</h1>
+        <p class="subtitle">Maragon Mooikloof</p>
+        {% if error %}
+        <div class="error">Code not recognised. Please try again.</div>
+        {% endif %}
+        <p class="prompt">Enter your personal code</p>
+        <form method="POST" action="/login-code">
+            <input type="text" name="code" placeholder="e.g. pierre" autofocus autocomplete="off" autocapitalize="none" spellcheck="false">
+            <button type="submit">Login</button>
+        </form>
+        <p class="hint">Check your email for your personal login code</p>
+    </div>
+</body>
+</html>
