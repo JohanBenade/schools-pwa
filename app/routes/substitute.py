@@ -260,13 +260,21 @@ def early_return():
         
         cancelled_count = cursor.rowcount
         
+        # Restore terrain/homework duties from return_date onwards
+        cursor.execute("""
+            UPDATE duty_roster
+            SET replacement_id = NULL, updated_at = datetime('now')
+            WHERE staff_id = ? AND duty_date >= ? AND replacement_id IS NOT NULL
+        """, (staff_id, return_date))
+        restored_duties = cursor.rowcount
+        
         # Log the early return
         log_id = str(uuid.uuid4())
         cursor.execute("""
             INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
             VALUES (?, ?, ?, 'early_return', ?, ?, ?)
         """, (log_id, TENANT_ID, absence_id, staff_id, 
-              f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}}}',
+              f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}, "restored_duties": {restored_duties}}}',
               datetime.now().isoformat()))
         
         conn.commit()
