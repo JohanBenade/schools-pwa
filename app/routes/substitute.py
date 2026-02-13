@@ -404,6 +404,22 @@ def substitute_overview_partial():
             """, (absence['id'], *filter_dates))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
 
+            # Get duty coverage for this absent teacher
+            cursor.execute(f"""
+                SELECT dr.duty_date, dr.duty_type, dr.status as duty_status,
+                       dr.replacement_id,
+                       ta.area_name,
+                       rep.display_name as replacement_name
+                FROM duty_roster dr
+                LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+                LEFT JOIN staff rep ON dr.replacement_id = rep.id
+                WHERE dr.staff_id = ?
+                  AND dr.duty_date IN ({placeholders})
+                  AND dr.tenant_id = ?
+                ORDER BY dr.duty_date, dr.duty_type
+            """, (absence['staff_id'], *filter_dates, TENANT_ID))
+            absence['duties'] = [dict(row) for row in cursor.fetchall()]
+
         cursor.execute("SELECT * FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
         row = cursor.fetchone()
         config = dict(row) if row else {}
@@ -543,6 +559,22 @@ def substitute_overview():
                 ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
             """, (absence['id'], *filter_dates))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
+
+            # Get duty coverage for this absent teacher
+            cursor.execute(f"""
+                SELECT dr.duty_date, dr.duty_type, dr.status as duty_status,
+                       dr.replacement_id,
+                       ta.area_name,
+                       rep.display_name as replacement_name
+                FROM duty_roster dr
+                LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+                LEFT JOIN staff rep ON dr.replacement_id = rep.id
+                WHERE dr.staff_id = ?
+                  AND dr.duty_date IN ({placeholders})
+                  AND dr.tenant_id = ?
+                ORDER BY dr.duty_date, dr.duty_type
+            """, (absence['staff_id'], *filter_dates, TENANT_ID))
+            absence['duties'] = [dict(row) for row in cursor.fetchall()]
         
         cursor.execute("""
             SELECT * FROM substitute_config WHERE tenant_id = ?

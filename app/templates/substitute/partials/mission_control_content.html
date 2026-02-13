@@ -60,6 +60,15 @@
                                 {% endif %}
                             </span>
                             {% endfor %}
+                            {% for duty in absence.get('duties', []) if duty.duty_date == req_date %}
+                            <span class="period-chip {{ 'assigned' if duty.replacement_name else 'pending' }}">
+                                {% if duty.duty_type == 'terrain' %}
+                                    🌍 {{ duty.area_name }}: {{ duty.replacement_name or 'Uncovered' }}
+                                {% elif duty.duty_type == 'homework' %}
+                                    📚 Homework: {{ duty.replacement_name or 'Uncovered' }}
+                                {% endif %}
+                            </span>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}
