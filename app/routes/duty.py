@@ -192,6 +192,16 @@ def my_day():
         homework_row = cursor.fetchone()
         homework_duty = dict(homework_row) if homework_row else None
         
+        # Fetch duties being covered by replacement (for absent teacher view)
+        cursor.execute("""
+            SELECT dr.duty_type, ta.area_name, rep.display_name as replacement_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            LEFT JOIN staff rep ON dr.replacement_id = rep.id
+            WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.replacement_id IS NOT NULL
+        """, (staff_id, target_date_str))
+        covered_duties = {row['duty_type']: dict(row) for row in cursor.fetchall()}
+        
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
                    s.display_name as absent_teacher, sr.venue_name, a.absence_type as absence_reason,
@@ -432,7 +442,13 @@ def my_day():
                         item['is_free'] = True
             
             elif slot['slot_type'] == 'break':
-                if is_absent:
+                if is_absent and 'terrain' in covered_duties:
+                    cd = covered_duties['terrain']
+                    item['content'] = f"Terrain: {cd['area_name']} — Covered by {cd['replacement_name']}"
+                    item['badge'] = 'COVERED'
+                    item['badge_color'] = 'green'
+                    item['is_covered'] = True
+                elif is_absent:
                     item['content'] = "Break"
                 elif terrain_duty:
                     item['content'] = f"Terrain: {terrain_duty['area_name']}"
@@ -443,7 +459,13 @@ def my_day():
                     item['content'] = "Break"
             
             elif slot['slot_type'] == 'study':
-                if homework_duty and not is_absent:
+                if is_absent and 'homework' in covered_duties:
+                    cd = covered_duties['homework']
+                    item['content'] = f"Homework Venue — Covered by {cd['replacement_name']}"
+                    item['badge'] = 'COVERED'
+                    item['badge_color'] = 'green'
+                    item['is_covered'] = True
+                elif homework_duty and not is_absent:
                     item['content'] = "Homework Venue"
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'purple'
