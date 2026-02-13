@@ -529,7 +529,8 @@ def my_day():
                           target_date_str=target_date_str,
                           absence_type=absence_type,
                           viewing_other=viewing_other,
-                          viewing_name=viewing_name)
+                          viewing_name=viewing_name,
+                          today_str=date.today().isoformat())
 
 
 @duty_bp.route('/terrain')
