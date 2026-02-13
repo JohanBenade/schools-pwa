@@ -20,6 +20,8 @@ TENANT_ID = "MARAGON"
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
+    from datetime import timedelta
+    app.permanent_session_lifetime = timedelta(days=365)
     
     from app.routes.attendance import attendance_bp
     from app.routes.admin import admin_bp
@@ -49,6 +51,7 @@ def create_app():
     
     @app.before_request
     def check_password_gate():
+        session.permanent = True
         if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
             return
         if session.get('gate_passed'):
