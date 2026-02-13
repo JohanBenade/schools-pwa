@@ -49,7 +49,7 @@ def create_app():
     
     @app.before_request
     def check_password_gate():
-        if request.path.startswith('/static') or request.path == '/gate':
+        if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
             return
         if session.get('gate_passed'):
             return
@@ -81,6 +81,8 @@ def create_app():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SchoolOps</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }}
