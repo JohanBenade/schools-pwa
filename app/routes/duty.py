@@ -324,6 +324,25 @@ def my_day():
                 'request_id': None,
                 'terrain_duty_id': terrain_duty['id']
             })
+        elif is_absent and 'terrain' in covered_duties:
+            cd = covered_duties['terrain']
+            schedule.append({
+                'slot_type': 'duty',
+                'slot_name': 'Morning Duty',
+                'start_time': '07:15',
+                'end_time': '07:30',
+                'content': f"Terrain: {cd['area_name']} — Covered by {cd['replacement_name']}",
+                'badge': 'COVERED',
+                'badge_color': 'green',
+                'is_duty': False,
+                'is_sub': False,
+                'is_free': False,
+                'is_free_occupied': False,
+                'room_occupant': None,
+                'is_sport': False,
+                'request_id': None,
+                'is_covered': True
+            })
         
         for slot in bell_slots:
             item = {
