@@ -234,6 +234,11 @@ def early_return():
         if not absence:
             return redirect(url_for('substitute.report_absence'))
         
+        # Guard: if return_date is on or before absence start, clamp to valid range
+        absence_start = absence['absence_date']
+        if adjusted_end_date < absence_start:
+            adjusted_end_date = absence_start
+        
         # Update absence record
         cursor.execute("""
             UPDATE absence 
@@ -307,11 +312,16 @@ def mark_back():
         cursor = conn.cursor()
         
         # Verify absence exists
-        cursor.execute("SELECT id, staff_id FROM absence WHERE id = ?", (absence_id,))
+        cursor.execute("SELECT id, staff_id, absence_date FROM absence WHERE id = ?", (absence_id,))
         absence = cursor.fetchone()
         
         if not absence:
             return redirect('/substitute/overview')
+        
+        # Guard: if return_date is on or before absence start, clamp to valid range
+        absence_start = absence['absence_date']
+        if adjusted_end_date < absence_start:
+            adjusted_end_date = absence_start
         
         reported_by_id = session.get('staff_id') or 'management'
         
