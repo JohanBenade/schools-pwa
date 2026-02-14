@@ -417,6 +417,7 @@ def substitute_overview_partial():
                 LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
                 WHERE sr.absence_id = ?
                   AND sr.request_date IN ({placeholders})
+                  AND sr.status IN ('Pending', 'Assigned')
                 ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
             """, (absence['id'], *filter_dates))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
@@ -574,6 +575,7 @@ def substitute_overview():
                 LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
                 WHERE sr.absence_id = ?
                   AND sr.request_date IN ({placeholders})
+                  AND sr.status IN ('Pending', 'Assigned')
                 ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
             """, (absence['id'], *filter_dates))
             absence['requests'] = [dict(row) for row in cursor.fetchall()]
