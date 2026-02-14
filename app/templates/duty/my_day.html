@@ -173,13 +173,37 @@
         </div>
         {% if is_absent %}
         <div class="absent-banner">
-            <h3>⚠️ You are marked absent</h3>
-            <p>{{ absence_type|replace("_", " ")|title }} Leave</p>
-            <button onclick="document.getElementById('imBackModal').style.display='flex'" 
-                    style="margin-top: 12px; padding: 8px 20px; border-radius: 10px; border: none; background: white; color: #dc2626; font-size: 14px; font-weight: 600; cursor: pointer;">
-                ✅ I'm Back
-            </button>
+            <h3>⚠️ {% if today_str < absence_start %}Absence booked{% else %}You are marked absent{% endif %}</h3>
+            <p>{{ absence_type|replace("_", " ")|title }}{% if absence_end and absence_end != absence_start %} · {{ absence_start }} to {{ absence_end }}{% elif absence_open_ended %} · Open-ended from {{ absence_start }}{% else %} · {{ absence_start }}{% endif %}</p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
+                {% if today_str < absence_start %}
+                <!-- Future absence: Cancel button -->
+                <form method="POST" action="/substitute/early-return" style="margin:0;">
+                    <input type="hidden" name="absence_id" value="{{ absence_id }}">
+                    <input type="hidden" name="return_date" value="{{ absence_start }}">
+                    <button type="submit" onclick="return confirm('Cancel this absence? All substitute cover will be removed.')"
+                            style="padding:8px 20px; border-radius:10px; border:none; background:#ef4444; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                        ✕ Cancel Absence
+                    </button>
+                </form>
+                {% else %}
+                <!-- Active absence: I'm Back button -->
+                <button onclick="document.getElementById('imBackModal').style.display='flex'"
+                        style="padding:8px 20px; border-radius:10px; border:none; background:white; color:#dc2626; font-size:14px; font-weight:600; cursor:pointer;">
+                    ✅ I'm Back
+                </button>
+                {% endif %}
+                {% if not absence_open_ended %}
+                <!-- Extend button (not for open-ended) -->
+                <button onclick="document.getElementById('extendModal').style.display='flex'"
+                        style="padding:8px 20px; border-radius:10px; border:none; background:#f59e0b; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                    📅 Extend
+                </button>
+                {% endif %}
+            </div>
         </div>
+
+        <!-- I'm Back Modal -->
         <div id="imBackModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
                 <h3 style="margin-bottom:4px; font-size:18px;">I'm Back</h3>
@@ -187,7 +211,7 @@
                 <form method="POST" action="/substitute/early-return">
                     <input type="hidden" name="absence_id" value="{{ absence_id }}">
                     <label style="font-size:13px; opacity:0.7; display:block; margin-bottom:6px;">First day back:</label>
-                    <input type="date" name="return_date" value="{{ absence_start }}" min="{{ absence_start }}"
+                    <input type="date" name="return_date" value="{{ today_str }}" min="{{ absence_start }}"
                            style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:white; font-size:15px; margin-bottom:16px;">
                     <div style="display:flex; gap:10px;">
                         <button type="button" onclick="document.getElementById('imBackModal').style.display='none'"
@@ -197,6 +221,30 @@
                         <button type="submit"
                                 style="flex:1; padding:10px; border-radius:10px; border:none; background:#22c55e; color:white; font-size:14px; font-weight:600; cursor:pointer;">
                             ✅ Confirm
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Extend Modal -->
+        <div id="extendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+            <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
+                <h3 style="margin-bottom:4px; font-size:18px;">Extend Absence</h3>
+                <p style="opacity:0.6; font-size:14px; margin-bottom:16px;">Push your return date out further</p>
+                <form method="POST" action="/substitute/extend">
+                    <input type="hidden" name="absence_id" value="{{ absence_id }}">
+                    <label style="font-size:13px; opacity:0.7; display:block; margin-bottom:6px;">New last day absent:</label>
+                    <input type="date" name="new_end_date" min="{{ absence_end or absence_start }}"
+                           style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:white; font-size:15px; margin-bottom:16px;">
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" onclick="document.getElementById('extendModal').style.display='none'"
+                                style="flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:white; font-size:14px; cursor:pointer;">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                style="flex:1; padding:10px; border-radius:10px; border:none; background:#f59e0b; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                            📅 Extend
                         </button>
                     </div>
                 </form>

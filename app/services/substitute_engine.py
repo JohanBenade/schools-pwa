@@ -445,6 +445,15 @@ def process_absence(absence_id):
         # Process each day
         for target_date in weekdays:
             target_date_str = target_date.isoformat()
+            
+            # Skip days that already have requests (makes process_absence safe for extend)
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM substitute_request 
+                WHERE absence_id = ? AND request_date = ? AND status != 'Cancelled'
+            """, (absence_id, target_date_str))
+            if cursor.fetchone()['cnt'] > 0:
+                continue
+            
             day_result = {
                 'date': target_date_str,
                 'date_display': target_date.strftime('%a %d %b'),

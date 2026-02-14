@@ -98,8 +98,8 @@ def report_absence():
             row = cursor.fetchone()
             
             if row and not request.args.get('new'):
-                # Active absence exists - redirect to status page
-                return redirect(url_for('substitute.absence_status', absence_id=row['id']))
+                # Active absence exists - redirect to My Day (banner handles everything)
+                return redirect('/duty/my-day')
             
             # Get periods for partial day option
             cursor.execute("""
@@ -191,10 +191,7 @@ def report_absence():
     except Exception as e:
         print(f'Substitute push error: {e}')
     
-    return redirect(url_for('substitute.absence_status', absence_id=absence_id))
-
-
-@substitute_bp.route('/early-return', methods=['POST'])
+    return redirect('/duty/my-day?tab=' + start_date)
 def early_return():
     """Teacher reports early return - cancels remaining substitute assignments."""
     staff_id = session.get('staff_id')
@@ -277,7 +274,7 @@ def early_return():
         
         # TODO: Send push notifications to cancelled subs
     
-    return redirect(url_for('substitute.absence_status', absence_id=absence_id))
+    return redirect('/duty/my-day')
 
 
 
@@ -958,6 +955,68 @@ def sub_duties():
                           nav_styles=nav_styles)
 
 
+@substitute_bp.route('/extend', methods=['POST'])
+def extend_absence():
+    """Extend an absence to a later end date. Used by both teacher (My Day) and management (Overview)."""
+    staff_id = session.get('staff_id')
+    role = session.get('role', 'teacher')
+    
+    absence_id = request.form.get('absence_id')
+    new_end_date = request.form.get('new_end_date')
+    
+    if not absence_id or not new_end_date:
+        return redirect('/duty/my-day')
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT staff_id, end_date, absence_date FROM absence WHERE id = ?", (absence_id,))
+        absence = cursor.fetchone()
+        if not absence:
+            return redirect('/duty/my-day')
+        
+        # Security: teacher can only extend own absence
+        if role not in ['principal', 'deputy', 'office', 'admin']:
+            if absence['staff_id'] != staff_id:
+                return redirect('/')
+        
+        old_end = absence['end_date'] or absence['absence_date']
+        
+        # Validate new date is actually later
+        if new_end_date <= old_end:
+            return redirect('/duty/my-day')
+        
+        # Update end date
+        cursor.execute("""
+            UPDATE absence SET end_date = ?, is_open_ended = 0, status = 'Reported', updated_at = ?
+            WHERE id = ?
+        """, (new_end_date, datetime.now().isoformat(), absence_id))
+        
+        # Log it
+        cursor.execute("""
+            INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
+            VALUES (?, ?, ?, 'extend', ?, ?, ?)
+        """, (str(uuid.uuid4()), TENANT_ID, absence_id, staff_id,
+              f'{{"old_end_date": "{old_end}", "new_end_date": "{new_end_date}", "extended_by": "{session.get("display_name", "Unknown")}"}}',
+              datetime.now().isoformat()))
+        
+        conn.commit()
+    
+    # Re-process absence (idempotent - skips existing days, processes new ones)
+    process_absence(absence_id)
+    
+    # Handle duty clashes for extended dates
+    try:
+        from app.services.substitute_engine import handle_absent_teacher_duties
+        handle_absent_teacher_duties(absence['staff_id'], old_end, new_end_date)
+    except Exception as e:
+        print(f"Extend duty clash error: {e}")
+    
+    # Redirect based on who extended
+    if role in ['principal', 'deputy', 'office', 'admin'] and absence['staff_id'] != staff_id:
+        return redirect('/substitute/overview')
+    return redirect('/duty/my-day')
+
+
 @substitute_bp.route('/mark-absent')
 def mark_absent():
     """Management/Office: Search and mark a teacher absent."""
@@ -1022,4 +1081,4 @@ def mark_absent_submit():
     except Exception as e:
         print(f"Management mark-absent duty clash error: {e}")
     
-    return redirect('/substitute/status/' + absence_id)
+    return redirect('/substitute/overview')

@@ -97,11 +97,17 @@
                 </div>
                 
                 {% if absence.status not in ['Resolved', 'Cancelled'] %}
-                <div style="margin: 12px 0;">
+                <div style="margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap;">
                     <button onclick="openMarkBack('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.absence_date }}')"
                             style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
                         ✅ Mark Back
                     </button>
+                    {% if not absence.is_open_ended %}
+                    <button onclick="openExtend('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.end_date or absence.absence_date }}')"
+                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #f59e0b; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        📅 Extend
+                    </button>
+                    {% endif %}
                 </div>
                 {% endif %}
                 
@@ -171,6 +177,31 @@
             </form>
         </div>
     </div>
+
+    <!-- Extend Modal -->
+    <div id="extendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
+            <h3 style="margin-bottom:4px; font-size:18px;" id="extendTitle">Extend Absence</h3>
+            <p style="opacity:0.6; font-size:14px; margin-bottom:16px;" id="extendSubtitle"></p>
+            <form method="POST" action="/substitute/extend">
+                <input type="hidden" name="absence_id" id="extendAbsenceId">
+                <label style="font-size:13px; opacity:0.7; display:block; margin-bottom:6px;">New last day absent:</label>
+                <input type="date" name="new_end_date" id="extendDate"
+                       style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:white; font-size:15px; margin-bottom:16px;">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="closeExtend()"
+                            style="flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:white; font-size:14px; cursor:pointer;">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            style="flex:1; padding:10px; border-radius:10px; border:none; background:#f59e0b; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                        📅 Extend
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
     function openMarkBack(absenceId, teacherName, absenceDate) {
         document.getElementById('markBackAbsenceId').value = absenceId;
@@ -185,6 +216,21 @@
     }
     document.getElementById('markBackModal').addEventListener('click', function(e) {
         if (e.target === this) closeMarkBack();
+    });
+
+    function openExtend(absenceId, teacherName, currentEnd) {
+        document.getElementById('extendAbsenceId').value = absenceId;
+        document.getElementById('extendTitle').textContent = 'Extend ' + teacherName;
+        document.getElementById('extendSubtitle').textContent = 'Currently absent until ' + currentEnd;
+        document.getElementById('extendDate').min = currentEnd;
+        document.getElementById('extendDate').value = '';
+        document.getElementById('extendModal').style.display = 'flex';
+    }
+    function closeExtend() {
+        document.getElementById('extendModal').style.display = 'none';
+    }
+    document.getElementById('extendModal').addEventListener('click', function(e) {
+        if (e.target === this) closeExtend();
     });
     </script>
 </body>

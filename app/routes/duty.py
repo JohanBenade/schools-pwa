@@ -240,7 +240,7 @@ def my_day():
 
         # Check if this teacher is absent on target date (get id for coverage lookup)
         cursor.execute("""
-            SELECT id, absence_type, absence_date, status FROM absence
+            SELECT id, absence_type, absence_date, end_date, is_open_ended, status FROM absence
             WHERE staff_id = ? AND tenant_id = ?
             AND absence_date <= ? AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
             AND status IN ('Reported', 'Covered', 'Partial')
@@ -251,6 +251,8 @@ def my_day():
         absence_type = absence_row['absence_type'] if absence_row else None
         absence_id = absence_row['id'] if absence_row else None
         absence_start = absence_row['absence_date'] if absence_row else None
+        absence_end = absence_row['end_date'] if absence_row else None
+        absence_open_ended = absence_row['is_open_ended'] if absence_row else False
         
         # If absent, get coverage info for this teacher's classes
         coverage_by_period = {}
@@ -530,6 +532,8 @@ def my_day():
                           target_date_str=target_date_str,
                           absence_type=absence_type,
                           absence_start=absence_start,
+                          absence_end=absence_end,
+                          absence_open_ended=absence_open_ended,
                           viewing_other=viewing_other,
                           viewing_name=viewing_name,
                           today_str=date.today().isoformat())
