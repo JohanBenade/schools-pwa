@@ -200,7 +200,7 @@
             <div class="detail-row">
                 <span class="detail-label">Covered by</span>
                 <span class="detail-value {% if mentor_info.status == 'Assigned' %}green{% elif mentor_info.status == 'Cancelled' %}grey{% else %}red{% endif %}">
-                    {% if mentor_info.status == 'Cancelled' %}Cancelled
+                    {% if mentor_info.status == 'Cancelled' %}{% if mentor_info.substitute_name %}{{ mentor_info.substitute_name }} (cancelled){% else %}Cancelled{% endif %}
                     {% elif mentor_info.substitute_name %}{{ mentor_info.substitute_name }}{% if mentor_info.venue %} → {{ mentor_info.venue }}{% endif %}
                     {% else %}Unassigned{% endif %}
                 </span>
