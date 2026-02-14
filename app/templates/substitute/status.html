@@ -213,20 +213,36 @@
         <div class="card">
             <div class="card-header">
                 <span class="card-title">Duties</span>
+                {% if return_info %}
+                <span class="card-badge grey">Restored</span>
+                {% else %}
                 <span class="card-badge green">Reassigned</span>
+                {% endif %}
             </div>
 
             {% for d in terrain_duties %}
             <div class="detail-row">
                 <span class="detail-label">Terrain: {{ d.area_name }}</span>
+                {% if d.get('was_restored', false) %}
+                <span class="detail-value grey">Restored</span>
+                {% elif d.replacement_name %}
                 <span class="detail-value green">{{ d.replacement_name }}</span>
+                {% else %}
+                <span class="detail-value red">No cover</span>
+                {% endif %}
             </div>
             {% endfor %}
 
             {% for d in homework_duties %}
             <div class="detail-row">
                 <span class="detail-label">Homework Venue</span>
+                {% if d.get('was_restored', false) %}
+                <span class="detail-value grey">Restored</span>
+                {% elif d.replacement_name %}
                 <span class="detail-value green">{{ d.replacement_name }}</span>
+                {% else %}
+                <span class="detail-value red">No cover</span>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

@@ -520,7 +520,7 @@ def absence_status(absence_id):
                 'status': m['status']
             }
         
-        # Terrain/homework duty coverage
+        # Terrain/homework duty coverage (active: from duty_roster, resolved: from duty_decline)
         cursor.execute("""
             SELECT dr.duty_type, dr.duty_date, ta.area_name,
                    rep.display_name as replacement_name
@@ -532,6 +532,32 @@ def absence_status(absence_id):
         """, (absence['staff_id'], absence['absence_date'],
               absence['end_date'], absence['absence_date']))
         duty_coverage = [dict(row) for row in cursor.fetchall()]
+        
+        # If resolved (mark-back clears replacement_id), get from duty_decline audit
+        if not duty_coverage and absence['status'] == 'Resolved':
+            cursor.execute("""
+                SELECT dd.duty_type, dd.duty_date, dd.duty_description,
+                       s_rep.display_name as replacement_name
+                FROM duty_decline dd
+                LEFT JOIN duty_roster dr ON dd.staff_id = dr.staff_id 
+                    AND dd.duty_date = dr.duty_date AND dd.duty_type = dr.duty_type
+                LEFT JOIN staff s_rep ON dr.staff_id = s_rep.id
+                WHERE dd.staff_id = ? AND dd.reason = 'absent'
+                  AND dd.duty_date >= ? AND dd.duty_date <= COALESCE(?, ?)
+                ORDER BY dd.duty_date
+            """, (absence['staff_id'], absence['absence_date'],
+                  absence['end_date'], absence['absence_date']))
+            for row in cursor.fetchall():
+                d = dict(row)
+                desc = d['duty_description'] or ''
+                area = desc.split(' - ')[0] if ' - ' in desc else desc
+                duty_coverage.append({
+                    'duty_type': d['duty_type'],
+                    'duty_date': d['duty_date'],
+                    'area_name': area if d['duty_type'] == 'terrain' else 'Homework Venue',
+                    'replacement_name': None,
+                    'was_restored': True
+                })
         
         terrain_duties = [d for d in duty_coverage if d['duty_type'] == 'terrain']
         homework_duties = [d for d in duty_coverage if d['duty_type'] == 'homework']

@@ -313,7 +313,7 @@ def my_day():
                 'slot_name': 'Morning Duty',
                 'start_time': '07:15',
                 'end_time': '07:30',
-                'content': f"Terrain: {terrain_duty['area_name']}",
+                'content': f"Terrain: {terrain_duty['area_name']}" + (f" — covering {terrain_duty['covering_for']}" if terrain_duty.get('covering_for') else ""),
                 'badge': 'DUTY',
                 'badge_color': 'blue',
                 'is_duty': True,
@@ -471,7 +471,7 @@ def my_day():
                 elif is_absent:
                     item['content'] = "Break"
                 elif terrain_duty:
-                    item['content'] = f"Terrain: {terrain_duty['area_name']}"
+                    item['content'] = f"Terrain: {terrain_duty['area_name']}" + (f" — covering {terrain_duty['covering_for']}" if terrain_duty.get('covering_for') else "")
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'blue'
                     item['is_duty'] = True
@@ -486,7 +486,7 @@ def my_day():
                     item['badge_color'] = 'green'
                     item['is_covered'] = True
                 elif homework_duty and not is_absent:
-                    item['content'] = "Homework Venue"
+                    item['content'] = "Homework Venue" + (f" — covering {homework_duty['covering_for']}" if homework_duty.get('covering_for') else "")
                     item['badge'] = 'DUTY'
                     item['badge_color'] = 'purple'
                     item['is_duty'] = True
