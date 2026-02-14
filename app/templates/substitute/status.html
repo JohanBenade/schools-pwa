@@ -248,13 +248,61 @@
         </div>
         {% endif %}
 
-        <!-- Back button -->
+        <!-- Actions -->
+        {% set is_management = role in ['principal', 'deputy', 'office', 'admin'] %}
+        {% set can_manage = is_own or is_management %}
+        {% set form_action = '/substitute/early-return' if is_own else '/substitute/mark-back' %}
+
+        {% if can_manage and not return_info %}
+        <div class="card" style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);">
+
+            {% if default_return == absence.absence_date %}
+            <form method="POST" action="{{ form_action }}">
+                <input type="hidden" name="absence_id" value="{{ absence.id }}">
+                <input type="hidden" name="return_date" value="{{ absence.absence_date }}">
+                <button type="submit" class="back-btn" style="background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3); color: #f87171; margin-top: 0;"
+                        onclick="return confirm('Cancel this entire absence? All cover will be removed.')">
+                    ✕ Cancel Entire Absence
+                </button>
+            </form>
+
+            {% else %}
+            <form method="POST" action="{{ form_action }}" style="margin-bottom: 12px;">
+                <input type="hidden" name="absence_id" value="{{ absence.id }}">
+                <input type="hidden" name="return_date" value="{{ absence.absence_date }}">
+                <button type="submit" class="back-btn" style="background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3); color: #f87171; margin-top: 0;"
+                        onclick="return confirm('Cancel this entire absence? All cover will be removed.')">
+                    ✕ Cancel Entire Absence
+                </button>
+            </form>
+
+            <div style="text-align: center; font-size: 12px; opacity: 0.4; margin: 12px 0;">— or adjust return date —</div>
+
+            <form method="POST" action="{{ form_action }}">
+                <input type="hidden" name="absence_id" value="{{ absence.id }}">
+                <label style="font-size: 13px; opacity: 0.7; display: block; margin-bottom: 8px;">First day back:</label>
+                <input type="date" name="return_date"
+                       style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 15px; margin-bottom: 12px;"
+                       value="{{ default_return }}">
+                <button type="submit" class="back-btn" style="background: rgba(34,197,94,0.2); border-color: rgba(34,197,94,0.3); color: #4ade80; margin-top: 0;"
+                        onclick="return confirm('Cover will be cancelled from the selected date.')">
+                    ✅ {% if is_own %}I'm Back{% else %}Mark Back{% endif %}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
         {% if is_own %}
-        <a href="/substitute/report" class="back-btn">← Back</a>
-        {% elif role in ['principal', 'deputy', 'office', 'admin'] %}
-        <a href="/substitute/overview" class="back-btn">← Back to Overview</a>
+        <a href="/substitute/report?new=1" class="back-btn" style="margin-top: 8px;">📋 Report New Absence</a>
+        {% endif %}
+        {% endif %}
+
+        {% if is_own %}
+        <a href="/" class="back-btn" style="margin-top: 8px; opacity: 0.6;">← Home</a>
+        {% elif is_management %}
+        <a href="/substitute/overview" class="back-btn" style="margin-top: 8px;">← Back to Overview</a>
         {% else %}
-        <a href="/" class="back-btn">← Home</a>
+        <a href="/" class="back-btn" style="margin-top: 8px;">← Home</a>
         {% endif %}
     </div>
 </body>

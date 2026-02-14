@@ -97,7 +97,7 @@ def report_absence():
             """, (staff_id, TENANT_ID, date.today().isoformat(), date.today().isoformat()))
             row = cursor.fetchone()
             
-            if row:
+            if row and not request.args.get('new'):
                 # Active absence exists - redirect to status page
                 return redirect(url_for('substitute.absence_status', absence_id=row['id']))
             
