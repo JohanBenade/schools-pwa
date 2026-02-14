@@ -183,12 +183,12 @@
                 <input type="hidden" name="absence_id" value="{{ active_absence.id }}">
                 
                 <div class="form-group">
-                    <label>I'm returning on</label>
-                    <input type="date" name="return_date" value="{{ today }}" min="{{ today }}" required>
+                    <label>First day back:</label>
+                    <input type="date" name="return_date" value="{{ active_absence.absence_date }}" min="{{ active_absence.absence_date }}" required>
                 </div>
                 
                 <button type="submit" class="submit-btn green">
-                    ✅ I'm Back - Cancel Remaining Cover
+                    ✅ Confirm
                 </button>
             </form>
         </div>
