@@ -639,6 +639,8 @@ def decline_duty(duty_id):
         return redirect('/')
     
     reason = request.form.get('reason', '').strip()
+    if not reason:
+        return 'Reason is required', 400
     return_to = request.form.get('return_to', '/sport/my-duties')
     
     with get_connection() as conn:

@@ -710,6 +710,8 @@ def decline_terrain_duty(duty_id):
         return redirect('/')
     
     reason = request.form.get('reason', '').strip()
+    if not reason:
+        return 'Reason is required', 400
     return_to = request.form.get('return_to', '/duty/my-day')
     
     TENANT_ID = "MARAGON"
@@ -803,6 +805,8 @@ def decline_homework_duty(duty_id):
         return redirect('/')
 
     reason = request.form.get('reason', '').strip()
+    if not reason:
+        return 'Reason is required', 400
     return_to = request.form.get('return_to', '/duty/my-day')
 
     TENANT_ID = "MARAGON"

@@ -742,7 +742,9 @@ def substitute_overview():
 def decline_assignment(request_id):
     """Substitute declines an assignment - with 30-min cutoff and auto-reassign."""
     staff_id = session.get('staff_id')
-    reason = request.form.get('reason', '').strip() or 'No reason given'
+    reason = request.form.get('reason', '').strip()
+    if not reason:
+        return 'Reason is required', 400
     now = datetime.now()
     
     with get_connection() as conn:
