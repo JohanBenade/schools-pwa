@@ -98,17 +98,8 @@ def report_absence():
             row = cursor.fetchone()
             
             if row:
-                active_absence = dict(row)
-                # Format dates for display
-                try:
-                    start_dt = datetime.strptime(active_absence['absence_date'], '%Y-%m-%d')
-                    active_absence['start_display'] = start_dt.strftime('%a %d %b')
-                    if active_absence['end_date']:
-                        end_dt = datetime.strptime(active_absence['end_date'], '%Y-%m-%d')
-                        active_absence['end_display'] = end_dt.strftime('%a %d %b')
-                except:
-                    active_absence['start_display'] = active_absence['absence_date']
-                    active_absence['end_display'] = active_absence.get('end_date', '')
+                # Active absence exists - redirect to status page
+                return redirect(url_for('substitute.absence_status', absence_id=row['id']))
             
             # Get periods for partial day option
             cursor.execute("""
