@@ -473,7 +473,8 @@ def substitute_overview_partial():
 
 @substitute_bp.route('/status/<absence_id>')
 def absence_status(absence_id):
-    """View status of an absence."""
+    """View status of an absence - summary totals."""
+    import json
     with get_connection() as conn:
         cursor = conn.cursor()
         
@@ -488,29 +489,97 @@ def absence_status(absence_id):
             return "Absence not found", 404
         absence = dict(absence)
         
+        # Teaching period summary
         cursor.execute("""
-            SELECT sr.*, p.period_name, p.period_number, p.start_time, p.end_time,
-                   sub.display_name as substitute_name, sc.cycle_day
+            SELECT sr.status, sr.is_mentor_duty, p.period_name,
+                   sub.display_name as substitute_name,
+                   sr.class_name, sr.venue_name
             FROM substitute_request sr
             LEFT JOIN period p ON sr.period_id = p.id
             LEFT JOIN staff sub ON sr.substitute_id = sub.id
-                LEFT JOIN school_calendar sc ON sr.request_date = sc.date AND sc.tenant_id = sr.tenant_id
             WHERE sr.absence_id = ?
             ORDER BY sr.request_date, sr.is_mentor_duty DESC, p.sort_order
         """, (absence_id,))
         requests = [dict(row) for row in cursor.fetchall()]
         
+        # Split into mentor and teaching
+        mentor_req = [r for r in requests if r['is_mentor_duty']]
+        teaching_reqs = [r for r in requests if not r['is_mentor_duty']]
+        
+        periods_covered = len([r for r in teaching_reqs if r['status'] == 'Assigned'])
+        periods_total = len(teaching_reqs)
+        periods_cancelled = len([r for r in teaching_reqs if r['status'] == 'Cancelled'])
+        uncovered = [r for r in teaching_reqs if r['status'] == 'Pending']
+        
+        mentor_info = None
+        if mentor_req:
+            m = mentor_req[0]
+            mentor_info = {
+                'substitute_name': m['substitute_name'],
+                'venue': m['venue_name'] or '',
+                'status': m['status']
+            }
+        
+        # Terrain/homework duty coverage
         cursor.execute("""
-            SELECT * FROM substitute_log
-            WHERE absence_id = ?
-            ORDER BY created_at ASC
+            SELECT dr.duty_type, dr.duty_date, ta.area_name,
+                   rep.display_name as replacement_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            LEFT JOIN staff rep ON dr.replacement_id = rep.id
+            WHERE dr.staff_id = ? AND dr.replacement_id IS NOT NULL
+              AND dr.duty_date >= ? AND dr.duty_date <= COALESCE(?, ?)
+        """, (absence['staff_id'], absence['absence_date'],
+              absence['end_date'], absence['absence_date']))
+        duty_coverage = [dict(row) for row in cursor.fetchall()]
+        
+        terrain_duties = [d for d in duty_coverage if d['duty_type'] == 'terrain']
+        homework_duties = [d for d in duty_coverage if d['duty_type'] == 'homework']
+        
+        # Check for early_return log to detect mark-back
+        cursor.execute("""
+            SELECT details FROM substitute_log
+            WHERE absence_id = ? AND event_type = 'early_return'
+            ORDER BY created_at DESC LIMIT 1
         """, (absence_id,))
-        events = [dict(row) for row in cursor.fetchall()]
+        return_log = cursor.fetchone()
+        
+        return_info = None
+        if return_log and return_log['details']:
+            try:
+                return_info = json.loads(return_log['details'])
+            except:
+                return_info = {}
+        
+        # Format dates for display
+        try:
+            from datetime import datetime as dt
+            start_dt = dt.strptime(absence['absence_date'], '%Y-%m-%d')
+            absence['start_display'] = start_dt.strftime('%a %d %b')
+            if absence['end_date']:
+                end_dt = dt.strptime(absence['end_date'], '%Y-%m-%d')
+                absence['end_display'] = end_dt.strftime('%a %d %b')
+        except:
+            absence['start_display'] = absence['absence_date']
+            absence['end_display'] = absence.get('end_date', '')
+    
+    # Determine caller context for back button
+    role = session.get('role', 'teacher')
+    staff_id = session.get('staff_id')
+    is_own = absence['staff_id'] == staff_id
     
     return render_template('substitute/status.html',
                           absence=absence,
-                          requests=requests,
-                          events=events)
+                          periods_covered=periods_covered,
+                          periods_total=periods_total,
+                          periods_cancelled=periods_cancelled,
+                          uncovered=uncovered,
+                          mentor_info=mentor_info,
+                          terrain_duties=terrain_duties,
+                          homework_duties=homework_duties,
+                          return_info=return_info,
+                          is_own=is_own,
+                          role=role)
 
 
 @substitute_bp.route('/overview')
