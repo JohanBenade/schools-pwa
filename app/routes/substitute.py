@@ -434,6 +434,7 @@ def substitute_overview_partial():
                 WHERE dr.staff_id = ?
                   AND dr.duty_date IN ({placeholders})
                   AND dr.tenant_id = ?
+                  AND dr.replacement_id IS NOT NULL
                 ORDER BY dr.duty_date, dr.duty_type
             """, (absence['staff_id'], *filter_dates, TENANT_ID))
             absence['duties'] = [dict(row) for row in cursor.fetchall()]
@@ -592,6 +593,7 @@ def substitute_overview():
                 WHERE dr.staff_id = ?
                   AND dr.duty_date IN ({placeholders})
                   AND dr.tenant_id = ?
+                  AND dr.replacement_id IS NOT NULL
                 ORDER BY dr.duty_date, dr.duty_type
             """, (absence['staff_id'], *filter_dates, TENANT_ID))
             absence['duties'] = [dict(row) for row in cursor.fetchall()]
