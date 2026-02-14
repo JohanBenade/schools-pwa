@@ -399,6 +399,7 @@ def substitute_overview_partial():
             WHERE a.tenant_id = ?
               AND a.absence_date <= ?
               AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
+              AND a.status NOT IN ('Resolved', 'Cancelled')
         """
         params = [TENANT_ID, filter_end.isoformat(), filter_start.isoformat()]
         query += " ORDER BY a.absence_date ASC, a.reported_at ASC"
@@ -549,6 +550,7 @@ def substitute_overview():
             WHERE a.tenant_id = ?
               AND a.absence_date <= ?
               AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
+              AND a.status NOT IN ('Resolved', 'Cancelled')
         """
         params = [TENANT_ID, filter_end.isoformat(), filter_start.isoformat()]
         
