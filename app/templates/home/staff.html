@@ -107,7 +107,7 @@
         <button class="push-prompt-btn dismiss" onclick="dismissPushPrompt()">Later</button>
         <button class="push-prompt-btn allow" onclick="enablePushNotifications()">Enable</button>
     </div>
-    <script src="/static/push.js?v=2"></script>
+    <script src="/static/push.js?v=3"></script>
     <script>
         function checkPushPrompt() { if (!('Notification' in window)) return; if (!('serviceWorker' in navigator)) return; if (Notification.permission !== 'default') return; if (localStorage.getItem('push_prompt_dismissed')) return; setTimeout(() => { document.getElementById('pushPrompt').classList.add('show'); }, 2000); }
         async function enablePushNotifications() { document.getElementById('pushPrompt').classList.remove('show'); const granted = await requestNotificationPermission(); if (granted) { console.log('Push notifications enabled!'); } }

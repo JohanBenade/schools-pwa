@@ -104,31 +104,23 @@ def send_push_notification(token, title, body, data=None, badge_url=None):
         'Content-Type': 'application/json'
     }
     
-    # Build message payload
+    # Build message payload - DATA ONLY (no 'notification' key)
+    # This prevents Firebase SDK from intercepting and suppressing display.
+    # Both foreground (onMessage) and background (onBackgroundMessage) handle display.
+    msg_data = {
+        'title': title,
+        'body': body,
+        'icon': badge_url or '/static/icon-192.png',
+    }
+    if data:
+        msg_data.update({k: str(v) for k, v in data.items()})
+    
     message = {
         'message': {
             'token': token,
-            'notification': {
-                'title': title,
-                'body': body
-            },
-            'webpush': {
-                'notification': {
-                    'icon': badge_url or '/static/icon-192.png',
-                    'badge': '/static/icon-192.png',
-                    'vibrate': [200, 100, 200, 100, 200],
-                    'requireInteraction': True
-                },
-                'fcm_options': {
-                    'link': '/emergency/'
-                }
-            }
+            'data': msg_data
         }
     }
-    
-    # Add custom data if provided
-    if data:
-        message['message']['data'] = {k: str(v) for k, v in data.items()}
     
     try:
         response = requests.post(url, headers=headers, json=message, timeout=10)

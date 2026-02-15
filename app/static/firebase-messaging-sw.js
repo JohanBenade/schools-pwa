@@ -16,23 +16,24 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
+// Handle background messages (data-only payloads)
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Background message received:', payload);
   
-  const notificationTitle = payload.notification?.title || 'SchoolOps Alert';
-  const notificationType = payload.data?.type || 'general';
+  const data = payload.data || {};
+  const notificationTitle = data.title || 'SchoolOps Alert';
+  const notificationType = data.type || 'general';
   const notificationTag = 'schoolops-' + notificationType + '-' + Date.now();
   
   const notificationOptions = {
-    body: payload.notification?.body || 'You have a new notification',
-    icon: '/static/icon-192.png',
+    body: data.body || 'You have a new notification',
+    icon: data.icon || '/static/icon-192.png',
     badge: '/static/icon-192.png',
     tag: notificationTag,
-    requireInteraction: true,  // Keep notification visible until user interacts
-    vibrate: [200, 100, 200, 100, 200],  // Vibration pattern
+    requireInteraction: true,
+    vibrate: [200, 100, 200, 100, 200],
     data: {
-      url: payload.data?.link || payload.data?.url || '/emergency/'
+      url: data.link || data.url || '/emergency/'
     }
   };
 
