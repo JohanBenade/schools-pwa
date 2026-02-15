@@ -182,6 +182,9 @@ def report_absence():
         print(f'Substitute push error: {e}')
     
     return redirect('/duty/my-day?tab=' + start_date)
+
+
+@substitute_bp.route('/early-return', methods=['POST'])
 def early_return():
     """Teacher reports early return - cancels remaining substitute assignments."""
     staff_id = session.get('staff_id')
