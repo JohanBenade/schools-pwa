@@ -95,7 +95,7 @@ def get_absent_staff_on_date(target_date):
             FROM absence 
             WHERE absence_date <= ? 
               AND COALESCE(end_date, absence_date) >= ?
-              AND status != 'Cancelled'
+              AND status IN ('Reported', 'Covered', 'Partial')
         """, (target_date_str, target_date_str))
         return [row['staff_id'] for row in cursor.fetchall()]
 
@@ -449,7 +449,7 @@ def process_absence(absence_id):
             # Skip days that already have requests (makes process_absence safe for extend)
             cursor.execute("""
                 SELECT COUNT(*) as cnt FROM substitute_request 
-                WHERE absence_id = ? AND request_date = ? AND status != 'Cancelled'
+                WHERE absence_id = ? AND request_date = ? AND status IN ('Reported', 'Covered', 'Partial')
             """, (absence_id, target_date_str))
             if cursor.fetchone()['cnt'] > 0:
                 continue
@@ -701,7 +701,7 @@ def reassign_declined_request(request_id, declined_by_id):
                   AND s.id NOT IN (
                       SELECT staff_id FROM absence 
                       WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
-                        AND status != 'Cancelled'
+                        AND status IN ('Reported', 'Covered', 'Partial')
                   )
                   AND s.id NOT IN (
                       SELECT staff_id FROM timetable_slot 
@@ -725,7 +725,7 @@ def reassign_declined_request(request_id, declined_by_id):
                   AND s.id NOT IN (
                       SELECT staff_id FROM absence 
                       WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
-                        AND status != 'Cancelled'
+                        AND status IN ('Reported', 'Covered', 'Partial')
                   )
                 ORDER BY 
                     CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
