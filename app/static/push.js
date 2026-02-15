@@ -22,7 +22,6 @@ async function waitForServiceWorkerActive(registration) {
     return registration;
   }
   
-  // Wait for the service worker to activate
   return new Promise((resolve) => {
     const sw = registration.installing || registration.waiting;
     if (sw) {
@@ -40,27 +39,22 @@ async function waitForServiceWorkerActive(registration) {
 // Initialize Firebase and request permission
 async function initializePush() {
   try {
-    // Check if browser supports notifications
     if (!('Notification' in window)) {
       console.log('This browser does not support notifications');
       return false;
     }
 
-    // Check if service worker is supported
     if (!('serviceWorker' in navigator)) {
       console.log('Service workers not supported');
       return false;
     }
 
-    // Register service worker at ROOT path
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     console.log('Service worker registered:', registration.scope);
     
-    // Wait for it to be active
     swRegistration = await waitForServiceWorkerActive(registration);
     console.log('Service worker active');
 
-    // Initialize Firebase
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -99,7 +93,6 @@ async function getAndSaveToken() {
       await initializePush();
     }
     
-    // Pass serviceWorkerRegistration to getToken (Firebase 10+ way)
     const token = await messaging.getToken({ 
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: swRegistration
@@ -108,7 +101,6 @@ async function getAndSaveToken() {
     if (token) {
       console.log('FCM Token:', token);
       
-      // Send token to backend
       const response = await fetch('/push/register', {
         method: 'POST',
         headers: {
@@ -135,6 +127,45 @@ async function getAndSaveToken() {
   }
 }
 
+// Relay notification data to service worker via postMessage.
+// Why: Firebase SDK compat library wraps onMessage callbacks and suppresses
+// showNotification() calls made from page context. By relaying to the SW,
+// showNotification runs in the service worker scope where it works reliably.
+// Ref: https://web.dev/articles/codelab-notifications-service-worker
+function relayToServiceWorker(data) {
+  // Primary path: use controller (fastest, direct reference)
+  if (navigator.serviceWorker.controller) {
+    console.log('Relaying via controller');
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SHOW_NOTIFICATION',
+      data: data
+    });
+    return;
+  }
+  
+  // Fallback: controller is null after hard refresh (Shift+Reload).
+  // Use registration.active instead.
+  if (swRegistration && swRegistration.active) {
+    console.log('Relaying via registration.active (hard-refresh fallback)');
+    swRegistration.active.postMessage({
+      type: 'SHOW_NOTIFICATION',
+      data: data
+    });
+    return;
+  }
+  
+  // Last resort: wait for ready
+  console.log('Relaying via serviceWorker.ready (last resort)');
+  navigator.serviceWorker.ready.then(reg => {
+    if (reg.active) {
+      reg.active.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        data: data
+      });
+    }
+  });
+}
+
 // Handle foreground messages
 function setupForegroundHandler() {
   if (!messaging) return;
@@ -142,21 +173,11 @@ function setupForegroundHandler() {
   messaging.onMessage((payload) => {
     console.log('Foreground message received:', payload);
     
-    // Data-only messages: read title/body from data
     const data = payload.data || {};
     if (Notification.permission === 'granted') {
-      navigator.serviceWorker.ready.then(reg => {
-        const notificationType = data.type || 'general';
-        reg.showNotification(data.title || 'SchoolOps Alert', {
-          body: data.body || 'You have a new notification',
-          icon: data.icon || '/static/icon-192.png',
-          tag: 'schoolops-' + notificationType + '-' + Date.now(),
-          requireInteraction: true,
-          data: {
-            url: data.link || data.url || '/emergency/'
-          }
-        });
-      });
+      relayToServiceWorker(data);
+    } else {
+      console.log('Notification permission not granted:', Notification.permission);
     }
   });
 }
@@ -166,14 +187,13 @@ function isRegistered() {
   return localStorage.getItem('fcm_token') !== null;
 }
 
-// Main initialization function - call this on page load
+// Main initialization function
 async function setupPushNotifications() {
   const initialized = await initializePush();
   if (!initialized) return;
   
   setupForegroundHandler();
   
-  // If already granted, ensure token is registered
   if (Notification.permission === 'granted') {
     await getAndSaveToken();
   }

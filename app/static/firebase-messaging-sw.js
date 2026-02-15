@@ -1,10 +1,9 @@
 // Firebase Messaging Service Worker
-// Handles background push notifications
+// Handles background push notifications AND foreground relay via postMessage
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Firebase configuration
 firebase.initializeApp({
   apiKey: "AIzaSyCia8Pd8idl1BrzMeAs_Pvv44jO5QLpysM",
   authDomain: "schoolops-d8bdd.firebaseapp.com",
@@ -18,45 +17,61 @@ const messaging = firebase.messaging();
 
 // Handle background messages (data-only payloads)
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Background message received:', payload);
+  console.log('[SW] Background message received:', payload);
   
   const data = payload.data || {};
-  const notificationTitle = data.title || 'SchoolOps Alert';
   const notificationType = data.type || 'general';
-  const notificationTag = 'schoolops-' + notificationType + '-' + Date.now();
   
-  const notificationOptions = {
+  self.registration.showNotification(data.title || 'SchoolOps Alert', {
     body: data.body || 'You have a new notification',
     icon: data.icon || '/static/icon-192.png',
     badge: '/static/icon-192.png',
-    tag: notificationTag,
+    tag: 'schoolops-' + notificationType + '-' + Date.now(),
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
     data: {
       url: data.link || data.url || '/emergency/'
     }
-  };
+  });
+});
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// Handle foreground relay from push.js via postMessage
+// Ref: https://web.dev/articles/codelab-notifications-service-worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    console.log('[SW] postMessage relay received:', event.data);
+    const data = event.data.data || {};
+    const notificationType = data.type || 'general';
+    
+    self.registration.showNotification(data.title || 'SchoolOps Alert', {
+      body: data.body || 'You have a new notification',
+      icon: data.icon || '/static/icon-192.png',
+      badge: '/static/icon-192.png',
+      tag: 'schoolops-' + notificationType + '-' + Date.now(),
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 200],
+      data: {
+        url: data.link || data.url || '/emergency/'
+      }
+    });
+  }
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification clicked');
+  console.log('[SW] Notification clicked');
   event.notification.close();
   
   const urlToOpen = event.notification.data?.url || '/emergency/';
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if app is already open
       for (let client of windowClients) {
         if (client.url.includes('schoolops.co.za') && 'focus' in client) {
           client.navigate(urlToOpen);
           return client.focus();
         }
       }
-      // Open new window if not open
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
