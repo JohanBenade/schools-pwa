@@ -226,7 +226,7 @@
         var d = new Date(currentEnd + 'T00:00:00');
         d.setDate(d.getDate() + 1);
         while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-        var iso = d.toISOString().split('T')[0];
+        var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
         document.getElementById('extendDate').min = iso;
         document.getElementById('extendDate').value = iso;
         document.getElementById('extendModal').style.display = 'flex';
