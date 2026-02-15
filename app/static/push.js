@@ -142,21 +142,18 @@ function setupForegroundHandler() {
   messaging.onMessage((payload) => {
     console.log('Foreground message received:', payload);
     
-    // Show notification even when app is open
-    if (Notification.permission === 'granted') {
+    // Use service worker showNotification (new Notification() is suppressed on some platforms)
+    if (Notification.permission === 'granted' && swRegistration) {
       const notificationType = payload.data?.type || 'general';
-      const notification = new Notification(payload.notification?.title || 'SchoolOps Alert', {
+      swRegistration.showNotification(payload.notification?.title || 'SchoolOps Alert', {
         body: payload.notification?.body || 'You have a new notification',
         icon: '/static/icon-192.png',
         tag: 'schoolops-' + notificationType + '-' + Date.now(),
-        requireInteraction: true
+        requireInteraction: true,
+        data: {
+          url: payload.data?.link || payload.data?.url || '/emergency/'
+        }
       });
-      
-      notification.onclick = () => {
-        window.focus();
-        window.location.href = payload.data?.link || payload.data?.url || '/emergency/';
-        notification.close();
-      };
     }
   });
 }
