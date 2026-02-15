@@ -363,10 +363,8 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
     """
     Send push to substitute teacher when assigned.
     """
-    print(f"PUSH DEBUG: send_substitute_assigned_push called for {substitute_id}")
     access_token = get_access_token()
     if not access_token:
-        print("PUSH DEBUG: No access token")
         return 0
     
     with get_connection() as conn:
@@ -377,7 +375,6 @@ def send_substitute_assigned_push(substitute_id, absent_teacher_name, period_inf
         ''', (TENANT_ID, substitute_id))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for substitute")
     if not tokens:
         return 0
     
@@ -432,42 +429,54 @@ def send_absence_covered_push(absent_staff_id, covered_count, total_count, date_
     return success_count
 
 
-def send_absence_reported_push(absent_teacher_name, date_str, period_count):
+def send_absence_reported_push(teacher_name, absence_type, date_start, date_end, covered_count, total_count):
     """
-    Send push to principal when any teacher reports absence.
+    Send push to management when any teacher reports absence.
+    Shows who, why, when, and coverage status.
     """
-    print(f"PUSH DEBUG: send_absence_reported_push for {absent_teacher_name}")
     access_token = get_access_token()
     if not access_token:
-        print("PUSH DEBUG: No access token")
         return 0
     
     with get_connection() as conn:
         cursor = conn.cursor()
+        # Send to all management (principal, deputies, office)
         cursor.execute('''
-            SELECT s.id FROM staff s
-            JOIN user_session us ON s.id = us.staff_id
-            WHERE us.tenant_id = ? AND us.magic_code = 'pierre'
+            SELECT DISTINCT pt.token FROM push_token pt
+            JOIN user_session us ON pt.staff_id = us.staff_id AND pt.tenant_id = us.tenant_id
+            WHERE pt.tenant_id = ? AND us.role IN ('principal', 'deputy', 'office')
         ''', (TENANT_ID,))
-        pierre = cursor.fetchone()
-        
-        if not pierre:
-            print("PUSH DEBUG: Pierre not found")
-            return 0
-        
-        pierre_id = pierre['id']
-        cursor.execute('''
-            SELECT token FROM push_token
-            WHERE tenant_id = ? AND staff_id = ?
-        ''', (TENANT_ID, pierre_id))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for Pierre")
     if not tokens:
         return 0
     
-    title = "📋 Absence Reported"
-    body = f"{absent_teacher_name} • {date_str} • {period_count} periods need cover"
+    # Format dates
+    try:
+        start_dt = datetime.strptime(date_start, '%Y-%m-%d')
+        start_display = start_dt.strftime('%a %d %b')
+        if date_end and date_end != date_start:
+            end_dt = datetime.strptime(date_end, '%Y-%m-%d')
+            date_display = f"{start_display} – {end_dt.strftime('%a %d %b')}"
+        else:
+            date_display = start_display
+    except:
+        date_display = date_start
+    
+    # Coverage status determines emoji and message
+    if covered_count >= total_count and total_count > 0:
+        emoji = "✅"
+        coverage_text = "All periods and duties covered"
+    elif covered_count > 0:
+        emoji = "⚠️"
+        uncovered = total_count - covered_count
+        coverage_text = f"{covered_count}/{total_count} periods covered — {uncovered} need attention"
+    else:
+        emoji = "🔴"
+        coverage_text = f"{total_count} periods need cover"
+    
+    title = f"{emoji} {teacher_name} — {absence_type}"
+    body = f"{date_display} • {coverage_text}"
     
     success_count = 0
     for row in tokens:
@@ -475,7 +484,6 @@ def send_absence_reported_push(absent_teacher_name, date_str, period_count):
             row['token'], title, body,
             data={'type': 'absence_reported', 'link': '/substitute/overview'}
         ):
-            print(f"PUSH DEBUG: Absence notification sent to Pierre")
             success_count += 1
     
     return success_count
@@ -486,10 +494,8 @@ def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_
     Send push to sport event coordinator when assigned staff reports absent.
     Coordinator needs to manually reassign via coordination page.
     """
-    print(f"PUSH DEBUG: send_sport_duty_orphaned_push for {event_name}")
     access_token = get_access_token()
     if not access_token:
-        print("PUSH DEBUG: No access token")
         return 0
     
     with get_connection() as conn:
@@ -500,7 +506,6 @@ def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_
         ''', (TENANT_ID, coordinator_id))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for coordinator")
     if not tokens:
         return 0
     
@@ -521,7 +526,46 @@ def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_
             row['token'], title, body,
             data={'type': 'sport_duty_gap', 'link': '/sport/coordination'}
         ):
-            print(f"PUSH DEBUG: Sport duty gap notification sent to coordinator")
+            success_count += 1
+    
+    return success_count
+
+
+def send_sport_duty_declined_push(coordinator_id, event_name, duty_type, staff_name, event_date):
+    """
+    Send push to sport coordinator when a teacher declines their sport duty.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, coordinator_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(event_date, '%Y-%m-%d')
+        date_display = dt.strftime('%a %d %b')
+    except:
+        date_display = event_date
+    
+    title = f"🔄 Sport Duty Declined: {event_name}"
+    body = f"{staff_name} declined {duty_type} on {date_display}. Please reassign."
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'sport_duty_declined', 'link': '/sport/coordination'}
+        ):
             success_count += 1
     
     return success_count
@@ -531,10 +575,8 @@ def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence
     """
     Send push to teacher when assigned terrain duty due to reassignment.
     """
-    print(f"PUSH DEBUG: send_terrain_reassigned_push for {staff_id}")
     access_token = get_access_token()
     if not access_token:
-        print("PUSH DEBUG: No access token")
         return 0
     
     with get_connection() as conn:
@@ -545,7 +587,6 @@ def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence
         ''', (TENANT_ID, staff_id))
         tokens = cursor.fetchall()
     
-    print(f"PUSH DEBUG: Found {len(tokens)} tokens for terrain assignee")
     if not tokens:
         return 0
     
@@ -558,7 +599,7 @@ def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence
         date_display = duty_date
     
     title = f"🗺️ Terrain Duty Assigned"
-    body = f"{area_name} on {date_display} (reassigned)"
+    body = f"{area_name} on {date_display}"
     
     success_count = 0
     for row in tokens:
@@ -566,7 +607,124 @@ def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence
             row['token'], title, body,
             data={'type': 'terrain_assigned', 'link': '/duty/my-day'}
         ):
-            print(f"PUSH DEBUG: Terrain reassigned notification sent")
+            success_count += 1
+    
+    return success_count
+
+
+def send_sub_cancelled_push(staff_id, absent_teacher_name, date_str):
+    """
+    Send push to a substitute teacher when their assignment is cancelled (mark-back/cancel).
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, staff_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    try:
+        dt = datetime.strptime(date_str, '%Y-%m-%d')
+        date_display = dt.strftime('%a %d %b')
+    except:
+        date_display = date_str
+    
+    title = "🔄 Sub Cover Cancelled"
+    body = f"Your cover for {absent_teacher_name} on {date_display} is no longer needed"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'sub_cancelled', 'link': '/duty/my-day'}
+        ):
+            success_count += 1
+    
+    return success_count
+
+
+def send_duty_cancelled_push(staff_id, area_name, duty_date):
+    """
+    Send push to a duty replacement when their cover is cancelled (mark-back/cancel).
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, staff_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    try:
+        dt = datetime.strptime(duty_date, '%Y-%m-%d')
+        date_display = dt.strftime('%a %d %b')
+    except:
+        date_display = duty_date
+    
+    title = "🔄 Duty Cover Cancelled"
+    body = f"Your {area_name} cover on {date_display} is no longer needed"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'duty_cancelled', 'link': '/duty/my-day'}
+        ):
+            success_count += 1
+    
+    return success_count
+
+
+def send_management_return_push(teacher_name, action_type):
+    """
+    Send push to management when a teacher cancels absence or marks themselves back.
+    action_type: 'cancelled' or 'returned'
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Send to all management (principal, deputies, office)
+        cursor.execute('''
+            SELECT DISTINCT pt.token FROM push_token pt
+            JOIN user_session us ON pt.staff_id = us.staff_id AND pt.tenant_id = us.tenant_id
+            WHERE pt.tenant_id = ? AND us.role IN ('principal', 'deputy', 'office')
+        ''', (TENANT_ID,))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    if action_type == 'cancelled':
+        title = "📋 Absence Cancelled"
+        body = f"{teacher_name} has cancelled their absence"
+    else:
+        title = "📋 Teacher Returned"
+        body = f"{teacher_name} is back — remaining cover cancelled"
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'absence_update', 'link': '/substitute/overview'}
+        ):
             success_count += 1
     
     return success_count

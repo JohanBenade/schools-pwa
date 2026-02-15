@@ -147,29 +147,30 @@ def report_absence():
     except Exception as e:
         print(f"Duty clash handling error: {e}")
     
-    # Send push notification to principal (Pierre)
+    # Send push notification to management
     try:
         from app.routes.push import send_absence_reported_push
         staff_name = results.get('sick_teacher', {}).get('name', 'A teacher')
-        total_periods = sum(len(day.get('periods', [])) for day in results.get('days', []))
-        date_display = ', '.join(day.get('date_display', '') for day in results.get('days', []))
-        send_absence_reported_push(staff_name, date_display, total_periods)
+        date_range = results.get('date_range', {})
+        send_absence_reported_push(
+            staff_name,
+            absence_type,
+            date_range.get('start', start_date),
+            date_range.get('end', end_date),
+            results.get('covered_count', 0),
+            results.get('total_count', 0)
+        )
     except Exception as e:
-        print(f'Pierre push error: {e}')
+        print(f'Absence reported push error: {e}')
     
-    # Send push notifications to substitutes and absent teacher
+    # Send push notifications to substitutes
     try:
-        from app.routes.push import send_substitute_assigned_push, send_absence_covered_push
-        print(f"DEBUG: Starting push notifications for absence")
-        print(f"DEBUG: Results days: {len(results.get('days', []))}")
+        from app.routes.push import send_substitute_assigned_push
         
         for day in results.get('days', []):
             date_display = day.get('date_display', '')
-            print(f"DEBUG: Day {date_display} has {len(day.get('periods', []))} periods")
             for period in day.get('periods', []):
-                print(f"DEBUG: Period {period.get('period_name')} sub_id={period.get('substitute_id')}")
                 if period.get('substitute_id'):
-                    print(f"DEBUG: Sending push to {period.get('substitute_id')}")
                     send_substitute_assigned_push(
                         period['substitute_id'],
                         results['sick_teacher']['name'],
@@ -177,17 +178,6 @@ def report_absence():
                         date_display,
                         period.get('venue', 'TBC')
                     )
-        
-        date_range = results.get('date_range', {})
-        range_str = date_range.get('start', '')[:10]
-        if date_range.get('end') and date_range.get('end') != date_range.get('start'):
-            range_str += ' - ' + date_range.get('end', '')[:10]
-        send_absence_covered_push(
-            staff_id,
-            results.get('covered_count', 0),
-            results.get('total_count', 0),
-            range_str
-        )
     except Exception as e:
         print(f'Substitute push error: {e}')
     
@@ -214,18 +204,43 @@ def early_return():
         
         # Verify this absence belongs to the teacher
         cursor.execute("""
-            SELECT id, absence_date, end_date FROM absence 
-            WHERE id = ? AND staff_id = ?
+            SELECT a.id, a.absence_date, a.end_date, s.display_name as teacher_name
+            FROM absence a
+            JOIN staff s ON a.staff_id = s.id
+            WHERE a.id = ? AND a.staff_id = ?
         """, (absence_id, staff_id))
         absence = cursor.fetchone()
         
         if not absence:
             return redirect(url_for('substitute.report_absence'))
         
+        teacher_name = absence['teacher_name']
+        
         # Guard: if return_date is on or before absence start, clamp to valid range
         absence_start = absence['absence_date']
         if adjusted_end_date < absence_start:
             adjusted_end_date = absence_start
+        
+        # Capture affected subs BEFORE cancelling
+        cursor.execute("""
+            SELECT DISTINCT sr.substitute_id, sr.request_date
+            FROM substitute_request sr
+            WHERE sr.absence_id = ? AND sr.request_date >= ?
+            AND sr.status IN ('Pending', 'Assigned') AND sr.substitute_id IS NOT NULL
+        """, (absence_id, return_date))
+        affected_subs = [dict(r) for r in cursor.fetchall()]
+        
+        # Capture affected duty replacements BEFORE clearing
+        cursor.execute("""
+            SELECT dr.replacement_id, dr.duty_date, ta.area_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.staff_id = ? AND dr.duty_date >= ? AND dr.replacement_id IS NOT NULL
+        """, (staff_id, return_date))
+        affected_duties = [dict(r) for r in cursor.fetchall()]
+        
+        # Determine action type for management notification
+        is_full_cancel = return_date <= absence_start
         
         # Update absence record
         cursor.execute("""
@@ -271,8 +286,20 @@ def early_return():
               datetime.now().isoformat()))
         
         conn.commit()
+    
+    # Send push notifications (after commit, outside transaction)
+    try:
+        from app.routes.push import send_sub_cancelled_push, send_duty_cancelled_push, send_management_return_push
         
-        # TODO: Send push notifications to cancelled subs
+        for sub in affected_subs:
+            send_sub_cancelled_push(sub['substitute_id'], teacher_name, sub['request_date'])
+        
+        for duty in affected_duties:
+            send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
+        
+        send_management_return_push(teacher_name, 'cancelled' if is_full_cancel else 'returned')
+    except Exception as e:
+        print(f'Cancel push error: {e}')
     
     return redirect('/duty/my-day')
 
@@ -299,12 +326,19 @@ def mark_back():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # Verify absence exists
-        cursor.execute("SELECT id, staff_id, absence_date FROM absence WHERE id = ?", (absence_id,))
+        # Verify absence exists and get teacher name
+        cursor.execute("""
+            SELECT a.id, a.staff_id, a.absence_date, s.display_name as teacher_name
+            FROM absence a
+            JOIN staff s ON a.staff_id = s.id
+            WHERE a.id = ?
+        """, (absence_id,))
         absence = cursor.fetchone()
         
         if not absence:
             return redirect('/substitute/overview')
+        
+        teacher_name = absence['teacher_name']
         
         # Guard: if return_date is on or before absence start, clamp to valid range
         absence_start = absence['absence_date']
@@ -312,6 +346,27 @@ def mark_back():
             adjusted_end_date = absence_start
         
         reported_by_id = session.get('staff_id') or 'management'
+        
+        # Determine action type
+        is_full_cancel = return_date <= absence_start
+        
+        # Capture affected subs BEFORE cancelling
+        cursor.execute("""
+            SELECT DISTINCT sr.substitute_id, sr.request_date
+            FROM substitute_request sr
+            WHERE sr.absence_id = ? AND sr.request_date >= ?
+            AND sr.status IN ('Pending', 'Assigned') AND sr.substitute_id IS NOT NULL
+        """, (absence_id, return_date))
+        affected_subs = [dict(r) for r in cursor.fetchall()]
+        
+        # Capture affected duty replacements BEFORE clearing
+        cursor.execute("""
+            SELECT dr.replacement_id, dr.duty_date, ta.area_name
+            FROM duty_roster dr
+            LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+            WHERE dr.staff_id = ? AND dr.duty_date >= ? AND dr.replacement_id IS NOT NULL
+        """, (absence['staff_id'], return_date))
+        affected_duties = [dict(r) for r in cursor.fetchall()]
         
         # Update absence record
         cursor.execute("""
@@ -357,6 +412,18 @@ def mark_back():
               datetime.now().isoformat()))
         
         conn.commit()
+    
+    # Send push notifications (after commit, outside transaction)
+    try:
+        from app.routes.push import send_sub_cancelled_push, send_duty_cancelled_push
+        
+        for sub in affected_subs:
+            send_sub_cancelled_push(sub['substitute_id'], teacher_name, sub['request_date'])
+        
+        for duty in affected_duties:
+            send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
+    except Exception as e:
+        print(f'Mark-back push error: {e}')
     
     return redirect('/substitute/overview')
 
@@ -1083,8 +1150,40 @@ def mark_absent_submit():
     try:
         from app.services.substitute_engine import handle_absent_teacher_duties
         duty_clash_results = handle_absent_teacher_duties(staff_id, start_date, end_date)
-        print(f"Management mark-absent duty clash handling: {duty_clash_results}")
     except Exception as e:
         print(f"Management mark-absent duty clash error: {e}")
+    
+    # Send push to management (other principals/deputies will see it)
+    try:
+        from app.routes.push import send_absence_reported_push
+        staff_name = results.get('sick_teacher', {}).get('name', 'A teacher')
+        date_range = results.get('date_range', {})
+        send_absence_reported_push(
+            staff_name,
+            absence_type,
+            date_range.get('start', start_date),
+            date_range.get('end', end_date),
+            results.get('covered_count', 0),
+            results.get('total_count', 0)
+        )
+    except Exception as e:
+        print(f'Management absence reported push error: {e}')
+    
+    # Send push to each assigned substitute
+    try:
+        from app.routes.push import send_substitute_assigned_push
+        for day in results.get('days', []):
+            date_display = day.get('date_display', '')
+            for period in day.get('periods', []):
+                if period.get('substitute_id'):
+                    send_substitute_assigned_push(
+                        period['substitute_id'],
+                        results['sick_teacher']['name'],
+                        period['period_name'],
+                        date_display,
+                        period.get('venue', 'TBC')
+                    )
+    except Exception as e:
+        print(f'Management sub assigned push error: {e}')
     
     return redirect('/substitute/overview')

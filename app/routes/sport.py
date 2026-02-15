@@ -648,7 +648,7 @@ def decline_duty(duty_id):
         
         # Verify this duty belongs to the current user
         cursor.execute("""
-            SELECT sd.*, se.event_name, se.event_date
+            SELECT sd.*, se.event_name, se.event_date, se.coordinator_id
             FROM sport_duty sd
             JOIN sport_event se ON sd.event_id = se.id
             WHERE sd.id = ? AND sd.staff_id = ? AND sd.tenant_id = ?
@@ -674,5 +674,13 @@ def decline_duty(duty_id):
         # Delete the duty assignment
         cursor.execute("DELETE FROM sport_duty WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
         conn.commit()
+    
+    # Notify coordinator
+    try:
+        from app.routes.push import send_sport_duty_declined_push
+        if duty.get('coordinator_id'):
+            send_sport_duty_declined_push(duty['coordinator_id'], duty['event_name'], duty['duty_type'], staff_name, duty['event_date'])
+    except Exception as e:
+        print(f'Sport decline push error: {e}')
     
     return redirect(return_to)
