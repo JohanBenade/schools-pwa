@@ -8,6 +8,7 @@ import os
 import json
 import time
 import requests
+from datetime import datetime
 
 push_bp = Blueprint('push', __name__, url_prefix='/push')
 
@@ -249,6 +250,9 @@ def register_token():
         return jsonify({'error': 'Token required'}), 400
     
     staff_id = session.get('staff_id')
+    if not staff_id:
+        return jsonify({'error': 'Not logged in'}), 401
+    
     device_info = data.get('device_info', request.headers.get('User-Agent', '')[:200])
     
     with get_connection() as conn:
@@ -511,7 +515,6 @@ def send_sport_duty_orphaned_push(coordinator_id, event_name, duty_type, absent_
     
     # Format date for display
     try:
-        from datetime import datetime
         dt = datetime.strptime(event_date, '%Y-%m-%d')
         date_display = dt.strftime('%a %d %b')
     except:
@@ -551,7 +554,6 @@ def send_sport_duty_declined_push(coordinator_id, event_name, duty_type, staff_n
         return 0
     
     try:
-        from datetime import datetime
         dt = datetime.strptime(event_date, '%Y-%m-%d')
         date_display = dt.strftime('%a %d %b')
     except:
@@ -592,7 +594,6 @@ def send_terrain_reassigned_push(staff_id, area_name, duty_date, reason='absence
     
     # Format date for display
     try:
-        from datetime import datetime
         dt = datetime.strptime(duty_date, '%Y-%m-%d')
         date_display = dt.strftime('%a %d %b')
     except:
