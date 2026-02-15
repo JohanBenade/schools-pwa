@@ -1316,14 +1316,14 @@ def duty_declines():
         if filter_type:
             cursor.execute("""
                 SELECT * FROM duty_decline
-                WHERE tenant_id = ? AND duty_type = ?
+                WHERE tenant_id = ? AND duty_type = ? AND reason != 'absent'
                 ORDER BY declined_at DESC
                 LIMIT 100
             """, (TENANT_ID, filter_type))
         else:
             cursor.execute("""
                 SELECT * FROM duty_decline
-                WHERE tenant_id = ?
+                WHERE tenant_id = ? AND reason != 'absent'
                 ORDER BY declined_at DESC
                 LIMIT 100
             """, (TENANT_ID,))
