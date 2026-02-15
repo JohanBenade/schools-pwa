@@ -810,6 +810,18 @@ def decline_terrain_duty(duty_id):
         
         conn.commit()
     
+    # Send push to new assignee (after commit)
+    if replacement:
+        try:
+            from app.routes.push import send_terrain_reassigned_push
+            send_terrain_reassigned_push(
+                staff_id=replacement['id'],
+                area_name=duty['area_name'] or 'Terrain',
+                duty_date=duty['duty_date']
+            )
+        except Exception as e:
+            print(f'Terrain decline push error: {e}')
+    
     return redirect(return_to)
 
 @duty_bp.route('/homework/decline/<duty_id>', methods=["POST"])
@@ -933,6 +945,18 @@ def decline_homework_duty(duty_id):
             cursor.execute("DELETE FROM duty_roster WHERE id = ? AND tenant_id = ?", (duty_id, TENANT_ID))
 
         conn.commit()
+
+    # Send push to new assignee (after commit)
+    if replacement:
+        try:
+            from app.routes.push import send_terrain_reassigned_push
+            send_terrain_reassigned_push(
+                staff_id=replacement['id'],
+                area_name='Homework Venue',
+                duty_date=duty['duty_date']
+            )
+        except Exception as e:
+            print(f'Homework decline push error: {e}')
 
     return redirect(return_to)
 

@@ -415,13 +415,15 @@ def mark_back():
     
     # Send push notifications (after commit, outside transaction)
     try:
-        from app.routes.push import send_sub_cancelled_push, send_duty_cancelled_push
+        from app.routes.push import send_sub_cancelled_push, send_duty_cancelled_push, send_management_return_push
         
         for sub in affected_subs:
             send_sub_cancelled_push(sub['substitute_id'], teacher_name, sub['request_date'])
         
         for duty in affected_duties:
             send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
+        
+        send_management_return_push(teacher_name, 'returned')
     except Exception as e:
         print(f'Mark-back push error: {e}')
     

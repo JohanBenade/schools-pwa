@@ -955,9 +955,10 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         # Send push notification to new assignee
         try:
             from app.routes.push import send_terrain_reassigned_push
+            push_area = duty.get('area_name', 'Terrain') if duty['duty_type'] == 'terrain' else 'Homework Venue'
             send_terrain_reassigned_push(
                 staff_id=new_assignee['id'],
-                area_name=duty.get('area_name', 'Terrain'),
+                area_name=push_area,
                 duty_date=target_date
             )
         except Exception as e:
