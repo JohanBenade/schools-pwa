@@ -3,7 +3,7 @@ Emergency Alert routes - Trigger, respond, resolve
 """
 
 from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify
-from datetime import datetime
+from datetime import datetime, date, time
 from app.services.db import get_connection, generate_id, now_iso
 from app.services.nav import get_nav_header, get_nav_styles, get_back_url
 
@@ -22,6 +22,183 @@ def get_current_user():
         'default_venue_id': session.get('default_venue_id'),
         'default_venue_name': session.get('default_venue_name'),
     }
+
+
+
+
+def get_smart_location(staff_id):
+    """Determine teacher's current location based on time, schedule, and assignments.
+    
+    Returns dict with keys: venue_id, venue_name, context, or None if unknown.
+    Priority: sub assignment > terrain duty > teaching slot > home room > staffroom
+    """
+    from datetime import datetime, date
+    
+    now = datetime.now()
+    now_time = now.strftime('%H:%M')
+    today_str = date.today().isoformat()
+    today_weekday = date.today().weekday()  # 0=Mon, 4=Fri, 5=Sat, 6=Sun
+    
+    # Weekend - no smart location
+    if today_weekday >= 5:
+        return None
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get today's calendar entry
+        cursor.execute("""
+            SELECT cycle_day, bell_schedule FROM school_calendar
+            WHERE tenant_id = ? AND date = ?
+        """, (TENANT_ID, today_str))
+        cal = cursor.fetchone()
+        
+        if not cal or not cal['cycle_day']:
+            return _get_home_room(cursor, staff_id)
+        
+        cycle_day = cal['cycle_day']
+        schedule_type = cal['bell_schedule']
+        
+        # Get bell schedule slots
+        cursor.execute("""
+            SELECT slot_name, slot_number, start_time, end_time, is_teaching, is_break, sort_order
+            FROM bell_schedule
+            WHERE tenant_id = ? AND schedule_type = ?
+            ORDER BY sort_order
+        """, (TENANT_ID, schedule_type))
+        slots = [dict(row) for row in cursor.fetchall()]
+        
+        # Find current slot
+        current_slot = None
+        for slot in slots:
+            if slot['start_time'] <= now_time <= slot['end_time']:
+                current_slot = slot
+                break
+        
+        # Before school (07:00-07:30) - check terrain morning duty
+        if now_time < '07:30':
+            terrain = _check_terrain_duty(cursor, staff_id, today_str)
+            if terrain:
+                return terrain
+            return _get_home_room(cursor, staff_id, 'Before school')
+        
+        # After last slot - home room
+        if not current_slot and now_time > '14:15':
+            return _get_home_room(cursor, staff_id, 'After hours')
+        
+        # During a break - check terrain duty
+        if current_slot and current_slot['is_break']:
+            terrain = _check_terrain_duty(cursor, staff_id, today_str)
+            if terrain:
+                return terrain
+            return _get_home_room(cursor, staff_id, current_slot['slot_name'])
+        
+        # During a teaching period
+        if current_slot and current_slot['is_teaching'] and current_slot['slot_number']:
+            period_num = current_slot['slot_number']
+            
+            # Check sub assignment first (covering someone else)
+            cursor.execute("""
+                SELECT sr.venue_name, p.period_number,
+                       s.display_name as absent_teacher,
+                       v_mg.venue_code as mentor_venue
+                FROM substitute_request sr
+                JOIN absence a ON sr.absence_id = a.id
+                JOIN staff s ON a.staff_id = s.id
+                LEFT JOIN period p ON sr.period_id = p.id
+                LEFT JOIN mentor_group mg ON mg.mentor_id = a.staff_id
+                LEFT JOIN venue v_mg ON mg.venue_id = v_mg.id
+                WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
+                  AND p.period_number = ?
+            """, (staff_id, today_str, period_num))
+            sub = cursor.fetchone()
+            if sub:
+                venue_name = sub['venue_name'] or sub['mentor_venue'] or 'Unknown'
+                return {
+                    'venue_id': None,
+                    'venue_name': venue_name,
+                    'context': f'Covering for {sub["absent_teacher"]} — Period {period_num}'
+                }
+            
+            # Check mentor duty sub (is_mentor_duty)
+            cursor.execute("""
+                SELECT sr.venue_name, s.display_name as absent_teacher,
+                       v_mg.venue_code as mentor_venue
+                FROM substitute_request sr
+                JOIN absence a ON sr.absence_id = a.id
+                JOIN staff s ON a.staff_id = s.id
+                LEFT JOIN mentor_group mg ON mg.mentor_id = a.staff_id
+                LEFT JOIN venue v_mg ON mg.venue_id = v_mg.id
+                WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
+                  AND sr.is_mentor_duty = 1
+            """, (staff_id, today_str))
+            mentor_sub = cursor.fetchone()
+            
+            # Check timetable for this period
+            cursor.execute("""
+                SELECT t.*, v.venue_code, v.venue_name, v.id as venue_uuid
+                FROM timetable_slot t
+                LEFT JOIN venue v ON t.venue_id = v.id
+                WHERE t.staff_id = ? AND t.cycle_day = ?
+                  AND t.period_id IN (SELECT id FROM period WHERE tenant_id = ? AND period_number = ?)
+            """, (staff_id, cycle_day, TENANT_ID, period_num))
+            teaching = cursor.fetchone()
+            if teaching and teaching['venue_uuid']:
+                return {
+                    'venue_id': teaching['venue_uuid'],
+                    'venue_name': teaching['venue_code'] or teaching['venue_name'],
+                    'context': f'Teaching — Period {period_num}'
+                }
+            
+            # Free period - home room
+            return _get_home_room(cursor, staff_id, f'Free — Period {period_num}')
+        
+        # Assembly or other non-teaching slot
+        if current_slot:
+            return _get_home_room(cursor, staff_id, current_slot['slot_name'])
+        
+        # Fallback
+        return _get_home_room(cursor, staff_id)
+
+
+def _check_terrain_duty(cursor, staff_id, today_str):
+    """Check if teacher has terrain duty today."""
+    cursor.execute("""
+        SELECT dr.*, ta.area_name, ta.area_code
+        FROM duty_roster dr
+        LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+        WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.duty_type = 'terrain'
+    """, (staff_id, today_str))
+    duty = cursor.fetchone()
+    if duty:
+        area = duty['area_name'] or duty['area_code'] or 'Terrain'
+        return {
+            'venue_id': duty.get('terrain_area_id'),
+            'venue_name': area,
+            'context': 'Terrain duty'
+        }
+    return None
+
+
+def _get_home_room(cursor_or_none, staff_id, context=None):
+    """Get teacher's home room as fallback location."""
+    if cursor_or_none is None:
+        return None
+    cursor = cursor_or_none
+    cursor.execute("""
+        SELECT v.id as venue_id, v.venue_code, v.venue_name
+        FROM staff_venue sv
+        JOIN venue v ON sv.venue_id = v.id
+        WHERE sv.staff_id = ? AND sv.tenant_id = ?
+    """, (staff_id, TENANT_ID))
+    room = cursor.fetchone()
+    if room:
+        return {
+            'venue_id': room['venue_id'],
+            'venue_name': room['venue_code'] or room['venue_name'],
+            'context': context or 'Home room'
+        }
+    return None
 
 
 def get_nav_for_user(user, current_page='emergency'):
@@ -187,12 +364,24 @@ def select_location():
     nav_header = get_nav_header('Select Location', '/emergency/trigger', 'Back')
     nav_styles = get_nav_styles()
     
+    # Smart location: figure out where teacher actually is right now
+    smart = get_smart_location(user['staff_id'])
+    if smart:
+        quick_venue_id = smart['venue_id'] or user.get('default_venue_id')
+        quick_venue_name = smart['venue_name']
+        quick_context = smart.get('context', '')
+    else:
+        quick_venue_id = user.get('default_venue_id')
+        quick_venue_name = user.get('default_venue_name')
+        quick_context = 'Home room' if quick_venue_name else ''
+    
     return render_template('emergency/select_zone.html',
                          user=user,
                          alert_type=alert_type,
                          zones=zones,
-                         default_venue_id=user.get('default_venue_id'),
-                         default_venue_name=user.get('default_venue_name'),
+                         default_venue_id=quick_venue_id,
+                         default_venue_name=quick_venue_name,
+                         default_venue_context=quick_context,
                          nav_header=nav_header,
                          nav_styles=nav_styles)
 
@@ -206,11 +395,16 @@ def send_default():
     if not alert_type or not user['staff_id']:
         return redirect(url_for('emergency.index'))
     
-    default_venue_id = user.get('default_venue_id')
-    default_venue_name = user.get('default_venue_name')
+    # Accept smart location from form, fall back to session default
+    default_venue_id = request.form.get('venue_id') or user.get('default_venue_id')
+    default_venue_name = request.form.get('venue_name') or user.get('default_venue_name')
     
-    if not default_venue_id:
+    if not default_venue_id and not default_venue_name:
         return redirect(url_for('emergency.select_location'))
+    
+    # If we have a name but no UUID (e.g. terrain area), use name as ID
+    if not default_venue_id:
+        default_venue_id = default_venue_name
     
     with get_connection() as conn:
         cursor = conn.cursor()

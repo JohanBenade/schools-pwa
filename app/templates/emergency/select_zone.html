@@ -153,9 +153,16 @@
         
         {% if default_venue_name %}
         <form action="/emergency/send-default" method="POST">
+            <input type="hidden" name="venue_id" value="{{ default_venue_id or '' }}">
+            <input type="hidden" name="venue_name" value="{{ default_venue_name }}">
             <button type="submit" class="quick-send">
                 <span>📍</span>
-                <span>Send from {{ default_venue_name }}</span>
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                    <span>Send from {{ default_venue_name }}</span>
+                    {% if default_venue_context %}
+                    <span style="font-size:12px;font-weight:400;opacity:0.85;margin-top:2px;">{{ default_venue_context }}</span>
+                    {% endif %}
+                </div>
             </button>
         </form>
         <div class="divider">— or select different location —</div>
