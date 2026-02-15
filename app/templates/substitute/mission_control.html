@@ -99,25 +99,15 @@
                 {% if absence.status not in ['Resolved', 'Cancelled'] %}
                 <div style="margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap;">
                     {% if absence.absence_date > today_iso %}
-                    <!-- Future absence: Cancel -->
-                    <form method="POST" action="/substitute/mark-back" style="margin:0;">
-                        <input type="hidden" name="absence_id" value="{{ absence.id }}">
-                        <input type="hidden" name="return_date" value="{{ absence.absence_date }}">
-                        <button type="submit" onclick="return confirm('Cancel this absence for {{ absence.teacher_name }}? All substitute cover will be removed.')"
-                                style="padding: 8px 16px; border-radius: 10px; border: none; background: #ef4444; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
-                            ✕ Cancel Absence
-                        </button>
-                    </form>
+                    <button onclick="openConfirmAction('Cancel Absence', 'Cancel this absence for {{ absence.teacher_name }}? All substitute cover will be removed.', '{{ absence.id }}', '{{ absence.absence_date }}', '#ef4444', '✕ Cancel Absence')"
+                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #ef4444; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        ✕ Cancel Absence
+                    </button>
                     {% else %}
-                    <!-- Active absence: Mark Back from today -->
-                    <form method="POST" action="/substitute/mark-back" style="margin:0;">
-                        <input type="hidden" name="absence_id" value="{{ absence.id }}">
-                        <input type="hidden" name="return_date" value="{{ today_iso }}">
-                        <button type="submit" onclick="return confirm('Mark {{ absence.teacher_name }} as back from today? Remaining substitute cover will be cancelled.')"
-                                style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
-                            ✅ Mark Back
-                        </button>
-                    </form>
+                    <button onclick="openConfirmAction('Mark Back', 'Mark {{ absence.teacher_name }} as back from today? Remaining substitute cover will be cancelled.', '{{ absence.id }}', '{{ today_iso }}', '#22c55e', '✅ Confirm')"
+                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        ✅ Mark Back
+                    </button>
                     {% endif %}
                     {% if not absence.is_open_ended %}
                     <button onclick="openExtend('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.end_date or absence.absence_date }}')"
@@ -172,6 +162,27 @@
     </div>
 
 
+    <!-- Confirm Action Modal -->
+    <div id="confirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
+            <h3 style="margin-bottom:4px; font-size:18px;" id="confirmTitle"></h3>
+            <p style="opacity:0.6; font-size:14px; margin-bottom:20px;" id="confirmSubtitle"></p>
+            <form method="POST" action="/substitute/mark-back" id="confirmForm">
+                <input type="hidden" name="absence_id" id="confirmAbsenceId">
+                <input type="hidden" name="return_date" id="confirmReturnDate">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="document.getElementById('confirmModal').style.display='none'"
+                            style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:white; font-size:14px; cursor:pointer;">
+                        Go Back
+                    </button>
+                    <button type="submit" id="confirmBtn"
+                            style="flex:1; padding:12px; border-radius:10px; border:none; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Extend Modal -->
     <div id="extendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
         <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
@@ -197,6 +208,19 @@
     </div>
 
     <script>
+    function openConfirmAction(title, subtitle, absenceId, returnDate, color, btnText) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmSubtitle').textContent = subtitle;
+        document.getElementById('confirmAbsenceId').value = absenceId;
+        document.getElementById('confirmReturnDate').value = returnDate;
+        var btn = document.getElementById('confirmBtn');
+        btn.textContent = btnText;
+        btn.style.background = color;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+    document.getElementById('confirmModal').addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
 
     function openExtend(absenceId, teacherName, currentEnd) {
         document.getElementById('extendAbsenceId').value = absenceId;
