@@ -144,16 +144,17 @@ function setupForegroundHandler() {
     
     // Show notification even when app is open
     if (Notification.permission === 'granted') {
+      const notificationType = payload.data?.type || 'general';
       const notification = new Notification(payload.notification?.title || 'SchoolOps Alert', {
-        body: payload.notification?.body || 'Emergency alert!',
+        body: payload.notification?.body || 'You have a new notification',
         icon: '/static/icon-192.png',
-        tag: 'schoolops-emergency',
+        tag: 'schoolops-' + notificationType + '-' + Date.now(),
         requireInteraction: true
       });
       
       notification.onclick = () => {
         window.focus();
-        window.location.href = payload.data?.url || '/emergency/';
+        window.location.href = payload.data?.link || payload.data?.url || '/emergency/';
         notification.close();
       };
     }

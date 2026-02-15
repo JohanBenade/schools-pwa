@@ -21,15 +21,18 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Background message received:', payload);
   
   const notificationTitle = payload.notification?.title || 'SchoolOps Alert';
+  const notificationType = payload.data?.type || 'general';
+  const notificationTag = 'schoolops-' + notificationType + '-' + Date.now();
+  
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new notification',
     icon: '/static/icon-192.png',
     badge: '/static/icon-192.png',
-    tag: 'schoolops-emergency',
+    tag: notificationTag,
     requireInteraction: true,  // Keep notification visible until user interacts
     vibrate: [200, 100, 200, 100, 200],  // Vibration pattern
     data: {
-      url: payload.data?.url || '/emergency/'
+      url: payload.data?.link || payload.data?.url || '/emergency/'
     }
   };
 

@@ -134,6 +134,7 @@ def send_push_notification(token, title, body, data=None, badge_url=None):
         response = requests.post(url, headers=headers, json=message, timeout=10)
         
         if response.status_code == 200:
+            print(f"PUSH OK: {title[:40]} -> token {token[:20]}...")
             return True
         elif response.status_code == 404 or 'NOT_FOUND' in response.text:
             print(f"Invalid token (will be cleaned): {token[:20]}...")
@@ -453,7 +454,10 @@ def send_absence_reported_push(teacher_name, absence_type, date_start, date_end,
         tokens = cursor.fetchall()
     
     if not tokens:
+        print("PUSH MGMT: No management tokens found")
         return 0
+    
+    print(f"PUSH MGMT: Found {len(tokens)} management tokens")
     
     # Format dates
     try:
