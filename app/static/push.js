@@ -143,16 +143,18 @@ function setupForegroundHandler() {
     console.log('Foreground message received:', payload);
     
     // Use service worker showNotification (new Notification() is suppressed on some platforms)
-    if (Notification.permission === 'granted' && swRegistration) {
-      const notificationType = payload.data?.type || 'general';
-      swRegistration.showNotification(payload.notification?.title || 'SchoolOps Alert', {
-        body: payload.notification?.body || 'You have a new notification',
-        icon: '/static/icon-192.png',
-        tag: 'schoolops-' + notificationType + '-' + Date.now(),
-        requireInteraction: true,
-        data: {
-          url: payload.data?.link || payload.data?.url || '/emergency/'
-        }
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(reg => {
+        const notificationType = payload.data?.type || 'general';
+        reg.showNotification(payload.notification?.title || 'SchoolOps Alert', {
+          body: payload.notification?.body || 'You have a new notification',
+          icon: '/static/icon-192.png',
+          tag: 'schoolops-' + notificationType + '-' + Date.now(),
+          requireInteraction: true,
+          data: {
+            url: payload.data?.link || payload.data?.url || '/emergency/'
+          }
+        });
       });
     }
   });
