@@ -223,7 +223,12 @@
         document.getElementById('extendTitle').textContent = 'Extend ' + teacherName;
         document.getElementById('extendSubtitle').textContent = 'Currently absent until ' + currentEnd;
         document.getElementById('extendDate').min = currentEnd;
-        document.getElementById('extendDate').value = '';
+        // Default to next school day after current end
+        var d = new Date(currentEnd + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+        var iso = d.toISOString().split('T')[0];
+        document.getElementById('extendDate').value = iso;
         document.getElementById('extendModal').style.display = 'flex';
     }
     function closeExtend() {

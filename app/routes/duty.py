@@ -254,6 +254,19 @@ def my_day():
         absence_end = absence_row['end_date'] if absence_row else None
         absence_open_ended = absence_row['is_open_ended'] if absence_row else False
         
+        # Compute default extend date (next weekday after current end)
+        extend_default = None
+        if is_absent and absence_end:
+            from datetime import datetime as dt
+            try:
+                end_dt = dt.strptime(absence_end, '%Y-%m-%d').date()
+                next_day = end_dt + timedelta(days=1)
+                while next_day.weekday() >= 5:
+                    next_day += timedelta(days=1)
+                extend_default = next_day.isoformat()
+            except:
+                extend_default = None
+        
         # If absent, get coverage info for this teacher's classes
         coverage_by_period = {}
         mentor_coverage = None
@@ -534,6 +547,7 @@ def my_day():
                           absence_start=absence_start,
                           absence_end=absence_end,
                           absence_open_ended=absence_open_ended,
+                          extend_default=extend_default,
                           viewing_other=viewing_other,
                           viewing_name=viewing_name,
                           today_str=date.today().isoformat())

@@ -38,11 +38,17 @@
                 </div>
                 
                 {% if absence.status not in ['Resolved', 'Cancelled'] %}
-                <div style="margin: 12px 0;">
+                <div style="margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap;">
                     <button onclick="openMarkBack('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.absence_date }}')"
                             style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
                         ✅ Mark Back
                     </button>
+                    {% if not absence.is_open_ended %}
+                    <button onclick="openExtend('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.end_date or absence.absence_date }}')"
+                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #f59e0b; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        📅 Extend
+                    </button>
+                    {% endif %}
                 </div>
                 {% endif %}
                 
