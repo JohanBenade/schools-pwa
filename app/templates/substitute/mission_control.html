@@ -98,10 +98,27 @@
                 
                 {% if absence.status not in ['Resolved', 'Cancelled'] %}
                 <div style="margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button onclick="openMarkBack('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.absence_date }}')"
-                            style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
-                        ✅ Mark Back
-                    </button>
+                    {% if absence.absence_date > today_iso %}
+                    <!-- Future absence: Cancel -->
+                    <form method="POST" action="/substitute/mark-back" style="margin:0;">
+                        <input type="hidden" name="absence_id" value="{{ absence.id }}">
+                        <input type="hidden" name="return_date" value="{{ absence.absence_date }}">
+                        <button type="submit" onclick="return confirm('Cancel this absence for {{ absence.teacher_name }}? All substitute cover will be removed.')"
+                                style="padding: 8px 16px; border-radius: 10px; border: none; background: #ef4444; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            ✕ Cancel Absence
+                        </button>
+                    </form>
+                    {% else %}
+                    <!-- Active absence: Mark Back from today -->
+                    <form method="POST" action="/substitute/mark-back" style="margin:0;">
+                        <input type="hidden" name="absence_id" value="{{ absence.id }}">
+                        <input type="hidden" name="return_date" value="{{ today_iso }}">
+                        <button type="submit" onclick="return confirm('Mark {{ absence.teacher_name }} as back from today? Remaining substitute cover will be cancelled.')"
+                                style="padding: 8px 16px; border-radius: 10px; border: none; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            ✅ Mark Back
+                        </button>
+                    </form>
+                    {% endif %}
                     {% if not absence.is_open_ended %}
                     <button onclick="openExtend('{{ absence.id }}', '{{ absence.teacher_name }}', '{{ absence.end_date or absence.absence_date }}')"
                             style="padding: 8px 16px; border-radius: 10px; border: none; background: #f59e0b; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
@@ -154,29 +171,6 @@
         </div><!-- /live-content -->
     </div>
 
-    <!-- Mark Back Modal -->
-    <div id="markBackModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#1e293b; border-radius:16px; padding:24px; max-width:360px; width:90%; border:1px solid rgba(255,255,255,0.1);">
-            <h3 style="margin-bottom:4px; font-size:18px;" id="markBackTitle">Mark Back</h3>
-            <p style="opacity:0.6; font-size:14px; margin-bottom:16px;" id="markBackSubtitle"></p>
-            <form method="POST" action="/substitute/mark-back" id="markBackForm">
-                <input type="hidden" name="absence_id" id="markBackAbsenceId">
-                <label style="font-size:13px; opacity:0.7; display:block; margin-bottom:6px;">First day back:</label>
-                <input type="date" name="return_date" id="markBackDate" value="{{ today_iso }}"
-                       style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:white; font-size:15px; margin-bottom:16px;">
-                <div style="display:flex; gap:10px;">
-                    <button type="button" onclick="closeMarkBack()"
-                            style="flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:white; font-size:14px; cursor:pointer;">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            style="flex:1; padding:10px; border-radius:10px; border:none; background:#22c55e; color:white; font-size:14px; font-weight:600; cursor:pointer;">
-                        ✅ Confirm
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Extend Modal -->
     <div id="extendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
@@ -203,20 +197,6 @@
     </div>
 
     <script>
-    function openMarkBack(absenceId, teacherName, absenceDate) {
-        document.getElementById('markBackAbsenceId').value = absenceId;
-        document.getElementById('markBackTitle').textContent = 'Mark ' + teacherName + ' as Back';
-        document.getElementById('markBackSubtitle').textContent = 'Cancel remaining substitute cover?';
-        document.getElementById('markBackDate').value = absenceDate;
-        document.getElementById('markBackDate').min = absenceDate;
-        document.getElementById('markBackModal').style.display = 'flex';
-    }
-    function closeMarkBack() {
-        document.getElementById('markBackModal').style.display = 'none';
-    }
-    document.getElementById('markBackModal').addEventListener('click', function(e) {
-        if (e.target === this) closeMarkBack();
-    });
 
     function openExtend(absenceId, teacherName, currentEnd) {
         document.getElementById('extendAbsenceId').value = absenceId;
