@@ -1077,7 +1077,7 @@ def extend_absence():
         conn.commit()
     
     # Re-process absence (idempotent - skips existing days, processes new ones)
-    process_absence(absence_id)
+    results = process_absence(absence_id)
     
     # Handle duty clashes for extended dates
     try:
@@ -1085,6 +1085,38 @@ def extend_absence():
         handle_absent_teacher_duties(absence['staff_id'], old_end, new_end_date)
     except Exception as e:
         print(f"Extend duty clash error: {e}")
+    
+    # Send push to management about extension
+    try:
+        from app.routes.push import send_absence_reported_push
+        teacher_name = results.get('sick_teacher', {}).get('name', 'A teacher')
+        send_absence_reported_push(
+            teacher_name,
+            'Extended',
+            old_end,
+            new_end_date,
+            results.get('covered_count', 0),
+            results.get('total_count', 0)
+        )
+    except Exception as e:
+        print(f'Extend management push error: {e}')
+    
+    # Send push to newly assigned substitutes
+    try:
+        from app.routes.push import send_substitute_assigned_push
+        for day in results.get('days', []):
+            date_display = day.get('date_display', '')
+            for period in day.get('periods', []):
+                if period.get('substitute_id'):
+                    send_substitute_assigned_push(
+                        period['substitute_id'],
+                        results['sick_teacher']['name'],
+                        period['period_name'],
+                        date_display,
+                        period.get('venue', 'TBC')
+                    )
+    except Exception as e:
+        print(f'Extend sub assigned push error: {e}')
     
     # Redirect based on who extended
     if role in ['principal', 'deputy', 'office', 'admin'] and absence['staff_id'] != staff_id:
