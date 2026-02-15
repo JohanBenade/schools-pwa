@@ -1,4 +1,8 @@
 // Firebase Messaging Service Worker
+
+// Auto-activate new service worker versions immediately
+self.addEventListener("install", (event) => { self.skipWaiting(); });
+self.addEventListener("activate", (event) => { event.waitUntil(clients.claim()); });
 // Handles background push notifications AND foreground relay via postMessage
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
