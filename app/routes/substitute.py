@@ -965,6 +965,8 @@ def extend_absence():
     new_end_date = request.form.get('new_end_date')
     
     if not absence_id or not new_end_date:
+        if role in ['principal', 'deputy', 'office', 'admin']:
+            return redirect('/substitute/overview')
         return redirect('/duty/my-day')
     
     with get_connection() as conn:
@@ -972,6 +974,8 @@ def extend_absence():
         cursor.execute("SELECT staff_id, end_date, absence_date FROM absence WHERE id = ?", (absence_id,))
         absence = cursor.fetchone()
         if not absence:
+            if role in ['principal', 'deputy', 'office', 'admin']:
+                return redirect('/substitute/overview')
             return redirect('/duty/my-day')
         
         # Security: teacher can only extend own absence
@@ -983,6 +987,8 @@ def extend_absence():
         
         # Validate new date is actually later
         if new_end_date <= old_end:
+            if role in ['principal', 'deputy', 'office', 'admin'] and absence['staff_id'] != staff_id:
+                return redirect('/substitute/overview')
             return redirect('/duty/my-day')
         
         # Update end date
@@ -1014,7 +1020,7 @@ def extend_absence():
     # Redirect based on who extended
     if role in ['principal', 'deputy', 'office', 'admin'] and absence['staff_id'] != staff_id:
         return redirect('/substitute/overview')
-    return redirect('/duty/my-day')
+    return redirect('/duty/my-day?tab=' + new_end_date)
 
 
 @substitute_bp.route('/mark-absent')
