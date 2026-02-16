@@ -167,7 +167,7 @@ def create_app():
         user_role = session.get('role', '')
         
         # Route to appropriate home page based on role
-        if user_role in ['principal', 'deputy']:
+        if user_role in ['principal', 'deputy', 'management']:
             return render_template('home/management.html', user_name=user_name, active_alert=active_alert)
         
         if user_role in ['activities', 'sport_coordinator']:
