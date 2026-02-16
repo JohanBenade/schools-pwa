@@ -116,7 +116,7 @@ def create_app():
     @app.before_request
     def handle_magic_link():
         magic_code = request.args.get('u')
-        if magic_code and 'staff_id' not in session:
+        if magic_code:
             from app.services.db import get_connection
             with get_connection() as conn:
                 cursor = conn.cursor()
