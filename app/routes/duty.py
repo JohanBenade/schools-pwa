@@ -790,7 +790,7 @@ def decline_terrain_duty(duty_id):
               AND id NOT IN (
                   SELECT staff_id FROM absence
                   WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
-                    AND status != 'Cancelled'
+                    AND status IN ('Reported', 'Covered', 'Partial')
               )
             ORDER BY first_name ASC, surname ASC
             LIMIT 1
@@ -900,7 +900,7 @@ def decline_homework_duty(duty_id):
               AND id NOT IN (
                   SELECT staff_id FROM absence
                   WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
-                    AND status != 'Cancelled'
+                    AND status IN ('Reported', 'Covered', 'Partial')
               )
             ORDER BY first_name DESC
             LIMIT 1
@@ -928,7 +928,7 @@ def decline_homework_duty(duty_id):
                   AND id NOT IN (
                       SELECT staff_id FROM absence
                       WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
-                        AND status != 'Cancelled'
+                        AND status IN ('Reported', 'Covered', 'Partial')
                   )
                 ORDER BY first_name DESC
                 LIMIT 1
