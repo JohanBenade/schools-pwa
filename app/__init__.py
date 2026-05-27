@@ -167,7 +167,7 @@ def create_app():
         user_role = session.get('role', '')
         
         # Route to appropriate home page based on role
-        if user_role in ['principal', 'deputy', 'management']:
+        if user_role in ['principal', 'deputy', 'management', 'admin']:
             return render_template('home/management.html', user_name=user_name, active_alert=active_alert)
         
         if user_role in ['activities', 'sport_coordinator']:
@@ -176,7 +176,7 @@ def create_app():
         if user_role == 'office':
             return render_template('home/office.html', user_name=user_name, active_alert=active_alert)
         
-        if user_role in ['teacher', 'grade_head', 'admin']:
+        if user_role in ['teacher', 'grade_head']:
             return render_template('home/staff.html', user_name=user_name, active_alert=active_alert)
         
         # Not logged in - show code entry form (PWA friendly)
