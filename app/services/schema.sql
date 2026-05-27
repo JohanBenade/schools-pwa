@@ -602,3 +602,25 @@ CREATE TABLE IF NOT EXISTS grade_backup_config (
 
 INSERT OR IGNORE INTO schema_version (version, description) 
 VALUES (7, 'Grade backup teachers for mentor register coverage');
+
+-- ============================================
+-- MIGRATION 008: Learner subject enrollments (May 2026)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS learner_subject (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    learner_id TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    class_name TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (learner_id) REFERENCES learner(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_learner_subject_learner ON learner_subject(learner_id);
+CREATE INDEX IF NOT EXISTS idx_learner_subject_class ON learner_subject(subject, class_name);
+CREATE INDEX IF NOT EXISTS idx_learner_subject_tenant ON learner_subject(tenant_id);
+
+INSERT OR IGNORE INTO schema_version (version, description) 
+VALUES (8, 'Learner subject enrollments - synthetic data from timetable');

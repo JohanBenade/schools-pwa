@@ -1430,3 +1430,140 @@ def add_junior_janine():
         conn.commit()
     
     return jsonify(results)
+
+
+@admin_bp.route('/generate-learner-subjects')
+def generate_learner_subjects():
+    """
+    Generate synthetic learner_subject enrollments derived from timetable_slot data.
+    Idempotent: clears existing enrollments for tenant before regenerating.
+    """
+    import uuid
+    
+    results = {
+        'tenant': TENANT_ID,
+        'grade_8_9_learners': 0,
+        'grade_10_12_learners': 0,
+        'total_enrollments': 0,
+        'per_grade': {},
+        'errors': []
+    }
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM learner_subject WHERE tenant_id = ?', (TENANT_ID,))
+        
+        cursor.execute('''
+            SELECT id, grade_number, grade_name FROM grade 
+            WHERE tenant_id = ? ORDER BY grade_number
+        ''', (TENANT_ID,))
+        grades = [dict(row) for row in cursor.fetchall()]
+        
+        for grade in grades:
+            grade_id = grade['id']
+            grade_num = grade['grade_number']
+            grade_enrollments = 0
+            
+            cursor.execute('''
+                SELECT l.id as learner_id, l.first_name, l.surname, 
+                       mg.group_name as mentor_group_name
+                FROM learner l
+                LEFT JOIN mentor_group mg ON l.mentor_group_id = mg.id
+                WHERE l.tenant_id = ? AND l.grade_id = ? AND l.is_active = 1
+                ORDER BY l.id
+            ''', (TENANT_ID, grade_id))
+            learners = [dict(row) for row in cursor.fetchall()]
+            
+            if grade_num in (8, 9):
+                for learner in learners:
+                    mentor_name = learner['mentor_group_name'] or ''
+                    parts = mentor_name.split(' ', 1)
+                    if len(parts) < 2:
+                        results['errors'].append(
+                            f"Grade {grade_num} learner {learner['learner_id']}: unparseable mentor group '{mentor_name}'"
+                        )
+                        continue
+                    mentor_code = parts[1].strip()
+                    
+                    class_names = [f"Gr{grade_num} {mentor_code}"]
+                    if grade_num == 8 and mentor_code == 'ZP':
+                        class_names.append("Gr8 ZF")
+                    
+                    placeholders = ','.join('?' * len(class_names))
+                    cursor.execute(f'''
+                        SELECT DISTINCT subject, class_name
+                        FROM timetable_slot
+                        WHERE tenant_id = ? AND class_name IN ({placeholders})
+                    ''', (TENANT_ID, *class_names))
+                    enrollments = cursor.fetchall()
+                    
+                    for enrollment in enrollments:
+                        cursor.execute('''
+                            INSERT INTO learner_subject 
+                            (id, tenant_id, learner_id, subject, class_name, is_active)
+                            VALUES (?, ?, ?, ?, ?, 1)
+                        ''', (str(uuid.uuid4()), TENANT_ID, learner['learner_id'],
+                              enrollment['subject'], enrollment['class_name']))
+                    grade_enrollments += len(enrollments)
+                
+                results['grade_8_9_learners'] += len(learners)
+            
+            elif grade_num in (10, 11, 12):
+                cursor.execute('''
+                    SELECT DISTINCT class_name FROM timetable_slot
+                    WHERE tenant_id = ? AND class_name LIKE ? AND class_name NOT LIKE ?
+                    ORDER BY class_name
+                ''', (TENANT_ID, f'Gr{grade_num} %', f'Gr{grade_num} Key%'))
+                letter_classes = [row['class_name'] for row in cursor.fetchall()]
+                
+                cursor.execute('''
+                    SELECT DISTINCT class_name FROM timetable_slot
+                    WHERE tenant_id = ? AND class_name LIKE ?
+                    ORDER BY class_name
+                ''', (TENANT_ID, f'Gr{grade_num} Key%'))
+                key_classes = [row['class_name'] for row in cursor.fetchall()]
+                
+                if not letter_classes or not key_classes:
+                    results['errors'].append(
+                        f"Grade {grade_num}: missing letter classes ({len(letter_classes)}) or key classes ({len(key_classes)}) - skipped"
+                    )
+                    continue
+                
+                for i, learner in enumerate(learners):
+                    letter_class = letter_classes[i % len(letter_classes)]
+                    key_class = key_classes[i % len(key_classes)]
+                    
+                    cursor.execute('''
+                        SELECT DISTINCT subject, class_name
+                        FROM timetable_slot
+                        WHERE tenant_id = ? AND class_name IN (?, ?)
+                    ''', (TENANT_ID, letter_class, key_class))
+                    raw_rows = cursor.fetchall()
+                    
+                    chosen = {}
+                    for row in raw_rows:
+                        subj = row['subject']
+                        cname = row['class_name']
+                        if subj not in chosen or 'Key' in cname:
+                            chosen[subj] = cname
+                    
+                    for subject, class_name in chosen.items():
+                        cursor.execute('''
+                            INSERT INTO learner_subject 
+                            (id, tenant_id, learner_id, subject, class_name, is_active)
+                            VALUES (?, ?, ?, ?, ?, 1)
+                        ''', (str(uuid.uuid4()), TENANT_ID, learner['learner_id'],
+                              subject, class_name))
+                    grade_enrollments += len(chosen)
+                
+                results['grade_10_12_learners'] += len(learners)
+            
+            results['per_grade'][f'Grade {grade_num}'] = {
+                'learners': len(learners),
+                'enrollments': grade_enrollments
+            }
+            results['total_enrollments'] += grade_enrollments
+        
+        conn.commit()
+    
+    return jsonify(results)
