@@ -2,7 +2,7 @@
 Management Dashboard - Principal, Deputy, Admin view
 """
 
-from flask import Blueprint, session, redirect
+from flask import Blueprint, session, redirect, request
 from datetime import date
 from app.services.db import get_connection
 from app.services.nav import get_role_label
@@ -79,7 +79,7 @@ def build_chronic_rows(learners):
         full = f"{l['first_name']} {l['surname']}"
         tier = 'critical' if l['absent_count'] >= 20 else 'high'
         rows.append(
-            f'<a href="/dashboard/learner/{l["id"]}/" class="absentee-row">'
+            f'<a href="/dashboard/learner/{l["id"]}/?from=chronic" class="absentee-row">'
             f'<span class="absentee-name"><span class="dot dot-{tier}" style="margin-right:8px;"></span>{full}</span>'
             f'<span class="absentee-meta">{l["group_name"] or "—"} &middot; {l["absent_count"]} days</span>'
             f'</a>'
@@ -113,7 +113,7 @@ def build_absent_today_rows(learners):
     for l in learners:
         full = f"{l['first_name']} {l['surname']}"
         rows.append(
-            f'<a href="/dashboard/learner/{l["id"]}/" class="absentee-row">'
+            f'<a href="/dashboard/learner/{l["id"]}/?from=absent" class="absentee-row">'
             f'<span class="absentee-name">{full}</span>'
             f'<span class="absentee-meta">Grade {l["grade_number"]} &middot; {l["group_name"] or "\u2014"}</span>'
             f'</a>'
@@ -480,7 +480,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: 
 .user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
 .page-header {{ text-align: center; margin-bottom: 24px; }}
 .page-title {{ font-size: 24px; font-weight: 700; }}
-.page-subtitle {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
+.page-subtitle {{ font-size: 13px; opacity: 0.7; margin-top: 6px; }}
+.page-count {{ font-size: 14px; opacity: 0.85; margin-top: 8px; }}
 .absentee-list {{ display: flex; flex-direction: column; gap: 6px; }}
 .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 14px; background: rgba(255,255,255,0.06); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
 .absentee-row:hover {{ background: rgba(255,255,255,0.10); }}
@@ -498,7 +499,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: 
 <div class="container">
     <div class="page-header">
         <div class="page-title">&#9888; Chronic Absentees</div>
-        <div class="page-subtitle">{total} learner{plural} with 15+ days absent</div>
+        <div class="page-subtitle">15+ days absent &middot; year-to-date</div>
+        <div class="page-count">{total} learner{plural} flagged</div>
     </div>
     {rows_html}
 </div></body></html>'''
@@ -511,6 +513,16 @@ def learner_detail(learner_id):
         return redirect('/')
     user_name = session.get('display_name', '')
     user_role_label = get_role_label(session.get('role'))
+    from_page = request.args.get('from', '')
+    if from_page == 'chronic':
+        back_url = '/dashboard/chronic-absentees/'
+        back_label = 'Chronic Absentees'
+    elif from_page == 'absent':
+        back_url = '/dashboard/absent-today/'
+        back_label = 'Absent Today'
+    else:
+        back_url = '/dashboard/'
+        back_label = 'Dashboard'
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -567,7 +579,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: 
 .legend-swatch {{ width: 10px; height: 10px; border-radius: 2px; }}
 </style></head><body>
 <div class="user-bar">
-    <a href="/dashboard/chronic-absentees/">&larr; Chronic Absentees</a>
+    <a href="{back_url}">&larr; {back_label}</a>
     <span>&#x1F3DB; {user_name} &middot; {user_role_label}</span>
 </div>
 <div class="container">
