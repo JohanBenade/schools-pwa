@@ -127,7 +127,7 @@
         </div>
         {% endif %}
         
-        <a href="/" class="home-btn">Return Home</a>
+        <a href="{{ current_user.workspace_url }}" class="home-btn">Return to {{ current_user.workspace_label }}</a>
     </div>
 </body>
 </html>

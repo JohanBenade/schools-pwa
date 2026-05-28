@@ -86,7 +86,7 @@
         </a>
         {% endif %}
         
-        <a href="/" class="back-link">← Back to Home</a>
+        <a href="{{ current_user.workspace_url }}" class="back-link">← Back to {{ current_user.workspace_label }}</a>
     </div>
 </body>
 </html>

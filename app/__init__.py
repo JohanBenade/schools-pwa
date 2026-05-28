@@ -142,12 +142,16 @@ def create_app():
     def inject_user():
         from app.services.nav import get_role_label
         role = session.get('role')
+        is_privileged = role in ('principal', 'deputy', 'admin', 'management')
         return {
             'current_user': {
                 'staff_id': session.get('staff_id'),
                 'display_name': session.get('display_name'),
                 'role': role,
                 'role_label': get_role_label(role),
+                'is_privileged': is_privileged,
+                'workspace_url': '/dashboard/' if is_privileged else '/',
+                'workspace_label': 'Dashboard' if is_privileged else 'Home',
                 'can_resolve': session.get('can_resolve', False),
             }
         }
