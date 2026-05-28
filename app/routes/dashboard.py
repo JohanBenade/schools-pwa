@@ -77,13 +77,33 @@ def build_chronic_rows(learners):
     rows = []
     for l in learners:
         full = f"{l['first_name']} {l['surname']}"
+        tier = 'critical' if l['absent_count'] >= 20 else 'high'
         rows.append(
-            f'<div class="absentee-row">'
-            f'<span class="absentee-name">{full}</span>'
-            f'<span class="absentee-meta">{l["group_name"] or "—"} · {l["absent_count"]}</span>'
-            f'</div>'
+            f'<a href="/dashboard/learner/{l["id"]}/" class="absentee-row">'
+            f'<span class="absentee-name"><span class="dot dot-{tier}" style="margin-right:8px;"></span>{full}</span>'
+            f'<span class="absentee-meta">{l["group_name"] or "—"} &middot; {l["absent_count"]} days</span>'
+            f'</a>'
         )
     return '<div class="absentee-list">' + ''.join(rows) + '</div>'
+
+
+def build_attendance_strip(history):
+    if not history:
+        return '<div style="opacity:0.6;text-align:center;padding:20px;">No attendance data</div>'
+    colors = {'Present': '#22c55e', 'Absent': '#ef4444', 'Late': '#f59e0b', 'Left_Early': '#94a3b8'}
+    default = 'rgba(255,255,255,0.1)'
+    n = len(history)
+    cell_w = 10
+    gap = 2
+    h = 32
+    w = n * (cell_w + gap)
+    parts = [f'<svg viewBox="0 0 {w} {h}" preserveAspectRatio="none" style="width:100%;height:{h}px;display:block;">']
+    for i, (date_str, status) in enumerate(history):
+        x = i * (cell_w + gap)
+        color = colors.get(status, default)
+        parts.append(f'<rect x="{x}" y="0" width="{cell_w}" height="{h}" rx="2" fill="{color}"><title>{date_str}: {status}</title></rect>')
+    parts.append('</svg>')
+    return ''.join(parts)
 
 
 @dashboard_bp.route('/')
@@ -185,15 +205,16 @@ def index():
         
         cursor.execute('''
             SELECT 
-              l.id, l.first_name, l.surname, mg.group_name,
+              l.id, l.first_name, l.surname, mg.group_name, g.grade_number,
               SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) AS absent_count
             FROM learner l
             JOIN attendance_entry ae ON ae.learner_id = l.id
             JOIN attendance a ON a.id = ae.attendance_id
             LEFT JOIN mentor_group mg ON mg.id = l.mentor_group_id
+            LEFT JOIN grade g ON g.id = l.grade_id
             WHERE l.tenant_id = ? AND a.tenant_id = ? AND COALESCE(l.is_active, 1) = 1
             GROUP BY l.id
-            HAVING SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) >= 10
+            HAVING SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) >= 15
             ORDER BY absent_count DESC
         ''', (TENANT_ID, TENANT_ID))
         chronic_all = [dict(r) for r in cursor.fetchall()]
@@ -232,10 +253,29 @@ def index():
     
     sparkline_svg = build_sparkline(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
-    chronic_top5 = chronic_all[:5]
-    chronic_total = len(chronic_all)
-    chronic_plural = 's' if chronic_total != 1 else ''
-    chronic_html = build_chronic_rows(chronic_top5)
+    from collections import Counter
+    flagged_total = len(chronic_all)
+    critical_count = sum(1 for x in chronic_all if x['absent_count'] >= 20)
+    high_count = flagged_total - critical_count
+    grade_counts = Counter(x['grade_number'] for x in chronic_all if x.get('grade_number'))
+    if grade_counts:
+        worst_grade_num, worst_grade_count = grade_counts.most_common(1)[0]
+    else:
+        worst_grade_num, worst_grade_count = None, 0
+    if flagged_total > 0:
+        critical_flex = max(1, critical_count)
+        high_flex = max(1, high_count)
+        worst_html = f'<div class="detail-list"><div class="detail-item">Most affected: <strong>Grade {worst_grade_num}</strong> &middot; {worst_grade_count} learners</div></div>' if worst_grade_num else ''
+        chronic_card_body = (
+            f'<div class="big-number">{flagged_total}</div>'
+            f'<div class="big-label">learners with 15+ days absent</div>'
+            f'<div class="tier-bar"><div class="tier-segment tier-critical" style="flex:{critical_flex};"></div><div class="tier-segment tier-high" style="flex:{high_flex};"></div></div>'
+            f'<div class="tier-legend"><div class="tier-label"><span class="dot dot-critical"></span>{critical_count} critical (20+ days)</div><div class="tier-label"><span class="dot dot-high"></span>{high_count} high (15-19 days)</div></div>'
+            f'{worst_html}'
+            f'<a href="/dashboard/chronic-absentees/" class="card-link">View all {flagged_total} &rarr;</a>'
+        )
+    else:
+        chronic_card_body = '<div class="big-number" style="color:#22c55e;">&check;</div><div class="big-label">No chronic absenteeism</div>'
     if daily_attendance:
         first_lbl = format_date_short(daily_attendance[0][0])
         mid_lbl = format_date_short(daily_attendance[len(daily_attendance)//2][0])
@@ -290,9 +330,20 @@ def index():
         .bar-fill {{ background: linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee); height: 100%; border-radius: 4px; }}
         .emergency-active {{ background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); animation: pulse-border 2s infinite; }}
         @keyframes pulse-border {{ 0%, 100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }} }}
+        .tier-bar {{ display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 16px 0 8px; gap: 2px; }}
+        .tier-segment {{ height: 100%; }}
+        .tier-critical {{ background: #ef4444; }}
+        .tier-high {{ background: #f59e0b; }}
+        .tier-legend {{ display: flex; gap: 16px; font-size: 12px; opacity: 0.85; margin-bottom: 8px; flex-wrap: wrap; }}
+        .tier-label {{ display: flex; align-items: center; gap: 6px; }}
+        .dot {{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; }}
+        .dot-critical {{ background: #ef4444; }}
+        .dot-high {{ background: #f59e0b; }}
         .absentee-list {{ display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }}
-        .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; }}
-        .absentee-name {{ font-weight: 500; font-size: 14px; }}
+        .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
+        .absentee-row:hover {{ background: rgba(255,255,255,0.08); }}
+        .absentee-row:active {{ background: rgba(255,255,255,0.12); }}
+        .absentee-name {{ font-weight: 500; font-size: 14px; display: flex; align-items: center; }}
         .absentee-meta {{ font-size: 12px; opacity: 0.7; }}
         .absence-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }}
         .absence-row:last-child {{ border-bottom: none; }}
@@ -327,10 +378,10 @@ def index():
             
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">⚠️ Chronic Absentees</span>
-                    <span class="card-status status-yellow">{chronic_total} learner{chronic_plural}</span>
+                    <span class="card-title">⚠️ Chronic Absenteeism</span>
+                    <span class="card-status status-yellow">{flagged_total}</span>
                 </div>
-                {chronic_html}
+                {chronic_card_body}
             </div>
 
             <div class="card">
@@ -371,3 +422,159 @@ def index():
 </body>
 </html>
 '''
+
+
+
+@dashboard_bp.route('/chronic-absentees/')
+def chronic_absentees_list():
+    user_role = session.get('role', 'teacher')
+    if user_role not in ['principal', 'deputy', 'admin', 'management']:
+        return redirect('/')
+    user_name = session.get('display_name', '')
+    user_role_label = get_role_label(session.get('role'))
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+              l.id, l.first_name, l.surname, mg.group_name, g.grade_number,
+              SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) AS absent_count
+            FROM learner l
+            JOIN attendance_entry ae ON ae.learner_id = l.id
+            JOIN attendance a ON a.id = ae.attendance_id
+            LEFT JOIN mentor_group mg ON mg.id = l.mentor_group_id
+            LEFT JOIN grade g ON g.id = l.grade_id
+            WHERE l.tenant_id = ? AND a.tenant_id = ? AND COALESCE(l.is_active, 1) = 1
+            GROUP BY l.id
+            HAVING SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) >= 15
+            ORDER BY absent_count DESC
+        ''', (TENANT_ID, TENANT_ID))
+        chronic = [dict(r) for r in cursor.fetchall()]
+    total = len(chronic)
+    rows_html = build_chronic_rows(chronic)
+    plural = 's' if total != 1 else ''
+    return f'''<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chronic Absentees - SchoolOps</title>
+<style>
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
+.container {{ max-width: 600px; margin: 0 auto; }}
+.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
+.user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
+.page-header {{ text-align: center; margin-bottom: 24px; }}
+.page-title {{ font-size: 24px; font-weight: 700; }}
+.page-subtitle {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
+.absentee-list {{ display: flex; flex-direction: column; gap: 6px; }}
+.absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 14px; background: rgba(255,255,255,0.06); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
+.absentee-row:hover {{ background: rgba(255,255,255,0.10); }}
+.absentee-row:active {{ background: rgba(255,255,255,0.14); }}
+.absentee-name {{ font-weight: 500; font-size: 15px; display: flex; align-items: center; }}
+.absentee-meta {{ font-size: 13px; opacity: 0.7; }}
+.dot {{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; }}
+.dot-critical {{ background: #ef4444; }}
+.dot-high {{ background: #f59e0b; }}
+</style></head><body>
+<div class="user-bar">
+    <a href="/dashboard/">&larr; Dashboard</a>
+    <span>&#x1F3DB; {user_name} &middot; {user_role_label}</span>
+</div>
+<div class="container">
+    <div class="page-header">
+        <div class="page-title">&#9888; Chronic Absentees</div>
+        <div class="page-subtitle">{total} learner{plural} with 15+ days absent</div>
+    </div>
+    {rows_html}
+</div></body></html>'''
+
+
+@dashboard_bp.route('/learner/<learner_id>/')
+def learner_detail(learner_id):
+    user_role = session.get('role', 'teacher')
+    if user_role not in ['principal', 'deputy', 'admin', 'management']:
+        return redirect('/')
+    user_name = session.get('display_name', '')
+    user_role_label = get_role_label(session.get('role'))
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT l.*, mg.group_name, g.grade_number
+            FROM learner l
+            LEFT JOIN mentor_group mg ON mg.id = l.mentor_group_id
+            LEFT JOIN grade g ON g.id = l.grade_id
+            WHERE l.id = ? AND l.tenant_id = ?
+        ''', (learner_id, TENANT_ID))
+        row = cursor.fetchone()
+        if not row:
+            return redirect('/dashboard/')
+        learner = dict(row)
+        cursor.execute('''
+            SELECT a.date, ae.status
+            FROM attendance_entry ae
+            JOIN attendance a ON a.id = ae.attendance_id
+            WHERE ae.learner_id = ? AND a.tenant_id = ?
+            ORDER BY a.date
+        ''', (learner_id, TENANT_ID))
+        history = [(r['date'], r['status']) for r in cursor.fetchall()]
+    total = len(history)
+    present = sum(1 for _, s in history if s == 'Present')
+    absent = sum(1 for _, s in history if s == 'Absent')
+    pct = (present / total * 100) if total else 0
+    full_name = f"{learner['first_name']} {learner['surname']}"
+    grade_label = f"Grade {learner.get('grade_number')}" if learner.get('grade_number') else ''
+    group_label = learner.get('group_name') or ''
+    meta = ' · '.join([p for p in [grade_label, group_label] if p])
+    strip_html = build_attendance_strip(history)
+    first_date = format_date_short(history[0][0]) if history else ''
+    last_date = format_date_short(history[-1][0]) if history else ''
+    return f'''<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{full_name} - SchoolOps</title>
+<style>
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
+.container {{ max-width: 600px; margin: 0 auto; }}
+.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
+.user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
+.learner-header {{ text-align: center; margin-bottom: 24px; }}
+.learner-name {{ font-size: 28px; font-weight: 700; }}
+.learner-meta {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
+.card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-bottom: 16px; }}
+.card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; margin-bottom: 16px; }}
+.stat-row {{ display: flex; gap: 12px; }}
+.stat {{ flex: 1; text-align: center; }}
+.stat-value {{ font-size: 28px; font-weight: 700; }}
+.stat-label {{ font-size: 11px; opacity: 0.7; margin-top: 2px; }}
+.strip-axis {{ display: flex; justify-content: space-between; font-size: 11px; opacity: 0.5; margin-top: 8px; }}
+.legend {{ display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 12px; opacity: 0.7; flex-wrap: wrap; }}
+.legend-item {{ display: flex; align-items: center; gap: 6px; }}
+.legend-swatch {{ width: 10px; height: 10px; border-radius: 2px; }}
+</style></head><body>
+<div class="user-bar">
+    <a href="/dashboard/chronic-absentees/">&larr; Chronic Absentees</a>
+    <span>&#x1F3DB; {user_name} &middot; {user_role_label}</span>
+</div>
+<div class="container">
+    <div class="learner-header">
+        <div class="learner-name">{full_name}</div>
+        <div class="learner-meta">{meta}</div>
+    </div>
+    <div class="card">
+        <div class="card-title">&#x1F4CA; Attendance Summary</div>
+        <div class="stat-row">
+            <div class="stat"><div class="stat-value" style="color:#22d3ee;">{pct:.1f}%</div><div class="stat-label">attendance</div></div>
+            <div class="stat"><div class="stat-value">{present}</div><div class="stat-label">present</div></div>
+            <div class="stat"><div class="stat-value" style="color:#ef4444;">{absent}</div><div class="stat-label">absent</div></div>
+            <div class="stat"><div class="stat-value">{total}</div><div class="stat-label">days</div></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">&#x1F4C5; {total}-Day Attendance Strip</div>
+        {strip_html}
+        <div class="strip-axis"><span>{first_date}</span><span>{last_date}</span></div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#22c55e;"></div>Present</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;"></div>Absent</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#94a3b8;"></div>Left Early</div>
+        </div>
+    </div>
+</div></body></html>'''
