@@ -15,6 +15,11 @@ def get_nav_header(title, back_url, back_label="Back", user_role=None):
     Returns:
         HTML string for navigation header
     """
+    from flask import session
+    role = user_role or session.get('role')
+    if back_label == 'Home' and role in ('principal', 'deputy', 'admin', 'management'):
+        back_url = '/dashboard/'
+        back_label = 'Dashboard'
     return f'''
     <nav class="nav-header">
         <a href="{back_url}" class="nav-back">← {back_label}</a>
@@ -69,21 +74,11 @@ def get_nav_styles():
     '''
 
 
-def get_back_url(user_role, current_page):
-    """
-    Determine the correct back URL based on user role and current page.
-    
-    Leadership (principal, deputy, admin) → Dashboard for drill-downs
-    Teachers → Home
-    """
-    # Leadership drill-down pages go back to Dashboard
-    leadership_roles = ['principal', 'deputy', 'admin']
-    dashboard_children = ['admin', 'overview', 'emergency-detail', 'absentees', 'class-detail']
-    
-    if user_role in leadership_roles and current_page in dashboard_children:
-        return '/', 'Home'
-    
-    # Default: go home
+def get_back_url(user_role, current_page=None):
+    """Return (url, label) for the back link based on user role."""
+    leadership_roles = ['principal', 'deputy', 'admin', 'management']
+    if user_role in leadership_roles:
+        return '/dashboard/', 'Dashboard'
     return '/', 'Home'
 
 
