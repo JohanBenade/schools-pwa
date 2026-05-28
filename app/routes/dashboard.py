@@ -71,6 +71,21 @@ def format_date_short(date_str):
         return date_str
 
 
+def build_chronic_rows(learners):
+    if not learners:
+        return '<div class="detail-list"><div class="detail-item" style="color:#22c55e;">No chronic absentees</div></div>'
+    rows = []
+    for l in learners:
+        full = f"{l['first_name']} {l['surname']}"
+        rows.append(
+            f'<div class="absentee-row">'
+            f'<span class="absentee-name">{full}</span>'
+            f'<span class="absentee-meta">{l["group_name"] or "—"} · {l["absent_count"]}</span>'
+            f'</div>'
+        )
+    return '<div class="absentee-list">' + ''.join(rows) + '</div>'
+
+
 @dashboard_bp.route('/')
 def index():
     user_role = session.get('role', 'teacher')
@@ -167,6 +182,21 @@ def index():
             GROUP BY g.grade_number ORDER BY g.grade_number
         ''', (TENANT_ID,))
         grade_data = [(r['grade_number'], r['pct']) for r in cursor.fetchall()]
+        
+        cursor.execute('''
+            SELECT 
+              l.id, l.first_name, l.surname, mg.group_name,
+              SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) AS absent_count
+            FROM learner l
+            JOIN attendance_entry ae ON ae.learner_id = l.id
+            JOIN attendance a ON a.id = ae.attendance_id
+            LEFT JOIN mentor_group mg ON mg.id = l.mentor_group_id
+            WHERE l.tenant_id = ? AND a.tenant_id = ? AND COALESCE(l.is_active, 1) = 1
+            GROUP BY l.id
+            HAVING SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) >= 10
+            ORDER BY absent_count DESC
+        ''', (TENANT_ID, TENANT_ID))
+        chronic_all = [dict(r) for r in cursor.fetchall()]
     
     emergency_html = ""
     if active_emergency:
@@ -202,6 +232,10 @@ def index():
     
     sparkline_svg = build_sparkline(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
+    chronic_top5 = chronic_all[:5]
+    chronic_total = len(chronic_all)
+    chronic_plural = 's' if chronic_total != 1 else ''
+    chronic_html = build_chronic_rows(chronic_top5)
     if daily_attendance:
         first_lbl = format_date_short(daily_attendance[0][0])
         mid_lbl = format_date_short(daily_attendance[len(daily_attendance)//2][0])
@@ -256,6 +290,10 @@ def index():
         .bar-fill {{ background: linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee); height: 100%; border-radius: 4px; }}
         .emergency-active {{ background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); animation: pulse-border 2s infinite; }}
         @keyframes pulse-border {{ 0%, 100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }} }}
+        .absentee-list {{ display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }}
+        .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; }}
+        .absentee-name {{ font-weight: 500; font-size: 14px; }}
+        .absentee-meta {{ font-size: 12px; opacity: 0.7; }}
         .absence-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }}
         .absence-row:last-child {{ border-bottom: none; }}
         .absence-name {{ font-weight: 500; }}
@@ -287,6 +325,14 @@ def index():
                 <div class="grade-bars">{grade_bars_html}</div>
             </div>
             
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">⚠️ Chronic Absentees</span>
+                    <span class="card-status status-yellow">{chronic_total} learner{chronic_plural}</span>
+                </div>
+                {chronic_html}
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">📋 Attendance — Today</span>
