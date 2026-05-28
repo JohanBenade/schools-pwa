@@ -210,7 +210,7 @@ def index():
         first_lbl = mid_lbl = last_lbl = ''
     ytd_subtitle = f'across {days_counted} school days' if days_counted else 'no data yet'
     
-    nav_header = get_nav_header("Dashboard", "/", "Home")
+    nav_header = get_nav_header("Dashboard", "/tools/", "All Tools")
     nav_styles = get_nav_styles()
     
     return f'''

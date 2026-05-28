@@ -168,7 +168,7 @@ def create_app():
         
         # Route to appropriate home page based on role
         if user_role in ['principal', 'deputy', 'management', 'admin']:
-            return render_template('home/management.html', user_name=user_name, active_alert=active_alert)
+            return redirect('/dashboard/')
         
         if user_role in ['activities', 'sport_coordinator']:
             return render_template('home/activities.html', user_name=user_name, active_alert=active_alert)
@@ -186,6 +186,23 @@ def create_app():
     @app.route('/principal/')
     def old_eagle_eye():
         return redirect('/dashboard/')
+    
+    @app.route('/tools/')
+    def tools():
+        if 'staff_id' not in session:
+            return redirect('/')
+        user_role = session.get('role', '')
+        if user_role not in ['principal', 'deputy', 'management', 'admin']:
+            return redirect('/')
+        user_name = session.get('display_name', '')
+        active_alert = None
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, alert_type, location_display FROM emergency_alert WHERE tenant_id = ? AND status = 'Active' ORDER BY triggered_at DESC LIMIT 1", (TENANT_ID,))
+            row = cursor.fetchone()
+            if row:
+                active_alert = dict(row)
+        return render_template('home/management.html', user_name=user_name, active_alert=active_alert)
     
     @app.route('/firebase-messaging-sw.js')
     def firebase_sw():
