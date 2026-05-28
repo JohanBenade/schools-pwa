@@ -106,21 +106,6 @@ def build_attendance_strip(history):
     return ''.join(parts)
 
 
-def build_absent_today_rows(learners):
-    if not learners:
-        return ''
-    rows = []
-    for l in learners:
-        full = f"{l['first_name']} {l['surname']}"
-        rows.append(
-            f'<a href="/dashboard/learner/{l["id"]}/?from=absent" class="absentee-row">'
-            f'<span class="absentee-name">{full}</span>'
-            f'<span class="absentee-meta">Grade {l["grade_number"]} &middot; {l["group_name"] or "\u2014"}</span>'
-            f'</a>'
-        )
-    return '<div class="absentee-list">' + ''.join(rows) + '</div>'
-
-
 @dashboard_bp.route('/')
 def index():
     user_role = session.get('role', 'teacher')
@@ -159,6 +144,26 @@ def index():
             WHERE a.date = ? AND a.tenant_id = ? AND ae.status = 'Absent'
         ''', (today_str, TENANT_ID))
         absent_learners = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM learner WHERE tenant_id = ? AND COALESCE(is_active, 1) = 1', (TENANT_ID,))
+        total_enrolled = cursor.fetchone()[0]
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM attendance_entry ae JOIN attendance a ON ae.attendance_id = a.id
+            WHERE a.date = ? AND a.tenant_id = ?
+        ''', (today_str, TENANT_ID))
+        captured_today = cursor.fetchone()[0] or 0
+        today_pct = ((captured_today - absent_learners) / captured_today * 100) if captured_today else 0
+        
+        cursor.execute('''
+            SELECT g.grade_number, COUNT(*) AS absent FROM attendance_entry ae
+            JOIN attendance a ON ae.attendance_id = a.id
+            JOIN learner l ON l.id = ae.learner_id
+            JOIN grade g ON g.id = l.grade_id
+            WHERE a.date = ? AND a.tenant_id = ? AND ae.status = 'Absent'
+            GROUP BY g.grade_number ORDER BY g.grade_number
+        ''', (today_str, TENANT_ID))
+        grade_breakdown_today = [(r['grade_number'], r['absent']) for r in cursor.fetchall()]
         
         cursor.execute('''
             SELECT ea.*, s.display_name as triggered_by_name,
@@ -233,6 +238,24 @@ def index():
             ORDER BY absent_count DESC
         ''', (TENANT_ID, TENANT_ID))
         chronic_all = [dict(r) for r in cursor.fetchall()]
+    
+    if grade_breakdown_today:
+        gb_parts = [f'Gr {g}: {n}' for g, n in grade_breakdown_today]
+        grade_breakdown_html = '<div class="grade-breakdown">' + ' &middot; '.join(gb_parts) + '</div>'
+    else:
+        grade_breakdown_html = ''
+    if captured_today == 0:
+        today_pct_class = 'status-info'
+        today_pct_display = '—'
+    elif today_pct >= 95:
+        today_pct_class = 'status-green'
+        today_pct_display = f'{today_pct:.1f}%'
+    elif today_pct >= 90:
+        today_pct_class = 'status-yellow'
+        today_pct_display = f'{today_pct:.1f}%'
+    else:
+        today_pct_class = 'status-red'
+        today_pct_display = f'{today_pct:.1f}%'
     
     emergency_html = ""
     if active_emergency:
@@ -331,11 +354,9 @@ def index():
         .stat {{ flex: 1; }}
         .stat-value {{ font-size: 24px; font-weight: 600; }}
         .stat-label {{ font-size: 12px; opacity: 0.6; }}
-        .stat-tap {{ display: block; color: inherit; text-decoration: none; padding: 8px; margin: -8px; border-radius: 8px; transition: background 0.15s; }}
-        .stat-tap:hover {{ background: rgba(255,255,255,0.06); }}
-        .stat-tap:active {{ background: rgba(255,255,255,0.10); }}
         .detail-list {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }}
         .detail-item {{ font-size: 13px; padding: 6px 0; opacity: 0.8; }}
+        .grade-breakdown {{ font-size: 13px; opacity: 0.85; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }}
         .card-link {{ display: block; text-align: center; margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; color: white; text-decoration: none; font-size: 14px; }}
         .card-link:hover {{ background: rgba(255,255,255,0.15); }}
         .sparkline-wrap {{ margin: 16px 0 4px; }}
@@ -404,16 +425,24 @@ def index():
 
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">📋 Attendance — Today</span>
+                    <span class="card-title">📋 Registers — Today</span>
                     <span class="card-status {'status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red'}">{'All In' if pending_count == 0 else f'{pending_count} Pending'}</span>
                 </div>
                 <div class="big-number">{submitted_count}/{total_groups}</div>
                 <div class="big-label">registers submitted</div>
-                <div class="stat-row">
-                    <div class="stat"><a href="/dashboard/absent-today/" class="stat-tap"><div class="stat-value">{absent_learners}</div><div class="stat-label">learners absent →</div></a></div>
-                    <div class="stat"><a href="/admin/" class="stat-tap"><div class="stat-value">{pending_count}</div><div class="stat-label">outstanding →</div></a></div>
-                </div>
                 {pending_html}
+                <a href="/admin/" class="card-link">View registers →</a>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🎒 Absent Today</span>
+                    <span class="card-status {today_pct_class}">{today_pct_display}</span>
+                </div>
+                <div class="big-number">{absent_learners}</div>
+                <div class="big-label">learners absent &middot; of {total_enrolled} enrolled</div>
+                {grade_breakdown_html}
+                <a href="/absences/learners" class="card-link">Who's out →</a>
             </div>
             
             <div class="card {'emergency-active' if active_emergency else ''}">
@@ -517,9 +546,6 @@ def learner_detail(learner_id):
     if from_page == 'chronic':
         back_url = '/dashboard/chronic-absentees/'
         back_label = 'Chronic Absentees'
-    elif from_page == 'absent':
-        back_url = '/dashboard/absent-today/'
-        back_label = 'Absent Today'
     else:
         back_url = '/dashboard/'
         back_label = 'Dashboard'
@@ -606,105 +632,4 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: 
             <div class="legend-item"><div class="legend-swatch" style="background:#94a3b8;"></div>Left Early</div>
         </div>
     </div>
-</div></body></html>'''
-
-
-@dashboard_bp.route('/absent-today/')
-def absent_today_list():
-    user_role = session.get('role', 'teacher')
-    if user_role not in ['principal', 'deputy', 'admin', 'management']:
-        return redirect('/')
-    user_name = session.get('display_name', '')
-    user_role_label = get_role_label(session.get('role'))
-    today = date.today()
-    today_str = today.isoformat()
-    today_display = today.strftime('%A, %d %B %Y')
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT COUNT(*) FROM mentor_group WHERE tenant_id = ?',
-            (TENANT_ID,)
-        )
-        total_groups = cursor.fetchone()[0]
-        cursor.execute(
-            'SELECT COUNT(*) FROM attendance WHERE tenant_id = ? AND date = ?',
-            (TENANT_ID, today_str)
-        )
-        submitted = cursor.fetchone()[0]
-        cursor.execute(
-            """
-            SELECT
-              l.id, l.first_name, l.surname, mg.group_name, g.grade_number
-            FROM learner l
-            JOIN attendance_entry ae ON ae.learner_id = l.id
-            JOIN attendance a ON a.id = ae.attendance_id
-            LEFT JOIN mentor_group mg ON mg.id = l.mentor_group_id
-            LEFT JOIN grade g ON g.id = l.grade_id
-            WHERE l.tenant_id = ? AND a.tenant_id = ?
-              AND a.date = ? AND ae.status = 'Absent'
-              AND COALESCE(l.is_active, 1) = 1
-            ORDER BY g.grade_number ASC, l.first_name ASC
-            """,
-            (TENANT_ID, TENANT_ID, today_str)
-        )
-        absent = [dict(r) for r in cursor.fetchall()]
-    total = len(absent)
-    plural = 's' if total != 1 else ''
-    rows_html = build_absent_today_rows(absent)
-    if total == 0:
-        if submitted == 0:
-            empty_html = (
-                '<div class="empty-state">'
-                '<div class="empty-icon">&#9203;</div>'
-                '<div class="empty-text">No registers submitted yet</div>'
-                f'<div class="empty-sub">0 of {total_groups} mentor classes have captured today</div>'
-                '</div>'
-            )
-        else:
-            empty_html = (
-                '<div class="empty-state">'
-                '<div class="empty-icon" style="color:#22c55e;">&#10003;</div>'
-                '<div class="empty-text">No learners absent</div>'
-                f'<div class="empty-sub">{submitted} of {total_groups} registers in</div>'
-                '</div>'
-            )
-        list_html = empty_html
-    else:
-        list_html = rows_html
-    subtitle = f'{today_display} &middot; {submitted}/{total_groups} registers submitted'
-    return f'''<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Absent Today - SchoolOps</title>
-<style>
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
-.container {{ max-width: 600px; margin: 0 auto; }}
-.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
-.user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
-.page-header {{ text-align: center; margin-bottom: 24px; }}
-.page-title {{ font-size: 24px; font-weight: 700; }}
-.page-subtitle {{ font-size: 13px; opacity: 0.7; margin-top: 6px; }}
-.page-count {{ font-size: 14px; opacity: 0.85; margin-top: 8px; }}
-.absentee-list {{ display: flex; flex-direction: column; gap: 6px; }}
-.absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 14px; background: rgba(255,255,255,0.06); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
-.absentee-row:hover {{ background: rgba(255,255,255,0.10); }}
-.absentee-row:active {{ background: rgba(255,255,255,0.14); }}
-.absentee-name {{ font-weight: 500; font-size: 15px; }}
-.absentee-meta {{ font-size: 13px; opacity: 0.7; text-align: right; }}
-.empty-state {{ text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.04); border-radius: 12px; }}
-.empty-icon {{ font-size: 36px; margin-bottom: 12px; }}
-.empty-text {{ font-size: 16px; font-weight: 500; }}
-.empty-sub {{ font-size: 13px; opacity: 0.6; margin-top: 6px; }}
-</style></head><body>
-<div class="user-bar">
-    <a href="/dashboard/">&larr; Dashboard</a>
-    <span>&#x1F3DB; {user_name} &middot; {user_role_label}</span>
-</div>
-<div class="container">
-    <div class="page-header">
-        <div class="page-title">&#128203; Absent Today</div>
-        <div class="page-subtitle">{subtitle}</div>
-        <div class="page-count">{total} learner{plural} absent</div>
-    </div>
-    {list_html}
 </div></body></html>'''
