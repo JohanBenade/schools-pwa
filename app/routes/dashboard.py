@@ -289,7 +289,7 @@ def index():
             
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">📋 Attendance</span>
+                    <span class="card-title">📋 Attendance — Today</span>
                     <span class="card-status {'status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red'}">{'All In' if pending_count == 0 else f'{pending_count} Pending'}</span>
                 </div>
                 <div class="big-number">{submitted_count}/{total_groups}</div>
