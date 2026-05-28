@@ -5,6 +5,7 @@ Management Dashboard - Principal, Deputy, Admin view
 from flask import Blueprint, session, redirect
 from datetime import date
 from app.services.db import get_connection
+from app.services.nav import get_role_label
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
@@ -210,6 +211,7 @@ def index():
     ytd_subtitle = f'across {days_counted} school days' if days_counted else 'no data yet'
     
     user_name = session.get('display_name', '')
+    user_role_label = get_role_label(session.get('role'))
     
     return f'''
 <!DOCTYPE html>
@@ -263,7 +265,7 @@ def index():
 <body>
     <div class="user-bar">
         <a href="/tools/">⊞ Operations</a>
-        <span>🏛️ {user_name}</span>
+        <span>🏛️ {user_name} · {user_role_label}</span>
     </div>
     <div class="container">
         <div class="header-date">{today_display}</div>

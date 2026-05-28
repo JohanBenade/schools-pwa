@@ -140,11 +140,14 @@ def create_app():
     
     @app.context_processor
     def inject_user():
+        from app.services.nav import get_role_label
+        role = session.get('role')
         return {
             'current_user': {
                 'staff_id': session.get('staff_id'),
                 'display_name': session.get('display_name'),
-                'role': session.get('role'),
+                'role': role,
+                'role_label': get_role_label(role),
                 'can_resolve': session.get('can_resolve', False),
             }
         }

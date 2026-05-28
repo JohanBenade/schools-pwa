@@ -85,3 +85,21 @@ def get_back_url(user_role, current_page):
     
     # Default: go home
     return '/', 'Home'
+
+
+ROLE_LABELS = {
+    'principal': 'Principal',
+    'deputy': 'Deputy',
+    'admin': 'Admin',
+    'management': 'Management',
+    'teacher': 'Teacher',
+    'grade_head': 'Grade Head',
+    'activities': 'Activities Coordinator',
+    'sport_coordinator': 'Sport Coordinator',
+    'office': 'Office',
+}
+
+
+def get_role_label(role):
+    """Return human-readable label for a role."""
+    return ROLE_LABELS.get(role, (role or '').replace('_', ' ').title())

@@ -42,7 +42,7 @@
 <body>
     <div class="user-bar">
         <a href="/dashboard/" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.85;">← Dashboard</a>
-        <span>🏛️ {{ user_name }}</span>
+        <span>🏛️ {{ user_name }} · {{ current_user.role_label }}</span>
     </div>
     <div id="alert-banner" hx-get="/emergency/banner" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
     <div class="header">
