@@ -196,6 +196,7 @@ def create_app():
             return redirect('/')
         user_name = session.get('display_name', '')
         active_alert = None
+        from app.services.db import get_connection
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT id, alert_type, location_display FROM emergency_alert WHERE tenant_id = ? AND status = 'Active' ORDER BY triggered_at DESC LIMIT 1", (TENANT_ID,))
