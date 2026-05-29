@@ -167,7 +167,7 @@ def main():
                 if rng.random() < prob:
                     r2 = rng.random()
                     if r2 < 0.80: status = 'Absent'
-                    elif r2 < 0.95: status = 'Late'
+                    elif r2 < 0.95: status = 'Absent'
                     else: status = 'Left_Early'
                 else:
                     status = 'Present'
