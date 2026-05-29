@@ -165,10 +165,7 @@ def main():
                 prob = max(0.0, min(prob, 0.50))
 
                 if rng.random() < prob:
-                    r2 = rng.random()
-                    if r2 < 0.80: status = 'Absent'
-                    elif r2 < 0.95: status = 'Absent'
-                    else: status = 'Left_Early'
+                    status = 'Absent'
                 else:
                     status = 'Present'
 
@@ -221,8 +218,6 @@ def main():
         SELECT
           SUM(CASE WHEN ae.status='Present' THEN 1 ELSE 0 END) AS present,
           SUM(CASE WHEN ae.status='Absent' THEN 1 ELSE 0 END) AS absent,
-          SUM(CASE WHEN ae.status='Late' THEN 1 ELSE 0 END) AS late,
-          SUM(CASE WHEN ae.status='Left_Early' THEN 1 ELSE 0 END) AS left_early,
           COUNT(*) AS total
         FROM attendance_entry ae JOIN attendance a ON a.id = ae.attendance_id
         WHERE a.tenant_id = ?
@@ -232,8 +227,6 @@ def main():
         print(f"\nOverall (across all seeded data):")
         print(f"  Present:    {s['present']:>6} ({s['present']/s['total']*100:.1f}%)")
         print(f"  Absent:     {s['absent']:>6} ({s['absent']/s['total']*100:.1f}%)")
-        print(f"  Late:       {s['late']:>6} ({s['late']/s['total']*100:.1f}%)")
-        print(f"  Left early: {s['left_early']:>6} ({s['left_early']/s['total']*100:.1f}%)")
 
     conn.close()
 
