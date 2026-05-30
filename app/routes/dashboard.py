@@ -482,11 +482,11 @@ def index():
     <title>Dashboard - SchoolOps</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 80px 20px 40px; color: white; }}
         .container {{ max-width: 600px; margin: 0 auto; }}
         .user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
         .user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
-        .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-bottom: 20px; }}
+        .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-top: 8px; margin-bottom: 16px; }}
         .insight-line {{ font-size: 16px; line-height: 1.5; text-align: center; margin-bottom: 24px; opacity: 0.92; font-weight: 500; }}
         .cards {{ display: flex; flex-direction: column; gap: 16px; }}
         .card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; }}
