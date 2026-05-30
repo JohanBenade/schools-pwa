@@ -174,6 +174,18 @@ def report_process(absence_id):
             start_date = row['absence_date']
             end_date = row.get('end_date') or start_date
 
+        # Capture pre-advance pointer so cancel can restore it (subs back in line).
+        try:
+            pointer_before = results.get('pointer_start')
+            if pointer_before:
+                cursor.execute(
+                    "UPDATE absence SET pointer_before = ? WHERE id = ? AND tenant_id = ?",
+                    (pointer_before, absence_id, TENANT_ID)
+                )
+                conn.commit()
+        except Exception as e:
+            print(f'pointer_before capture error: {e}')
+
     # Handle duty clashes - reassign duties where absent teacher was assigned
     try:
         from app.services.substitute_engine import handle_absent_teacher_duties
@@ -1268,6 +1280,18 @@ def mark_absent_process(absence_id):
             duty_staff_id = row['staff_id']
             start_date = row['absence_date']
             end_date = row.get('end_date') or start_date
+
+        # Capture pre-advance pointer so cancel can restore it (subs back in line).
+        try:
+            pointer_before = results.get('pointer_start')
+            if pointer_before:
+                cursor.execute(
+                    "UPDATE absence SET pointer_before = ? WHERE id = ? AND tenant_id = ?",
+                    (pointer_before, absence_id, TENANT_ID)
+                )
+                conn.commit()
+        except Exception as e:
+            print(f'pointer_before capture error: {e}')
 
     # Handle duty clashes - reassign duties where absent teacher was assigned
     try:
