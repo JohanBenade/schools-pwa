@@ -446,6 +446,7 @@ def index():
         .yp-legend {{ display: flex; gap: 14px; font-size: 11px; opacity: 0.8; margin-top: 14px; flex-wrap: wrap; justify-content: center; }}
         .yp-leg-item {{ display: flex; align-items: center; gap: 5px; }}
         .yp-swatch {{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }}
+        .yp-caption {{ font-size: 11px; opacity: 0.6; text-align: center; margin-top: 10px; line-height: 1.4; }}
         .emergency-active {{ background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); animation: pulse-border 2s infinite; }}
         @keyframes pulse-border {{ 0%, 100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }} }}
         .tier-bar {{ display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 16px 0 8px; gap: 2px; }}
@@ -480,7 +481,7 @@ def index():
         <div class="cards">
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">🗓️ Attendance — The Year So Far</span>
+                    <span class="card-title">🗓️ Attendance — Daily Pattern</span>
                     <span class="card-status status-info">{days_counted} days</span>
                 </div>
                 {year_pixels_html}
@@ -489,6 +490,7 @@ def index():
                     <span class="yp-leg-item"><span class="yp-swatch yp-amber"></span>90–95%</span>
                     <span class="yp-leg-item"><span class="yp-swatch yp-red"></span>&lt;90%</span>
                 </div>
+                <div class="yp-caption">Each square = one school day. Fridays run slightly lower; the red column is flu week (Mar).</div>
             </div>
 
             <div class="card">
@@ -496,7 +498,7 @@ def index():
                     <span class="card-title">📊 Attendance — Year to Date</span>
                     <span class="card-status status-info">{days_counted} days</span>
                 </div>
-                <div class="big-number">{ytd_pct:.1f}%</div>
+                <div class="big-number" style="color:#22c55e;">{ytd_pct:.1f}%</div>
                 <div class="big-label">{ytd_subtitle}</div>
                 <div class="sparkline-wrap">{sparkline_svg}</div>
                 <div class="sparkline-axis">
