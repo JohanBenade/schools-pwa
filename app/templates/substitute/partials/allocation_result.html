@@ -16,16 +16,16 @@
 
     {% if success %}
         <div class="result-icon ok" aria-hidden="true">&#10003;</div>
-        <h2 style="font-size: 22px; color: #166534; margin: 16px 0 4px;">Cover sorted</h2>
+        <h2 style="font-size: 22px; color: {% if flow == 'teacher' %}#166534{% else %}#4ade80{% endif %}; margin: 16px 0 4px;">Cover sorted</h2>
     {% else %}
         <div class="result-icon warn" aria-hidden="true">!</div>
         <h2 style="font-size: 22px; color: #92400e; margin: 16px 0 4px;">Partly covered</h2>
     {% endif %}
 
-    <p style="color: #1e293b; font-size: 17px; font-weight: 600; margin-bottom: 4px;">
+    <p style="color: {% if flow == 'teacher' %}#1e293b{% else %}#f1f5f9{% endif %}; font-size: 17px; font-weight: 600; margin-bottom: 4px;">
         {{ covered_count }} of {{ total_count }} periods covered
     </p>
-    <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">
+    <p style="color: {% if flow == 'teacher' %}#64748b{% else %}#cbd5e1{% endif %}; font-size: 13px; margin-bottom: 24px;">
         Done in {{ elapsed_secs }}s &middot; {{ absence_status }}
     </p>
 
@@ -34,6 +34,14 @@
         {% if flow == "teacher" %}Continue to My Day{% else %}{{ advance_label or "View Coverage" }}{% endif %} &rarr;
     </a>
 </div>
+
+<script>
+    (function () {
+        document.querySelectorAll('.back-link').forEach(function (el) {
+            el.style.display = 'none';
+        });
+    })();
+</script>
 
 <style>
     .result-icon {
