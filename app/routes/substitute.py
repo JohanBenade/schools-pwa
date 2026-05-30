@@ -353,6 +353,21 @@ def early_return():
               f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}, "restored_duties": {restored_duties}}}',
               datetime.now().isoformat()))
         
+        # Restore rotation pointer to pre-absence position (subs back in line).
+        try:
+            cursor.execute("SELECT pointer_before FROM absence WHERE id = ?", (absence_id,))
+            _pb = cursor.fetchone()
+            _pb_val = _pb['pointer_before'] if _pb else None
+            if _pb_val:
+                _now = datetime.now().isoformat()
+                cursor.execute(
+                    "UPDATE substitute_config SET pointer_surname = ?, "
+                    "pointer_updated_at = ?, updated_at = ? WHERE tenant_id = ?",
+                    (_pb_val, _now, _now, TENANT_ID)
+                )
+        except Exception as e:
+            print(f'pointer restore error: {e}')
+
         conn.commit()
     
     # Send push notifications (after commit, outside transaction)
@@ -479,6 +494,21 @@ def mark_back():
               f'{{"return_date": "{return_date}", "cancelled_requests": {cancelled_count}, "marked_by": "management"}}',
               datetime.now().isoformat()))
         
+        # Restore rotation pointer to pre-absence position (subs back in line).
+        try:
+            cursor.execute("SELECT pointer_before FROM absence WHERE id = ?", (absence_id,))
+            _pb = cursor.fetchone()
+            _pb_val = _pb['pointer_before'] if _pb else None
+            if _pb_val:
+                _now = datetime.now().isoformat()
+                cursor.execute(
+                    "UPDATE substitute_config SET pointer_surname = ?, "
+                    "pointer_updated_at = ?, updated_at = ? WHERE tenant_id = ?",
+                    (_pb_val, _now, _now, TENANT_ID)
+                )
+        except Exception as e:
+            print(f'pointer restore error: {e}')
+
         conn.commit()
     
     # Send push notifications (after commit, outside transaction)
