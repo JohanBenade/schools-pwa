@@ -106,6 +106,72 @@ def build_attendance_strip(history):
     return ''.join(parts)
 
 
+def build_year_pixels(daily_data):
+    """daily_data: list of (date_str 'YYYY-MM-DD', pct). Builds a Mon-Fri x weeks
+    grid (GitHub contribution style). Severity colours match dashboard thresholds."""
+    if not daily_data:
+        return '<div class="big-label" style="opacity:0.6;">No attendance data yet</div>'
+    from datetime import datetime
+    pct_by_date = {}
+    for d, p in daily_data:
+        pct_by_date[d] = p
+    parsed = []
+    for d, p in daily_data:
+        try:
+            dt = datetime.strptime(d, '%Y-%m-%d')
+        except Exception:
+            continue
+        parsed.append((dt, p))
+    if not parsed:
+        return '<div class="big-label" style="opacity:0.6;">No attendance data yet</div>'
+    parsed.sort(key=lambda x: x[0])
+    # ISO week key (year, week) -> column index
+    week_keys = []
+    for dt, _ in parsed:
+        iso = dt.isocalendar()
+        key = (iso[0], iso[1])
+        if key not in week_keys:
+            week_keys.append(key)
+    col_of = {k: i for i, k in enumerate(week_keys)}
+    n_cols = len(week_keys)
+
+    def cell_class(pct):
+        if pct is None:
+            return 'yp-none'
+        if pct >= 95:
+            return 'yp-green'
+        if pct >= 90:
+            return 'yp-amber'
+        return 'yp-red'
+
+    # grid[row 0..4 = Mon..Fri][col] = pct
+    grid = [[None] * n_cols for _ in range(5)]
+    date_grid = [[None] * n_cols for _ in range(5)]
+    for dt, p in parsed:
+        wd = dt.weekday()  # Mon=0 .. Sun=6
+        if wd > 4:
+            continue  # skip weekend captures if any
+        iso = dt.isocalendar()
+        c = col_of[(iso[0], iso[1])]
+        grid[wd][c] = p
+        date_grid[wd][c] = dt.strftime('%-d %b')
+
+    day_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+    rows = []
+    for r in range(5):
+        cells = ''
+        for c in range(n_cols):
+            p = grid[r][c]
+            lbl = date_grid[r][c]
+            title = f'{lbl}: {p:.0f}%' if (p is not None and lbl) else ''
+            cells += f'<div class="yp-cell {cell_class(p)}" title="{title}"></div>'
+        rows.append(
+            f'<div class="yp-row"><span class="yp-daylabel">{day_labels[r]}</span>'
+            f'<div class="yp-cells" style="grid-template-columns:repeat({n_cols},1fr);">{cells}</div></div>'
+        )
+    return '<div class="year-pixels">' + ''.join(rows) + '</div>'
+
+
 @dashboard_bp.route('/')
 def index():
     user_role = session.get('role', 'teacher')
@@ -290,6 +356,7 @@ def index():
         pending_html = f'<div class="detail-list"><div class="detail-item">⏳ {names}</div></div>'
     
     sparkline_svg = build_sparkline(daily_attendance)
+    year_pixels_html = build_year_pixels(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
     from collections import Counter
     flagged_total = len(chronic_all)
@@ -367,6 +434,18 @@ def index():
         .grade-pct {{ font-weight: 600; text-align: right; color: #22d3ee; }}
         .bar-track {{ background: rgba(255,255,255,0.08); height: 8px; border-radius: 4px; overflow: hidden; }}
         .bar-fill {{ background: linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee); height: 100%; border-radius: 4px; }}
+        .year-pixels {{ display: flex; flex-direction: column; gap: 3px; margin-top: 16px; }}
+        .yp-row {{ display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: center; }}
+        .yp-daylabel {{ font-size: 10px; opacity: 0.55; text-align: right; }}
+        .yp-cells {{ display: grid; gap: 3px; }}
+        .yp-cell {{ aspect-ratio: 1; border-radius: 2px; min-height: 12px; }}
+        .yp-green {{ background: #22c55e; }}
+        .yp-amber {{ background: #f59e0b; }}
+        .yp-red {{ background: #ef4444; }}
+        .yp-none {{ background: rgba(255,255,255,0.05); }}
+        .yp-legend {{ display: flex; gap: 14px; font-size: 11px; opacity: 0.8; margin-top: 14px; flex-wrap: wrap; justify-content: center; }}
+        .yp-leg-item {{ display: flex; align-items: center; gap: 5px; }}
+        .yp-swatch {{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }}
         .emergency-active {{ background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); animation: pulse-border 2s infinite; }}
         @keyframes pulse-border {{ 0%, 100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }} }}
         .tier-bar {{ display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 16px 0 8px; gap: 2px; }}
@@ -399,6 +478,19 @@ def index():
         <div class="header-date">{today_display}</div>
         
         <div class="cards">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🗓️ Attendance — The Year So Far</span>
+                    <span class="card-status status-info">{days_counted} days</span>
+                </div>
+                {year_pixels_html}
+                <div class="yp-legend">
+                    <span class="yp-leg-item"><span class="yp-swatch yp-green"></span>95%+</span>
+                    <span class="yp-leg-item"><span class="yp-swatch yp-amber"></span>90–95%</span>
+                    <span class="yp-leg-item"><span class="yp-swatch yp-red"></span>&lt;90%</span>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">📊 Attendance — Year to Date</span>
