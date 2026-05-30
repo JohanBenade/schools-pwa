@@ -2,7 +2,7 @@
 Seed attendance data for SchoolOps demo.
 
 Patterns injected:
-  1. Baseline ~93% attendance
+  1. Baseline ~97% attendance
   2. Chronic absentee cluster (30 learners, ~+10% absence)
   3. Day-of-week effect (Mon/Fri slightly higher absence)
   4. Flu spike 9-13 March 2026 (+9% absence)
@@ -32,17 +32,17 @@ TENANT_ID = 'MARAGON'
 
 SEED = 4242
 
-BASE_ABSENCE_PROB = 0.07
-MONDAY_ADJ = 0.02
-FRIDAY_ADJ = 0.015
+BASE_ABSENCE_PROB = 0.012
+MONDAY_ADJ = 0.008
+FRIDAY_ADJ = 0.05
 FLU_START = date(2026, 3, 9)
 FLU_END = date(2026, 3, 13)
-FLU_ADJ = 0.09
-GRADE_ADJUSTMENTS = {8: 0.02, 9: 0.01, 10: 0.0, 11: 0.0, 12: -0.01}
+FLU_ADJ = 0.11
+GRADE_ADJUSTMENTS = {8: 0.008, 9: 0.005, 10: 0.0, 11: 0.0, 12: -0.002}
 OUTLIER_CLASSES = {'9 SM', '8 NM'}
-OUTLIER_ADJ = 0.04
+OUTLIER_ADJ = 0.025
 CHRONIC_COUNT = 30
-CHRONIC_ADJ = 0.10
+CHRONIC_ADJ = 0.22
 
 
 def main():
