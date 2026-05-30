@@ -137,16 +137,51 @@ def report_absence():
         is_full_day=is_full_day
     )
     
+    # Phase 1: absence created. Return the spinner interstitial INSTANTLY.
+    # The heavy engine work runs in Phase 2 (/report/process/<absence_id>),
+    # auto-fired by the interstitial via hx-trigger="load".
+    process_url = url_for('substitute.report_process', absence_id=absence_id)
+    return render_template('substitute/partials/finding_interstitial.html',
+                           process_url=process_url)
+
+
+@substitute_bp.route('/report/process/<absence_id>', methods=['GET'])
+def report_process(absence_id):
+    """Phase 2 of teacher self-report: run the allocation engine, compute
+    real elapsed time, return the result-card fragment (auto-advance)."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/?u=beatrix')
+
+    # process_absence reads dates/staff from the absence row via absence_id.
     results = process_absence(absence_id)
-    
+
+    # Re-derive dates + staff for duty-clash handling (no form data here).
+    start_date = None
+    end_date = None
+    duty_staff_id = staff_id
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT staff_id, absence_date, end_date FROM absence "
+            "WHERE id = ? AND tenant_id = ?",
+            (absence_id, TENANT_ID)
+        )
+        row = cursor.fetchone()
+        if row:
+            row = dict(row)
+            duty_staff_id = row['staff_id']
+            start_date = row['absence_date']
+            end_date = row.get('end_date') or start_date
+
     # Handle duty clashes - reassign duties where absent teacher was assigned
     try:
         from app.services.substitute_engine import handle_absent_teacher_duties
-        duty_clash_results = handle_absent_teacher_duties(staff_id, start_date, end_date)
+        duty_clash_results = handle_absent_teacher_duties(duty_staff_id, start_date, end_date)
         print(f"Duty clash handling: {duty_clash_results}")
     except Exception as e:
         print(f"Duty clash handling error: {e}")
-    
+
     # Send push notification to management
     try:
         from app.routes.push import send_absence_reported_push
@@ -154,7 +189,7 @@ def report_absence():
         date_range = results.get('date_range', {})
         send_absence_reported_push(
             staff_name,
-            absence_type,
+            results.get('absence_status', ''),
             date_range.get('start', start_date),
             date_range.get('end', end_date),
             results.get('covered_count', 0),
@@ -162,11 +197,10 @@ def report_absence():
         )
     except Exception as e:
         print(f'Absence reported push error: {e}')
-    
+
     # Send push notifications to substitutes
     try:
         from app.routes.push import send_substitute_assigned_push
-        
         for day in results.get('days', []):
             date_display = day.get('date_display', '')
             for period in day.get('periods', []):
@@ -180,8 +214,27 @@ def report_absence():
                     )
     except Exception as e:
         print(f'Substitute push error: {e}')
-    
-    return redirect('/duty/my-day?tab=' + start_date)
+
+    # REAL elapsed time from the engine's own timestamps.
+    elapsed_secs = '0.0'
+    try:
+        t0 = datetime.fromisoformat(results['started_at'])
+        t1 = datetime.fromisoformat(results['completed_at'])
+        elapsed_secs = f"{(t1 - t0).total_seconds():.1f}"
+    except Exception as e:
+        print(f'Elapsed time calc error: {e}')
+
+    advance_url = '/duty/my-day?tab=' + (start_date or date.today().isoformat())
+
+    return render_template('substitute/partials/allocation_result.html',
+                           flow='teacher',
+                           success=results.get('success', False),
+                           covered_count=results.get('covered_count', 0),
+                           total_count=results.get('total_count', 0),
+                           absence_status=results.get('absence_status', ''),
+                           elapsed_secs=elapsed_secs,
+                           sick_teacher=results.get('sick_teacher', {}),
+                           advance_url=advance_url)
 
 
 @substitute_bp.route('/early-return', methods=['POST'])
