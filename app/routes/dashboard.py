@@ -106,6 +106,36 @@ def build_attendance_strip(history):
     return ''.join(parts)
 
 
+def build_insight_line(ytd_pct, daily_data, chronic_count, worst_grade_num, worst_grade_count):
+    """One computed summary sentence: health + trend + top watch item."""
+    # health word from ytd
+    if ytd_pct >= 95:
+        health = 'healthy'
+    elif ytd_pct >= 90:
+        health = 'steady'
+    else:
+        health = 'under pressure'
+    # trend: last third vs first third of daily pcts
+    trend = 'holding steady'
+    pcts = [p for _, p in daily_data]
+    if len(pcts) >= 6:
+        third = max(1, len(pcts) // 3)
+        early = sum(pcts[:third]) / third
+        late = sum(pcts[-third:]) / third
+        if late - early >= 1.0:
+            trend = 'trending up'
+        elif early - late >= 1.0:
+            trend = 'trending down'
+    lead = f"Attendance is {health} at {ytd_pct:.1f}%, {trend}."
+    # watch clause
+    watch = ''
+    if chronic_count > 0:
+        plural = 's' if chronic_count != 1 else ''
+        grade_bit = f", most in Grade {worst_grade_num}" if worst_grade_num else ''
+        watch = f" Watch: {chronic_count} learner{plural} with chronic absence{grade_bit}."
+    return lead + watch
+
+
 def build_pattern_caption(daily_data):
     """Compute a true caption from the data: weakest weekday + worst week/month."""
     from datetime import datetime
@@ -407,6 +437,7 @@ def index():
     sparkline_svg = build_sparkline(daily_attendance)
     year_pixels_html = build_year_pixels(daily_attendance)
     pattern_caption = build_pattern_caption(daily_attendance)
+    insight_line = build_insight_line(ytd_pct, daily_attendance, flagged_total, worst_grade_num, worst_grade_count)
     grade_bars_html = build_grade_bars(grade_data)
     from collections import Counter
     flagged_total = len(chronic_all)
@@ -456,6 +487,7 @@ def index():
         .user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
         .user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
         .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-bottom: 20px; }}
+        .insight-line {{ font-size: 16px; line-height: 1.5; text-align: center; margin-bottom: 24px; opacity: 0.92; font-weight: 500; }}
         .cards {{ display: flex; flex-direction: column; gap: 16px; }}
         .card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; }}
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
@@ -527,6 +559,7 @@ def index():
     </div>
     <div class="container">
         <div class="header-date">{today_display}</div>
+        <div class="insight-line">{insight_line}</div>
         
         <div class="cards">
             <div class="card">
