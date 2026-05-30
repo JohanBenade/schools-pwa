@@ -30,6 +30,14 @@ def build_sparkline(daily_data, width=320, height=80, padding=8):
         points.append(f"{x:.1f},{y:.1f}")
     pts_str = ' '.join(points)
     area_pts = pts_str + f" {padding + inner_w:.1f},{padding + inner_h:.1f} {padding:.1f},{padding + inner_h:.1f}"
+    # dip marker: lowest-pct day, positioned with the same coordinate math as the line
+    dip_i = min(range(n), key=lambda i: daily_data[i][1])
+    dip_x = padding + (dip_i / max(1, n - 1)) * inner_w
+    dip_y = padding + (1 - (daily_data[dip_i][1] - min_pct) / range_pct) * inner_h
+    marker = (
+        f'<circle cx="{dip_x:.1f}" cy="{dip_y:.1f}" r="3.5" fill="#ef4444" '
+        f'stroke="#0f172a" stroke-width="1.5"/>'
+    )
     return (
         f'<svg viewBox="0 0 {width} {height}" '
         f'style="width:100%;height:{height}px;display:block;" '
@@ -41,6 +49,7 @@ def build_sparkline(daily_data, width=320, height=80, padding=8):
         f'<polygon points="{area_pts}" fill="url(#sparkFill)"/>'
         f'<polyline points="{pts_str}" fill="none" stroke="#06b6d4" stroke-width="2" '
         'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'{marker}'
         '</svg>'
     )
 
@@ -435,6 +444,15 @@ def index():
         pending_html = f'<div class="detail-list"><div class="detail-item">⏳ {names}</div></div>'
     
     sparkline_svg = build_sparkline(daily_attendance)
+    spark_dip_label = ''
+    if daily_attendance:
+        from datetime import datetime as _dt
+        _dip = min(range(len(daily_attendance)), key=lambda i: daily_attendance[i][1])
+        try:
+            _m = _dt.strptime(daily_attendance[_dip][0], '%Y-%m-%d').strftime('%b')
+            spark_dip_label = f'<div class="spark-dip-label"><span class="spark-dip-dot"></span>{_m} dip</div>'
+        except Exception:
+            spark_dip_label = ''
     year_pixels_html = build_year_pixels(daily_attendance)
     pattern_caption = build_pattern_caption(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
@@ -488,6 +506,8 @@ def index():
         .user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
         .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-top: 8px; margin-bottom: 16px; }}
         .insight-line {{ font-size: 16px; line-height: 1.5; text-align: center; margin-bottom: 24px; opacity: 0.92; font-weight: 500; }}
+        .spark-dip-label {{ font-size: 11px; opacity: 0.7; text-align: center; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 5px; }}
+        .spark-dip-dot {{ width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }}
         .cards {{ display: flex; flex-direction: column; gap: 16px; }}
         .card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; }}
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
@@ -589,6 +609,7 @@ def index():
                     <span>{mid_lbl}</span>
                     <span>{last_lbl}</span>
                 </div>
+                {spark_dip_label}
                 <div class="grade-bars">{grade_bars_html}</div>
             </div>
             
