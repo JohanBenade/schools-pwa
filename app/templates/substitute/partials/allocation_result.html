@@ -1,0 +1,58 @@
+<!--
+  allocation_result.html
+  Replaces the interstitial once process_absence completes.
+  Shows REAL counts + REAL elapsed time (no hardcoding).
+  Expects:
+    flow         (str)  - "teacher" (auto-advance) or "principal" (tap to continue)
+    success      (bool) - green check vs warning
+    covered_count(int), total_count (int)
+    absence_status (str)
+    elapsed_secs (float/str) - computed in route from completed_at - started_at
+    sick_teacher (dict: name, venue)
+    advance_url  (str)  - destination
+    advance_label(str)  - button text for principal flow (e.g. "View Coverage")
+-->
+<div class="card" id="resultCard" style="text-align: center; padding: 32px 24px;">
+
+    {% if success %}
+        <div class="result-icon ok" aria-hidden="true">&#10003;</div>
+        <h2 style="font-size: 22px; color: #166534; margin: 16px 0 4px;">Cover sorted</h2>
+    {% else %}
+        <div class="result-icon warn" aria-hidden="true">!</div>
+        <h2 style="font-size: 22px; color: #92400e; margin: 16px 0 4px;">Partly covered</h2>
+    {% endif %}
+
+    <p style="color: #1e293b; font-size: 17px; font-weight: 600; margin-bottom: 4px;">
+        {{ covered_count }} of {{ total_count }} periods covered
+    </p>
+    <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">
+        Done in {{ elapsed_secs }}s &middot; {{ absence_status }}
+    </p>
+
+    {% if flow == "teacher" %}
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Taking you to your day&hellip;</p>
+        <a href="{{ advance_url }}" class="back-link" style="margin-top: 4px;">Tap if not redirected &rarr;</a>
+        <script>
+            setTimeout(function () { window.location.href = "{{ advance_url }}"; }, 1500);
+        </script>
+    {% else %}
+        <a href="{{ advance_url }}" class="submit-btn green"
+           style="display: block; text-decoration: none; box-sizing: border-box;">
+            {{ advance_label or "View Coverage" }} &rarr;
+        </a>
+    {% endif %}
+</div>
+
+<style>
+    .result-icon {
+        width: 64px;
+        height: 64px;
+        line-height: 64px;
+        margin: 0 auto;
+        border-radius: 50%;
+        font-size: 34px;
+        font-weight: 700;
+    }
+    .result-icon.ok   { background: #f0fdf4; color: #22c55e; border: 3px solid #22c55e; }
+    .result-icon.warn { background: #fffbeb; color: #f59e0b; border: 3px solid #f59e0b; }
+</style>
