@@ -106,6 +106,40 @@ def build_attendance_strip(history):
     return ''.join(parts)
 
 
+def build_class_heatmap(matrix, dates):
+    """matrix: list of dicts {code, avg_pct, cells:[(date_str, pct_or_None)...]}
+    Rows already sorted best->worst (worst at bottom). Builds HTML grid."""
+    if not matrix:
+        return '<div class="big-label" style="opacity:0.6;">No attendance data yet</div>'
+
+    def cell_class(pct):
+        if pct is None:
+            return 'hc-none'
+        if pct >= 97:
+            return 'hc-dgreen'
+        if pct >= 95:
+            return 'hc-green'
+        if pct >= 90:
+            return 'hc-amber'
+        return 'hc-red'
+
+    rows = []
+    for r in matrix:
+        cells = ''.join(
+            f'<div class="hm-cell {cell_class(p)}" title="{d}: {("%.0f%%" % p) if p is not None else "no data"}"></div>'
+            for (d, p) in r['cells']
+        )
+        avg = r['avg_pct']
+        rows.append(
+            f'<div class="hm-row">'
+            f'<span class="hm-code">{r["code"]}</span>'
+            f'<div class="hm-cells">{cells}</div>'
+            f'<span class="hm-avg">{avg:.0f}%</span>'
+            f'</div>'
+        )
+    return '<div class="heatmap">' + ''.join(rows) + '</div>'
+
+
 @dashboard_bp.route('/')
 def index():
     user_role = session.get('role', 'teacher')
@@ -238,6 +272,41 @@ def index():
             ORDER BY absent_count DESC
         ''', (TENANT_ID, TENANT_ID))
         chronic_all = [dict(r) for r in cursor.fetchall()]
+
+        # --- Card 4: class heatmap (25 classes x last 14 captured days) ---
+        cursor.execute('''
+            SELECT DISTINCT date FROM attendance
+            WHERE tenant_id = ?
+            ORDER BY date DESC LIMIT 14
+        ''', (TENANT_ID,))
+        hm_dates = sorted([r['date'] for r in cursor.fetchall()])
+
+        hm_matrix = []
+        if hm_dates:
+            placeholders = ','.join('?' for _ in hm_dates)
+            cursor.execute(f'''
+                SELECT mg.group_name AS code, a.date AS d,
+                  SUM(CASE WHEN ae.status='Present' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS pct
+                FROM mentor_group mg
+                JOIN learner l ON l.mentor_group_id = mg.id AND COALESCE(l.is_active,1)=1
+                JOIN attendance_entry ae ON ae.learner_id = l.id
+                JOIN attendance a ON a.id = ae.attendance_id AND a.date IN ({placeholders})
+                WHERE mg.tenant_id = ?
+                GROUP BY mg.group_name, a.date
+            ''', (*hm_dates, TENANT_ID))
+            by_class = {}
+            for r in cursor.fetchall():
+                by_class.setdefault(r['code'], {})[r['d']] = r['pct']
+            cursor.execute('SELECT group_name FROM mentor_group WHERE tenant_id = ? ORDER BY group_name', (TENANT_ID,))
+            all_codes = [r['group_name'] for r in cursor.fetchall()]
+            for code in all_codes:
+                day_map = by_class.get(code, {})
+                cells = [(d, day_map.get(d)) for d in hm_dates]
+                vals = [p for (_, p) in cells if p is not None]
+                avg = sum(vals) / len(vals) if vals else 0
+                hm_matrix.append({'code': code, 'avg_pct': avg, 'cells': cells})
+            # best on top, worst at bottom
+            hm_matrix.sort(key=lambda x: x['avg_pct'], reverse=True)
     
     if grade_breakdown_today:
         gb_parts = [f'Gr {g}: {n}' for g, n in grade_breakdown_today]
@@ -291,6 +360,13 @@ def index():
     
     sparkline_svg = build_sparkline(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
+    heatmap_html = build_class_heatmap(hm_matrix, hm_dates)
+    hm_count = len(hm_matrix)
+    if hm_dates:
+        hm_first_lbl = format_date_short(hm_dates[0])
+        hm_last_lbl = format_date_short(hm_dates[-1])
+    else:
+        hm_first_lbl = hm_last_lbl = ''
     from collections import Counter
     flagged_total = len(chronic_all)
     critical_count = sum(1 for x in chronic_all if x['absent_count'] >= 20)
@@ -367,6 +443,21 @@ def index():
         .grade-pct {{ font-weight: 600; text-align: right; color: #22d3ee; }}
         .bar-track {{ background: rgba(255,255,255,0.08); height: 8px; border-radius: 4px; overflow: hidden; }}
         .bar-fill {{ background: linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee); height: 100%; border-radius: 4px; }}
+        .heatmap {{ display: flex; flex-direction: column; gap: 3px; margin-top: 16px; }}
+        .hm-row {{ display: grid; grid-template-columns: 48px 1fr 38px; gap: 8px; align-items: center; }}
+        .hm-code {{ font-size: 11px; opacity: 0.75; font-weight: 500; white-space: nowrap; }}
+        .hm-cells {{ display: grid; grid-template-columns: repeat(14, 1fr); gap: 2px; }}
+        .hm-cell {{ aspect-ratio: 1; border-radius: 2px; min-height: 14px; }}
+        .hm-avg {{ font-size: 11px; font-weight: 600; text-align: right; color: #cbd5e1; }}
+        .hc-dgreen {{ background: #15803d; }}
+        .hc-green {{ background: #22c55e; }}
+        .hc-amber {{ background: #f59e0b; }}
+        .hc-red {{ background: #ef4444; }}
+        .hc-none {{ background: rgba(255,255,255,0.06); }}
+        .hm-axis {{ display: flex; justify-content: space-between; font-size: 10px; opacity: 0.5; padding: 6px 46px 0 56px; }}
+        .hm-legend {{ display: flex; gap: 12px; font-size: 11px; opacity: 0.8; margin-top: 12px; flex-wrap: wrap; justify-content: center; }}
+        .hm-leg-item {{ display: flex; align-items: center; gap: 5px; }}
+        .hm-swatch {{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }}
         .emergency-active {{ background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); animation: pulse-border 2s infinite; }}
         @keyframes pulse-border {{ 0%, 100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }} 50% {{ box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }} }}
         .tier-bar {{ display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 16px 0 8px; gap: 2px; }}
@@ -413,6 +504,22 @@ def index():
                     <span>{last_lbl}</span>
                 </div>
                 <div class="grade-bars">{grade_bars_html}</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🔥 Class Heatmap — Last 14 Days</span>
+                    <span class="card-status status-info">{hm_count} classes</span>
+                </div>
+                {heatmap_html}
+                <div class="hm-axis"><span>{hm_first_lbl}</span><span>{hm_last_lbl}</span></div>
+                <div class="hm-legend">
+                    <span class="hm-leg-item"><span class="hm-swatch hc-dgreen"></span>97%+</span>
+                    <span class="hm-leg-item"><span class="hm-swatch hc-green"></span>95–97%</span>
+                    <span class="hm-leg-item"><span class="hm-swatch hc-amber"></span>90–95%</span>
+                    <span class="hm-leg-item"><span class="hm-swatch hc-red"></span>&lt;90%</span>
+                </div>
+                <a href="/admin/" class="card-link">View registers →</a>
             </div>
             
             <div class="card">
