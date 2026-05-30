@@ -437,7 +437,6 @@ def index():
     sparkline_svg = build_sparkline(daily_attendance)
     year_pixels_html = build_year_pixels(daily_attendance)
     pattern_caption = build_pattern_caption(daily_attendance)
-    insight_line = build_insight_line(ytd_pct, daily_attendance, flagged_total, worst_grade_num, worst_grade_count)
     grade_bars_html = build_grade_bars(grade_data)
     from collections import Counter
     flagged_total = len(chronic_all)
@@ -448,6 +447,7 @@ def index():
         worst_grade_num, worst_grade_count = grade_counts.most_common(1)[0]
     else:
         worst_grade_num, worst_grade_count = None, 0
+    insight_line = build_insight_line(ytd_pct, daily_attendance, flagged_total, worst_grade_num, worst_grade_count)
     if flagged_total > 0:
         critical_flex = max(1, critical_count)
         high_flex = max(1, high_count)
