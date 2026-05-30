@@ -106,6 +106,55 @@ def build_attendance_strip(history):
     return ''.join(parts)
 
 
+def build_pattern_caption(daily_data):
+    """Compute a true caption from the data: weakest weekday + worst week/month."""
+    from datetime import datetime
+    parsed = []
+    for d, p in daily_data:
+        try:
+            parsed.append((datetime.strptime(d, '%Y-%m-%d'), p))
+        except Exception:
+            continue
+    if not parsed:
+        return 'Each square = one school day.'
+    # weakest weekday (Mon-Fri only)
+    wd_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    wd_sum = [0.0] * 5
+    wd_cnt = [0] * 5
+    for dt, p in parsed:
+        wd = dt.weekday()
+        if wd <= 4:
+            wd_sum[wd] += p
+            wd_cnt[wd] += 1
+    wd_avg = [(wd_sum[i] / wd_cnt[i]) if wd_cnt[i] else 100.0 for i in range(5)]
+    weakest_i = min(range(5), key=lambda i: wd_avg[i])
+    overall = sum(p for _, p in parsed) / len(parsed)
+    weakest_clause = ''
+    if wd_avg[weakest_i] < overall - 0.5:
+        weakest_clause = f"{wd_names[weakest_i]}s run slightly lower"
+    # worst ISO week -> month label
+    week_sum = {}
+    week_cnt = {}
+    week_anydate = {}
+    for dt, p in parsed:
+        iso = dt.isocalendar()
+        k = (iso[0], iso[1])
+        week_sum[k] = week_sum.get(k, 0.0) + p
+        week_cnt[k] = week_cnt.get(k, 0) + 1
+        week_anydate.setdefault(k, dt)
+    worst_k = min(week_sum, key=lambda k: week_sum[k] / week_cnt[k])
+    worst_avg = week_sum[worst_k] / week_cnt[worst_k]
+    worst_month = week_anydate[worst_k].strftime('%b')
+    dip_clause = ''
+    if worst_avg < overall - 3:
+        dip_clause = f"the red column is the {worst_month} dip"
+    parts = ['Each square = one school day.']
+    tail = '; '.join([c for c in [weakest_clause, dip_clause] if c])
+    if tail:
+        parts.append(tail[0].upper() + tail[1:] + '.')
+    return ' '.join(parts)
+
+
 def build_year_pixels(daily_data):
     """daily_data: list of (date_str 'YYYY-MM-DD', pct). Builds a Mon-Fri x weeks
     grid (GitHub contribution style). Severity colours match dashboard thresholds."""
@@ -357,6 +406,7 @@ def index():
     
     sparkline_svg = build_sparkline(daily_attendance)
     year_pixels_html = build_year_pixels(daily_attendance)
+    pattern_caption = build_pattern_caption(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
     from collections import Counter
     flagged_total = len(chronic_all)
@@ -490,7 +540,7 @@ def index():
                     <span class="yp-leg-item"><span class="yp-swatch yp-amber"></span>90–95%</span>
                     <span class="yp-leg-item"><span class="yp-swatch yp-red"></span>&lt;90%</span>
                 </div>
-                <div class="yp-caption">Each square = one school day. Fridays run slightly lower; the red column is flu week (Mar).</div>
+                <div class="yp-caption">{pattern_caption}</div>
             </div>
 
             <div class="card">
