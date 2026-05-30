@@ -3,7 +3,7 @@
   Replaces the interstitial once process_absence completes.
   Shows REAL counts + REAL elapsed time (no hardcoding).
   Expects:
-    flow         (str)  - "teacher" (auto-advance) or "principal" (tap to continue)
+    flow         (str)  - "teacher" or "principal" (both tap to continue; label differs)
     success      (bool) - green check vs warning
     covered_count(int), total_count (int)
     absence_status (str)
@@ -29,18 +29,10 @@
         Done in {{ elapsed_secs }}s &middot; {{ absence_status }}
     </p>
 
-    {% if flow == "teacher" %}
-        <p style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Taking you to your day&hellip;</p>
-        <a href="{{ advance_url }}" class="back-link" style="margin-top: 4px;">Tap if not redirected &rarr;</a>
-        <script>
-            setTimeout(function () { window.location.href = "{{ advance_url }}"; }, 1500);
-        </script>
-    {% else %}
-        <a href="{{ advance_url }}" class="submit-btn green"
-           style="display: block; text-decoration: none; box-sizing: border-box;">
-            {{ advance_label or "View Coverage" }} &rarr;
-        </a>
-    {% endif %}
+    <a href="{{ advance_url }}" class="submit-btn green"
+       style="display: block; text-decoration: none; box-sizing: border-box;">
+        {% if flow == "teacher" %}Continue to My Day{% else %}{{ advance_label or "View Coverage" }}{% endif %} &rarr;
+    </a>
 </div>
 
 <style>
