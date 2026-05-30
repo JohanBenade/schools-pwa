@@ -1233,16 +1233,50 @@ def mark_absent_submit():
         is_full_day=is_full_day
     )
     
-    # Process and assign substitutes
+    # Phase 1: absence created. Return the spinner interstitial INSTANTLY.
+    # Heavy engine work runs in Phase 2 (/mark-absent/process/<absence_id>).
+    process_url = url_for('substitute.mark_absent_process', absence_id=absence_id)
+    return render_template('substitute/partials/finding_interstitial.html',
+                           process_url=process_url)
+
+
+@substitute_bp.route('/mark-absent/process/<absence_id>', methods=['GET'])
+def mark_absent_process(absence_id):
+    """Phase 2 of management mark-absent: run the allocation engine, compute
+    real elapsed time, return the result card (principal flow -> Overview)."""
+    role = session.get('role')
+    if role not in ['principal', 'deputy', 'office', 'admin']:
+        return redirect('/')
+
+    # process_absence reads dates/staff from the absence row via absence_id.
     results = process_absence(absence_id)
-    
+
+    # Re-derive dates + staff for duty-clash handling (no form data here).
+    start_date = None
+    end_date = None
+    duty_staff_id = None
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT staff_id, absence_date, end_date FROM absence "
+            "WHERE id = ? AND tenant_id = ?",
+            (absence_id, TENANT_ID)
+        )
+        row = cursor.fetchone()
+        if row:
+            row = dict(row)
+            duty_staff_id = row['staff_id']
+            start_date = row['absence_date']
+            end_date = row.get('end_date') or start_date
+
     # Handle duty clashes - reassign duties where absent teacher was assigned
     try:
         from app.services.substitute_engine import handle_absent_teacher_duties
-        duty_clash_results = handle_absent_teacher_duties(staff_id, start_date, end_date)
+        if duty_staff_id:
+            duty_clash_results = handle_absent_teacher_duties(duty_staff_id, start_date, end_date)
     except Exception as e:
         print(f"Management mark-absent duty clash error: {e}")
-    
+
     # Send push to management (other principals/deputies will see it)
     try:
         from app.routes.push import send_absence_reported_push
@@ -1250,7 +1284,7 @@ def mark_absent_submit():
         date_range = results.get('date_range', {})
         send_absence_reported_push(
             staff_name,
-            absence_type,
+            results.get('absence_status', ''),
             date_range.get('start', start_date),
             date_range.get('end', end_date),
             results.get('covered_count', 0),
@@ -1258,7 +1292,7 @@ def mark_absent_submit():
         )
     except Exception as e:
         print(f'Management absence reported push error: {e}')
-    
+
     # Send push to each assigned substitute
     try:
         from app.routes.push import send_substitute_assigned_push
@@ -1275,5 +1309,23 @@ def mark_absent_submit():
                     )
     except Exception as e:
         print(f'Management sub assigned push error: {e}')
-    
-    return redirect('/substitute/overview')
+
+    # REAL elapsed time from the engine's own timestamps.
+    elapsed_secs = '0.0'
+    try:
+        t0 = datetime.fromisoformat(results['started_at'])
+        t1 = datetime.fromisoformat(results['completed_at'])
+        elapsed_secs = f"{(t1 - t0).total_seconds():.1f}"
+    except Exception as e:
+        print(f'Elapsed time calc error: {e}')
+
+    return render_template('substitute/partials/allocation_result.html',
+                           flow='principal',
+                           success=results.get('success', False),
+                           covered_count=results.get('covered_count', 0),
+                           total_count=results.get('total_count', 0),
+                           absence_status=results.get('absence_status', ''),
+                           elapsed_secs=elapsed_secs,
+                           sick_teacher=results.get('sick_teacher', {}),
+                           advance_url='/substitute/overview',
+                           advance_label='View Coverage')

@@ -208,12 +208,15 @@
         
         <!-- Form Section (hidden until staff selected) -->
         <div class="form-section" id="formSection">
-            <div class="card">
+            <div class="card" id="markAbsentCard">
                 <div class="info-box">
                     ⚡ Substitutes will be assigned automatically and notified.
                 </div>
                 
-                <form method="POST" action="{{ url_for('substitute.mark_absent_submit') }}" id="absenceForm">
+                <form method="POST" action="{{ url_for('substitute.mark_absent_submit') }}" id="absenceForm"
+                      hx-post="{{ url_for('substitute.mark_absent_submit') }}"
+                      hx-target="#markAbsentCard"
+                      hx-swap="outerHTML">
                     <input type="hidden" name="staff_id" id="staffIdInput">
                     
                     <div class="form-group">
