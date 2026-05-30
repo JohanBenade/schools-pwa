@@ -35,7 +35,7 @@ def build_sparkline(daily_data, width=320, height=80, padding=8):
     dip_x = padding + (dip_i / max(1, n - 1)) * inner_w
     dip_y = padding + (1 - (daily_data[dip_i][1] - min_pct) / range_pct) * inner_h
     marker = (
-        f'<circle cx="{dip_x:.1f}" cy="{dip_y:.1f}" r="3.5" fill="#ef4444" '
+        f'<circle cx="{dip_x:.1f}" cy="{dip_y:.1f}" r="4.5" fill="#ef4444" '
         f'stroke="#0f172a" stroke-width="1.5"/>'
     )
     return (
