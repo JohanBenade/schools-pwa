@@ -30,6 +30,16 @@ def resolve_back():
     return token, url, label
 
 
+def resolve_sub_back():
+    token = request.args.get("from", "")
+    if token == "whosout":
+        return "/absences/?from=" + request.args.get("origin", ""), "Who's Out"
+    if token in BACK_REGISTRY:
+        url, label = BACK_REGISTRY[token]
+        return url, label
+    return "/absences/", "Who's Out"
+
+
 def get_last_attendance_date():
     """Get the most recent date with submitted attendance records."""
     with get_connection() as conn:
@@ -58,6 +68,7 @@ def index():
 @absences_bp.route('/learners')
 def learners():
     """Learner absence list - sorted by consecutive days descending."""
+    back_url, back_label = resolve_sub_back()
     last_date = get_last_attendance_date()
     
     if not last_date:
@@ -65,7 +76,7 @@ def learners():
                                learners=[], 
                                as_of_date=None,
                                total_absent=0,
-                               from_token=request.args.get('from', ''))
+                               back_url=back_url, back_label=back_label)
     
     # Get all learners with consecutive absences
     # We need to calculate consecutive days from attendance_entry
@@ -141,12 +152,13 @@ def learners():
                                learners=learners,
                                as_of_date=as_of_display,
                                total_absent=len(learners),
-                               from_token=request.args.get('from', ''))
+                               back_url=back_url, back_label=back_label)
 
 
 @absences_bp.route('/teachers')
 def teachers():
     """Teacher absence list with coverage status."""
+    back_url, back_label = resolve_sub_back()
     today = date.today()
     
     with get_connection() as conn:
@@ -185,7 +197,7 @@ def teachers():
             absences.append(absence)
         
         return render_template('absences/teachers.html', absences=absences,
-                               from_token=request.args.get('from', ''))
+                               back_url=back_url, back_label=back_label)
 
 
 @absences_bp.route('/my-periods')
@@ -194,6 +206,7 @@ def my_periods():
     staff_id = session.get('staff_id')
     if not staff_id:
         return redirect('/')
+    back_url, back_label = resolve_sub_back()
 
     today_str = date.today().isoformat()
     today_display = date.today().strftime('%a %d %b')
@@ -215,7 +228,7 @@ def my_periods():
                                today_display=today_display,
                                total_absent=0,
                                no_school_day=True,
-                               from_token=request.args.get('from', ''))
+                               back_url=back_url, back_label=back_label)
 
     periods = get_whos_out_by_period(staff_id, today_str, cycle_day, TENANT_ID)
     total_absent = sum(p['absent_count'] for p in periods)
@@ -225,4 +238,4 @@ def my_periods():
                            today_display=today_display,
                            total_absent=total_absent,
                            no_school_day=False,
-                           from_token=request.args.get('from', ''))
+                           back_url=back_url, back_label=back_label)
