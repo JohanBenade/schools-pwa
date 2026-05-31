@@ -920,3 +920,50 @@ def create_absence_multiday(
         conn.commit()
     
     return absence_id
+
+
+def get_whos_out_by_period(staff_id: str, date_str: str, cycle_day: int, tenant_id: str = "MARAGON") -> List[Dict]:
+    """Get absent learners grouped by the logged-in teacher's periods for a given day.
+
+    Chain (verified in production):
+      timetable_slot (staff_id, cycle_day)            -> teacher's periods today
+        -> learner_subject (class_name AND subject)   -> learners enrolled in that period
+          -> attendance_entry (status='Absent')       -> joined to attendance for the date
+    Periods ordered ASC by period.sort_order; learners ASC by first_name.
+    Returns one dict per period with a nested 'learners' list (empty if none absent).
+    """
+    with get_connection() as conn:
+        slots = conn.execute("""
+            SELECT ts.period_id, ts.class_name, ts.subject,
+                   p.period_name, p.start_time, p.end_time, p.sort_order
+            FROM timetable_slot ts
+            JOIN period p ON ts.period_id = p.id
+            WHERE ts.staff_id = ? AND ts.cycle_day = ? AND ts.tenant_id = ?
+            ORDER BY p.sort_order
+        """, (staff_id, cycle_day, tenant_id)).fetchall()
+
+        result = []
+        for slot in slots:
+            learners = conn.execute("""
+                SELECT l.id, l.first_name, l.surname
+                FROM learner_subject ls
+                JOIN learner l ON ls.learner_id = l.id
+                JOIN attendance_entry ae ON ae.learner_id = l.id
+                JOIN attendance a ON ae.attendance_id = a.id
+                WHERE ls.class_name = ? AND ls.subject = ? AND ls.is_active = 1
+                  AND a.tenant_id = ? AND a.date = ? AND ae.status = 'Absent'
+                ORDER BY l.first_name, l.surname
+            """, (slot['class_name'], slot['subject'], tenant_id, date_str)).fetchall()
+
+            result.append({
+                'period_id': slot['period_id'],
+                'period_name': slot['period_name'],
+                'start_time': slot['start_time'],
+                'end_time': slot['end_time'],
+                'class_name': slot['class_name'],
+                'subject': slot['subject'],
+                'learners': [dict(lr) for lr in learners],
+                'absent_count': len(learners),
+            })
+
+        return result
