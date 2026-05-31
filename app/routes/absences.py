@@ -1,13 +1,33 @@
 """
 Absences Module - Teacher and Learner absence tracking for leadership
 """
-from flask import Blueprint, render_template, session, redirect
+from flask import Blueprint, render_template, session, redirect, request
 from app.services.db import get_connection, get_whos_out_by_period
 from datetime import datetime, date, timedelta
 
 absences_bp = Blueprint('absences', __name__, url_prefix='/absences')
 
 TENANT_ID = "MARAGON"
+
+BACK_REGISTRY = {
+    "ops":        ("/tools/",     "Operations"),
+    "dash":       ("/dashboard/", "Dashboard"),
+    "staff":      ("/",           "Home"),
+    "office":     ("/",           "Home"),
+    "activities": ("/",           "Home"),
+    "leadership": ("/",           "Home"),
+}
+ROLE_DEFAULT_FROM = {
+    "principal":"ops","deputy":"ops","management":"ops","admin":"ops",
+    "office":"office","activities":"activities","sport_coordinator":"activities",
+    "teacher":"staff","grade_head":"staff",
+}
+def resolve_back():
+    token = request.args.get("from", "")
+    if token not in BACK_REGISTRY:
+        token = ROLE_DEFAULT_FROM.get(session.get("role",""), "staff")
+    url, label = BACK_REGISTRY[token]
+    return token, url, label
 
 
 def get_last_attendance_date():
@@ -28,7 +48,11 @@ def get_last_attendance_date():
 @absences_bp.route('/')
 def index():
     """Absences home - choice between Teachers and Learners."""
-    return render_template('absences/index.html')
+    from_token, back_url, back_label = resolve_back()
+    return render_template('absences/index.html',
+                           from_token=from_token,
+                           back_url=back_url,
+                           back_label=back_label)
 
 
 @absences_bp.route('/learners')
@@ -40,7 +64,8 @@ def learners():
         return render_template('absences/learners.html', 
                                learners=[], 
                                as_of_date=None,
-                               total_absent=0)
+                               total_absent=0,
+                               from_token=request.args.get('from', ''))
     
     # Get all learners with consecutive absences
     # We need to calculate consecutive days from attendance_entry
@@ -115,7 +140,8 @@ def learners():
         return render_template('absences/learners.html',
                                learners=learners,
                                as_of_date=as_of_display,
-                               total_absent=len(learners))
+                               total_absent=len(learners),
+                               from_token=request.args.get('from', ''))
 
 
 @absences_bp.route('/teachers')
@@ -158,7 +184,8 @@ def teachers():
             
             absences.append(absence)
         
-        return render_template('absences/teachers.html', absences=absences)
+        return render_template('absences/teachers.html', absences=absences,
+                               from_token=request.args.get('from', ''))
 
 
 @absences_bp.route('/my-periods')
@@ -187,7 +214,8 @@ def my_periods():
                                periods=[],
                                today_display=today_display,
                                total_absent=0,
-                               no_school_day=True)
+                               no_school_day=True,
+                               from_token=request.args.get('from', ''))
 
     periods = get_whos_out_by_period(staff_id, today_str, cycle_day, TENANT_ID)
     total_absent = sum(p['absent_count'] for p in periods)
@@ -196,4 +224,5 @@ def my_periods():
                            periods=periods,
                            today_display=today_display,
                            total_absent=total_absent,
-                           no_school_day=False)
+                           no_school_day=False,
+                           from_token=request.args.get('from', ''))

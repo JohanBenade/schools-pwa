@@ -640,7 +640,7 @@ def index():
                 <div class="big-number">{absent_learners}</div>
                 <div class="big-label">learners absent &middot; of {total_enrolled} enrolled</div>
                 {grade_breakdown_html}
-                <a href="/absences/learners" class="card-link">Who's out →</a>
+                <a href="/absences/learners?from=dash" class="card-link">Who's out →</a>
             </div>
             
             <div class="card {'emergency-active' if active_emergency else ''}">
