@@ -1,8 +1,8 @@
 """
 Absences Module - Teacher and Learner absence tracking for leadership
 """
-from flask import Blueprint, render_template, session
-from app.services.db import get_connection
+from flask import Blueprint, render_template, session, redirect
+from app.services.db import get_connection, get_whos_out_by_period
 from datetime import datetime, date, timedelta
 
 absences_bp = Blueprint('absences', __name__, url_prefix='/absences')
@@ -159,3 +159,41 @@ def teachers():
             absences.append(absence)
         
         return render_template('absences/teachers.html', absences=absences)
+
+
+@absences_bp.route('/my-periods')
+def my_periods():
+    """Per-teacher view: absent learners in the logged-in teacher's periods today, grouped by period."""
+    staff_id = session.get('staff_id')
+    if not staff_id:
+        return redirect('/')
+
+    today_str = date.today().isoformat()
+    today_display = date.today().strftime('%a %d %b')
+
+    cycle_day = None
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT cycle_day FROM school_calendar WHERE date = ?",
+            (today_str,)
+        )
+        row = cursor.fetchone()
+        if row and row['cycle_day'] is not None:
+            cycle_day = row['cycle_day']
+
+    if cycle_day is None:
+        return render_template('absences/my_periods.html',
+                               periods=[],
+                               today_display=today_display,
+                               total_absent=0,
+                               no_school_day=True)
+
+    periods = get_whos_out_by_period(staff_id, today_str, cycle_day, TENANT_ID)
+    total_absent = sum(p['absent_count'] for p in periods)
+
+    return render_template('absences/my_periods.html',
+                           periods=periods,
+                           today_display=today_display,
+                           total_absent=total_absent,
+                           no_school_day=False)
