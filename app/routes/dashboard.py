@@ -338,6 +338,7 @@ def index():
             FROM absence a
             JOIN staff s ON a.staff_id = s.id
             WHERE a.absence_date = ? AND a.tenant_id = ?
+              AND a.status != 'Resolved'
             ORDER BY a.reported_at DESC
         ''', (today_str, TENANT_ID))
         absences = [dict(row) for row in cursor.fetchall()]
