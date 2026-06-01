@@ -190,7 +190,7 @@ def generate_confirm():
             {result["terrain_count"]} terrain + {result["homework_count"]} homework
         </div>
         <div class="success-actions">
-            <a href="/duty/terrain" class="btn btn-confirm">View Full Roster</a>
+            <a href="/duty/terrain?from=ops" class="btn btn-confirm">View Full Roster</a>
         </div>
     </div>'''
 

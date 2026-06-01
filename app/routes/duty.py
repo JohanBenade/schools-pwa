@@ -702,7 +702,12 @@ def terrain_roster():
             })
     grid.append(homework_row)
     
-    nav_header = get_nav_header("Terrain Roster", "/", "Home")
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/tools/", "Operations"
+    else:
+        _back_url, _back_label = "/", "Home"
+    nav_header = get_nav_header("Terrain Roster", _back_url, _back_label)
     nav_styles = get_nav_styles()
     
     # Week label
