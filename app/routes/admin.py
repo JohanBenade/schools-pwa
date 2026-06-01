@@ -25,7 +25,6 @@ def get_back_url_for_user():
 @admin_bp.route('/')
 def dashboard():
     """Main admin dashboard."""
-    print('DBG list from=', request.args.get('from'), flush=True)
     today = date.today()
     today_str = today.isoformat()
     today_display = today.strftime('%A, %d %B %Y')
@@ -199,7 +198,6 @@ def late_learners():
 @admin_bp.route('/class/<attendance_id>')
 def class_detail(attendance_id):
     """View and edit attendance for a specific class."""
-    print('DBG detail from=', request.args.get('from'), flush=True)
     with get_connection() as conn:
         cursor = conn.cursor()
         
@@ -1260,6 +1258,7 @@ def dashboard_content():
         groups = sorted(groups, key=sort_key)
     
     return render_template('admin/partials/dashboard_content.html',
+                          from_token=request.args.get('from',''),
                           groups=groups,
                           total_groups=total_groups,
                           submitted_count=submitted_count,

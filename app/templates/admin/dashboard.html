@@ -38,7 +38,7 @@
         <div class="date-display">{{ today_display }}</div>
         
         <div id="dashboard-content"
-             hx-get="/admin/dashboard-content"
+             hx-get="/admin/dashboard-content{% if from_token %}?from={{ from_token }}{% endif %}"
              hx-trigger="load, every 10s"
              hx-swap="innerHTML">
             <!-- Initial content -->
