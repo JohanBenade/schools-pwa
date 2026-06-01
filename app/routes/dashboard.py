@@ -457,7 +457,10 @@ def index():
         rows = ''.join(f'<div class="absence-row"><span class="absence-name">{a["teacher_name"]}</span><span class="absence-status">{a["covered_count"]}/{a["total_periods"]}</span></div>' for a in absences[:3])
         absences_html = f'<div class="detail-list">{rows}</div>'
     else:
-        absences_html = '<div class="detail-list"><div class="detail-item" style="color: #22c55e;">✓ No absences reported</div></div>'
+        if lookahead_count == 0:
+            absences_html = '<div class="detail-list"><div class="detail-item" style="color: #22c55e;">✓ No absences today</div></div>'
+        else:
+            absences_html = ''
     
     pending_html = ""
     if pending_classes:
