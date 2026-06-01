@@ -664,6 +664,25 @@ def index():
             </div>
         </div>
     </div>
+    <script>
+    (function() {{
+        var POLL_MS = 5000;
+        async function refresh() {{
+            try {{
+                var res = await fetch(window.location.pathname, {{ headers: {{ 'X-Requested-With': 'poll' }} }});
+                if (!res.ok) return;
+                var html = await res.text();
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var fresh = doc.querySelector('.cards');
+                var live = document.querySelector('.cards');
+                if (fresh && live && fresh.innerHTML !== live.innerHTML) {{
+                    live.innerHTML = fresh.innerHTML;
+                }}
+            }} catch (e) {{ /* silent: keep last good view */ }}
+        }}
+        setInterval(refresh, POLL_MS);
+    }})();
+    </script>
 </body>
 </html>
 '''
