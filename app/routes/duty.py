@@ -519,7 +519,7 @@ def my_day():
     sport_count = len(sport_duties)
     
     if viewing_other:
-        nav_header = get_nav_header("My Day", "/timetables/", "Back")
+        nav_header = get_nav_header("My Day", "/timetables/?from=ops", "Back")
     else:
         _from = request.args.get('from')
         if _from == 'ops':
