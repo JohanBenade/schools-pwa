@@ -55,7 +55,7 @@
             
             <div class="class-list">
                 {% for group in groups %}
-                <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% else %}#{% endif %}" 
+                <a href="{% if group.attendance_id %}/admin/class/{{ group.attendance_id }}{% if from_token %}?from={{ from_token }}{% endif %}{% else %}#{% endif %}" 
                    class="class-row" style="text-decoration: none;">
                     <div class="class-info">
                         <span class="class-code">{{ group.group_name }}</span>

@@ -18,7 +18,7 @@
     <div class="max-w-md mx-auto bg-white min-h-screen shadow-sm">
         <div class="p-4">
             <nav class="nav-header">
-                <a href="/admin/" class="nav-back">← Admin</a>
+                <a href="/admin/{% if from_token %}?from={{ from_token }}{% endif %}" class="nav-back">← Admin</a>
                 <span class="nav-title">{{ attendance.group_name }}</span>
                 <a href="/" class="nav-home">🏠</a>
             </nav>

@@ -97,6 +97,7 @@ def dashboard():
     nav_styles = get_nav_styles()
     
     return render_template('admin/dashboard.html',
+                          from_token=request.args.get('from',''),
                           today_display=today_display,
                           groups=groups,
                           total_groups=total_groups,
@@ -233,10 +234,13 @@ def class_detail(attendance_id):
         ''', (attendance_id,))
         entries = [dict(row) for row in cursor.fetchall()]
     
-    nav_header = get_nav_header(attendance['group_name'], "/admin/", "Admin")
+    _ft = request.args.get('from','')
+    _back = '/admin/?from=' + _ft if _ft else '/admin/'
+    nav_header = get_nav_header(attendance['group_name'], _back, "Admin")
     nav_styles = get_nav_styles()
     
     return render_template('admin/class_detail.html',
+                          from_token=_ft,
                           attendance=attendance,
                           entries=entries,
                           nav_header=nav_header,
