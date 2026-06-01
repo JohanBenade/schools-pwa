@@ -307,7 +307,12 @@ def index():
                              nav_header=nav_header,
                              nav_styles=nav_styles)
     
-    nav_header = get_nav_header('Emergency', '/', 'Home')
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/tools/", "Operations"
+    else:
+        _back_url, _back_label = '/', 'Home'
+    nav_header = get_nav_header('Emergency', _back_url, _back_label)
     return render_template('emergency/trigger.html', 
                          user=user,
                          nav_header=nav_header,

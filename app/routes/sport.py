@@ -40,7 +40,9 @@ def get_duty_types_for_sport(sport_type):
 
 
 def get_back_url_for_user():
-    """Get appropriate back URL based on user role."""
+    """Get appropriate back URL based on user role / ?from token."""
+    if request.args.get('from') == 'ops':
+        return '/tools/', 'Operations'
     return '/', 'Home'
 
 
@@ -285,7 +287,12 @@ def my_duties():
         # Convert to sorted list
         duties_by_date_list = sorted(duties_by_date.values(), key=lambda x: x['date'])
     
-    nav_header = get_nav_header("Sport Duties", '/', 'Home')
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/tools/", "Operations"
+    else:
+        _back_url, _back_label = '/', 'Home'
+    nav_header = get_nav_header("Sport Duties", _back_url, _back_label)
     nav_styles = get_nav_styles()
     
     return render_template('sport/my_duties.html',

@@ -36,7 +36,12 @@ def index():
         """, (TENANT_ID,))
         teachers = [dict(row) for row in cursor.fetchall()]
     
-    nav_header = get_nav_header("Timetables", "/", "Home")
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/tools/", "Operations"
+    else:
+        _back_url, _back_label = "/", "Home"
+    nav_header = get_nav_header("Timetables", _back_url, _back_label)
     nav_styles = get_nav_styles()
     
     return render_template('timetables/index.html',

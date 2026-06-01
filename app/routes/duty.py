@@ -521,7 +521,12 @@ def my_day():
     if viewing_other:
         nav_header = get_nav_header("My Day", "/timetables/", "Back")
     else:
-        nav_header = get_nav_header("My Day", "/", "Home")
+        _from = request.args.get('from')
+        if _from == 'ops':
+            _back_url, _back_label = "/tools/", "Operations"
+        else:
+            _back_url, _back_label = "/", "Home"
+        nav_header = get_nav_header("My Day", _back_url, _back_label)
     nav_styles = get_nav_styles()
     
     return render_template('duty/my_day.html',

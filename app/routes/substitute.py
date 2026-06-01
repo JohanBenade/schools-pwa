@@ -881,6 +881,8 @@ def substitute_overview():
     # Build navigation
     if staff_filter:
         nav_header = get_nav_header("Substitute Overview", "/absences/teachers", "Back")
+    elif request.args.get('from') == 'ops':
+        nav_header = get_nav_header("Substitute Overview", "/tools/", "Operations")
     else:
         nav_header = get_nav_header("Substitute Overview", "/", "Home")
     nav_styles = get_nav_styles()
@@ -1242,8 +1244,10 @@ def mark_absent():
         """, (TENANT_ID,))
         all_staff = [dict(row) for row in cursor.fetchall()]
     
+    _back_url = '/tools/' if request.args.get('from') == 'ops' else '/'
     return render_template('substitute/mark_absent.html',
                           all_staff=all_staff,
+                          back_url=_back_url,
                           today=date.today().isoformat())
 
 
