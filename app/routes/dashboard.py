@@ -6,6 +6,7 @@ from flask import Blueprint, session, redirect, request
 from datetime import date
 from app.services.db import get_connection
 from app.services.nav import get_role_label
+from app.routes.duty import get_school_days_extended
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
@@ -337,14 +338,33 @@ def index():
                    (SELECT COUNT(*) FROM substitute_request sr WHERE sr.absence_id = a.id) as total_periods
             FROM absence a
             JOIN staff s ON a.staff_id = s.id
-            WHERE a.absence_date = ? AND a.tenant_id = ?
-              AND a.status != 'Resolved'
+            WHERE a.tenant_id = ?
+              AND a.absence_date <= ?
+              AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
+              AND a.status NOT IN ('Resolved', 'Cancelled')
             ORDER BY a.reported_at DESC
-        ''', (today_str, TENANT_ID))
+        ''', (TENANT_ID, today_str, today_str))
         absences = [dict(row) for row in cursor.fetchall()]
         
         total_absences = len(absences)
         gaps = sum(a['total_periods'] - a['covered_count'] for a in absences)
+        
+        # Look-ahead: distinct absences active across the next 4 SCHOOL days
+        # (school_days[1]..[4]), reusing My Day's weekend-skipping framework.
+        # Excludes absences already active today (day 1) to read as "additional".
+        _sdays = get_school_days_extended()
+        la_start = _sdays[1]['date'].isoformat()
+        la_end = _sdays[4]['date'].isoformat()
+        cursor.execute('''
+            SELECT COUNT(DISTINCT a.id)
+            FROM absence a
+            WHERE a.tenant_id = ?
+              AND a.absence_date <= ?
+              AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1)
+              AND NOT (a.absence_date <= ? AND (COALESCE(a.end_date, a.absence_date) >= ? OR a.is_open_ended = 1))
+              AND a.status NOT IN ('Resolved', 'Cancelled')
+        ''', (TENANT_ID, la_end, la_start, today_str, today_str))
+        lookahead_count = cursor.fetchone()[0]
         
         cursor.execute('''
             SELECT 
@@ -659,6 +679,7 @@ def index():
                 </div>
                 <div class="big-number">{total_absences}</div>
                 <div class="big-label">teacher{'s' if total_absences != 1 else ''} absent today</div>
+                {f'<div class="big-label" style="opacity:0.55;margin-top:2px;">+{lookahead_count} absent in next 4 school days</div>' if lookahead_count else ''}
                 {absences_html}
                 <a href="/substitute/overview" class="card-link">Substitute Overview →</a>
             </div>
