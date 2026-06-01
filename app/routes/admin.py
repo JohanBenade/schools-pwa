@@ -14,8 +14,11 @@ TENANT_ID = "MARAGON"
 
 def get_back_url_for_user():
     """Get appropriate back URL based on user role / ?from token."""
-    if request.args.get('from') == 'ops':
+    _f = request.args.get('from')
+    if _f == 'ops':
         return '/tools/', 'Operations'
+    if _f == 'dash':
+        return '/dashboard/', 'Dashboard'
     return '/', 'Home'
 
 
