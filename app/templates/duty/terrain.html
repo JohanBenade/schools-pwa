@@ -51,8 +51,8 @@
         
         <div class="week-header">
             <div class="week-toggle">
-                <a href="?week=current" class="{% if week_param != 'next' %}active{% endif %}">This Week</a>
-                <a href="?week=next" class="{% if week_param == 'next' %}active{% endif %}">Next Week</a>
+                <a href="?week=current{% if from_token %}&from={{ from_token }}{% endif %}" class="{% if week_param != 'next' %}active{% endif %}">This Week</a>
+                <a href="?week=next{% if from_token %}&from={{ from_token }}{% endif %}" class="{% if week_param == 'next' %}active{% endif %}">Next Week</a>
             </div>
             <h2>{{ week_label }}</h2>
         </div>

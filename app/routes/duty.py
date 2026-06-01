@@ -719,6 +719,7 @@ def terrain_roster():
     week_label = f"{monday.strftime('%d %b')} – {(monday + timedelta(days=4)).strftime('%d %b %Y')}"
     
     return render_template('duty/terrain.html',
+                          from_token=request.args.get('from',''),
                           grid=grid,
                           week_days=week_days,
                           breaks=breaks,
