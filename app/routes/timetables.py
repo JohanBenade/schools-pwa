@@ -2,7 +2,7 @@
 Timetables routes - Leadership view of any teacher's schedule
 """
 
-from flask import Blueprint, render_template, session, redirect
+from flask import Blueprint, render_template, session, redirect, request
 from app.services.db import get_connection
 from app.services.nav import get_nav_header, get_nav_styles
 
