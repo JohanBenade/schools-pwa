@@ -1,0 +1,116 @@
+name: AI Review
+
+# Advisory only. Reads the PR diff, asks Claude to review it against this
+# project's likely failure modes, and posts the result as a PR comment.
+# Does NOT block merge.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history so we can diff against main)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute diff against main
+        id: diff
+        run: |
+          git fetch origin main --depth=1
+          git diff origin/main...HEAD > /tmp/pr.diff
+          BYTES=$(wc -c < /tmp/pr.diff)
+          echo "diff_bytes=$BYTES" >> "$GITHUB_OUTPUT"
+
+      - name: Ask Claude to review
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, urllib.request
+
+          with open("/tmp/pr.diff", "r", errors="replace") as f:
+              diff = f.read()
+
+          MAX = 60000
+          truncated = ""
+          if len(diff) > MAX:
+              diff = diff[:MAX]
+              truncated = "\n\n[diff truncated at 60k chars -- review covers the shown portion only]"
+
+          if not diff.strip():
+              with open("/tmp/review.md", "w") as out:
+                  out.write("_AI Review: empty diff, nothing to review._")
+              raise SystemExit(0)
+
+          system = (
+              "You are a senior reviewer for a Flask/SQLite/HTMX school operations "
+              "PWA (attendance, rosters, mentor groups, sport duties). "
+              "Review ONLY the supplied diff. Be specific and terse. Do NOT restate "
+              "what the code does. Flag ONLY concrete issues, each as one bullet with "
+              "file:line and a one-line fix. Check, in priority order: "
+              "(1) SQL INSERT/UPDATE column lists that omit a column its sibling "
+              "statements include -- highest-priority bug class; "
+              "(2) UPDATE/DELETE statements missing a WHERE clause, or queries missing "
+              "a soft-delete / status / date filter that sibling queries apply; "
+              "(3) hardcoded values that should be derived (NOTHING stays hardcoded); "
+              "(4) non-ASCII characters in code; "
+              "(5) multi-line edits that look like they were done with sed (jammed lines, "
+              "duplicate lines); "
+              "(6) obvious logic errors, off-by-one, or unhandled None. "
+              "If you find nothing in a category, say nothing about it. "
+              "If the diff is clean, reply exactly: 'No issues found.' "
+              "End with one line: a risk rating LOW / MEDIUM / HIGH for merging."
+          )
+
+          payload = {
+              "model": "claude-opus-4-8",
+              "max_tokens": 1500,
+              "system": system,
+              "messages": [
+                  {"role": "user", "content": "Review this PR diff:\n\n" + diff}
+              ],
+          }
+
+          req = urllib.request.Request(
+              "https://api.anthropic.com/v1/messages",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "content-type": "application/json",
+                  "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                  "anthropic-version": "2023-06-01",
+              },
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=120) as resp:
+                  data = json.loads(resp.read().decode("utf-8"))
+              text = "".join(
+                  b.get("text", "") for b in data.get("content", [])
+                  if b.get("type") == "text"
+              ).strip() or "_AI Review: empty response._"
+          except Exception as e:
+              text = "_AI Review skipped (API error): " + str(e) + "_"
+
+          with open("/tmp/review.md", "w") as out:
+              out.write("## AI Review (advisory -- not a merge gate)\n\n")
+              out.write(text)
+              out.write(truncated)
+          PYEOF
+
+      - name: Post review as PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr comment "$PR" --repo "$REPO" --body-file /tmp/review.md
