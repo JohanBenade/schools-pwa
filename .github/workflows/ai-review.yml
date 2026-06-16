@@ -24,7 +24,7 @@ jobs:
       - name: Compute diff against main
         id: diff
         run: |
-          git fetch origin main --depth=1
+          git fetch origin main
           git diff origin/main...HEAD > /tmp/pr.diff
           BYTES=$(wc -c < /tmp/pr.diff)
           echo "diff_bytes=$BYTES" >> "$GITHUB_OUTPUT"
