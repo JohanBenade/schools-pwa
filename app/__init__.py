@@ -22,6 +22,9 @@ def create_app():
     app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
     from datetime import timedelta
     app.permanent_session_lifetime = timedelta(days=365)
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     
     from app.routes.attendance import attendance_bp
     from app.routes.admin import admin_bp
