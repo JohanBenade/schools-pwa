@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Class Register - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px 20px 100px; color: white; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding-top: 10px; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 14px; }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .context { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .context-sub { font-size: 13px; opacity: 0.65; margin-bottom: 16px; }
+        .summary { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; }
+        .summary-stat { text-align: center; }
+        .summary-stat .number { font-size: 28px; font-weight: 700; }
+        .summary-stat .number.present { color: #4ade80; }
+        .summary-stat .number.out { color: #f87171; }
+        .summary-stat .label { font-size: 12px; opacity: 0.7; }
+        .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.55; margin: 4px 2px 8px; }
+        .learner-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(248,113,113,0.12); border-radius: 8px; margin-bottom: 6px; }
+        .learner-row .name { font-size: 15px; font-weight: 500; flex: 1; }
+        .pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+        .pill.out { background: rgba(248,113,113,0.25); color: #fca5a5; }
+        .pill.late { background: rgba(251,191,36,0.22); color: #fcd34d; }
+        .pill.other { background: rgba(148,163,184,0.25); color: #cbd5e1; }
+        .reason { font-size: 12px; opacity: 0.7; margin: -2px 2px 8px 12px; }
+        details.in-class { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 0; margin-top: 16px; overflow: hidden; }
+        details.in-class > summary { list-style: none; cursor: pointer; padding: 14px 16px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        details.in-class > summary::-webkit-details-marker { display: none; }
+        details.in-class > summary .chev { margin-left: auto; opacity: 0.5; transition: transform 0.15s; }
+        details.in-class[open] > summary .chev { transform: rotate(90deg); }
+        details.in-class > summary .check { color: #4ade80; }
+        .in-list { padding: 0 16px 12px; }
+        .in-row { padding: 8px 0; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+        .all-present { text-align: center; padding: 40px 20px; }
+        .all-present .big-check { font-size: 40px; color: #4ade80; display: block; margin-bottom: 12px; }
+        .all-present p { font-size: 16px; }
+        .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
+        .empty-state p { font-size: 16px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{{ back_url }}" class="back-link">← {{ back_label }}</a>
+        <h1>Class Register</h1>
+    </div>
+
+    {% if total == 0 %}
+    <div class="empty-state">
+        <p>No learners found</p>
+        <span>No enrolment for {{ class_name }} ({{ subject }})</span>
+    </div>
+    {% else %}
+    <div class="context">{{ class_name }}{% if period_label %} &bull; {{ period_label }}{% endif %}{% if period_time %} &bull; {{ period_time }}{% endif %}</div>
+    <div class="context-sub">{{ subject }} &bull; {{ display_date }}</div>
+
+    <div class="summary">
+        <div class="summary-stat">
+            <div class="number present">{{ present_count }}</div>
+            <div class="label">In class</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number out">{{ exception_count }}</div>
+            <div class="label">Out</div>
+        </div>
+    </div>
+
+    {% if exceptions|length == 0 %}
+    <div class="all-present">
+        <span class="big-check">&#10003;</span>
+        <p>All {{ total }} learners present</p>
+    </div>
+    {% else %}
+    <div class="section-label">Not in class</div>
+    {% for lr in exceptions %}
+    <div class="learner-row">
+        <span class="name">{{ lr.first_name }} {{ lr.surname }}</span>
+        {% if lr.status == 'Absent' %}
+        <span class="pill out">Out</span>
+        {% elif lr.status == 'Late' %}
+        <span class="pill late">Late</span>
+        {% else %}
+        <span class="pill other">{{ lr.status }}</span>
+        {% endif %}
+    </div>
+    {% if lr.notes %}<div class="reason">{{ lr.notes }}</div>{% endif %}
+    {% endfor %}
+    {% endif %}
+
+    {% if in_class|length > 0 %}
+    <details class="in-class">
+        <summary><span class="check">&#10003;</span> In class &bull; {{ in_class|length }}<span class="chev">&#8250;</span></summary>
+        <div class="in-list">
+            {% for lr in in_class %}
+            <div class="in-row">{{ lr.first_name }} {{ lr.surname }}</div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+    {% endif %}
+</body>
+</html>
