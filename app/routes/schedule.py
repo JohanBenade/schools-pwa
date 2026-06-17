@@ -87,7 +87,7 @@ def _calendar_row(conn, the_date):
     """Return the school_calendar row dict for a date, or None."""
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM school_calendar WHERE tenant_id = ? AND date = ?",
+        "SELECT id, tenant_id, date, cycle_day, day_type, day_name, weekday, bell_schedule, is_school_day, term, notes, created_at FROM school_calendar WHERE tenant_id = ? AND date = ?",
         (TENANT_ID, the_date),
     )
     row = cursor.fetchone()
@@ -99,7 +99,7 @@ def _next_school_day(conn, after_date):
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT * FROM school_calendar
+        SELECT id, tenant_id, date, cycle_day, day_type, day_name, weekday, bell_schedule, is_school_day, term, notes, created_at FROM school_calendar
         WHERE tenant_id = ? AND date > ? AND is_school_day = 1
         ORDER BY date ASC
         LIMIT 1
@@ -138,6 +138,7 @@ def index():
         today_display=today_display,
         next_day=next_day,
         bell=bell,
+        date_known=(today_row is not None),
         nav_header=nav_header,
         nav_styles=nav_styles,
     )
