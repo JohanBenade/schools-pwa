@@ -131,7 +131,7 @@ def create_app():
                     FROM user_session us
                     LEFT JOIN staff_venue sv ON us.staff_id = sv.staff_id
                     LEFT JOIN venue v ON sv.venue_id = v.id
-                    WHERE us.magic_code = ? AND us.tenant_id = ?
+                    WHERE us.magic_code = ? AND us.tenant_id = ? AND us.is_active = 1
                 """, (magic_code.lower(), TENANT_ID))
                 row = cursor.fetchone()
                 if row:
@@ -143,6 +143,27 @@ def create_app():
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
             return redirect(request.path)
+    
+    @app.before_request
+    def enforce_active_session():
+        # Immediate revocation: if a logged-in user has been deactivated,
+        # clear their session on their very next request and bounce to gate.
+        if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
+            return
+        staff_id = session.get('staff_id')
+        if not staff_id:
+            return
+        from app.services.db import get_connection
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM user_session WHERE staff_id = ? AND tenant_id = ? AND is_active = 1 LIMIT 1",
+                (staff_id, TENANT_ID)
+            )
+            active = cursor.fetchone()
+        if active is None:
+            session.clear()
+            return redirect('/gate')
     
     @app.context_processor
     def inject_user():
@@ -235,7 +256,7 @@ def create_app():
                     FROM user_session us
                     LEFT JOIN staff_venue sv ON us.staff_id = sv.staff_id
                     LEFT JOIN venue v ON sv.venue_id = v.id
-                    WHERE us.magic_code = ? AND us.tenant_id = ?
+                    WHERE us.magic_code = ? AND us.tenant_id = ? AND us.is_active = 1
                 """, (code, TENANT_ID))
                 row = cursor.fetchone()
                 if row:
