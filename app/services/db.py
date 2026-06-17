@@ -870,6 +870,12 @@ def run_pending_migrations():
         apply_migration_011()
     except Exception as e:
         print(f"Migration 011 check: {e}")
+
+    try:
+        from app.services.apply_migration_012 import apply_migration as apply_migration_012
+        apply_migration_012()
+    except Exception as e:
+        print(f"Migration 012 check: {e}")
     
     try:
         from app.services.seed_sport_events import seed_sport_events
