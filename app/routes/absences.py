@@ -11,6 +11,7 @@ TENANT_ID = "MARAGON"
 
 BACK_REGISTRY = {
     "ops":        ("/tools/",     "Operations"),
+    "my-day":     ("/duty/my-day", "My Day"),
     "dash":       ("/dashboard/", "Dashboard"),
     "staff":      ("/",           "Home"),
     "office":     ("/",           "Home"),
