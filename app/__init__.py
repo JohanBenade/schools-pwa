@@ -37,6 +37,7 @@ def create_app():
     from app.routes.sport import sport_bp
     from app.routes.absences import absences_bp
     from app.routes.timetables import timetables_bp
+    from app.routes.schedule import schedule_bp
     from app.routes.terrain_admin import terrain_admin_bp
     
     app.register_blueprint(attendance_bp)
@@ -50,6 +51,7 @@ def create_app():
     app.register_blueprint(sport_bp)
     app.register_blueprint(absences_bp)
     app.register_blueprint(timetables_bp)
+    app.register_blueprint(schedule_bp)
     app.register_blueprint(terrain_admin_bp)
     
     @app.before_request

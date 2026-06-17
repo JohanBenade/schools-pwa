@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bell Times - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 20px; color: #1E293B; }
+        .container { max-width: 900px; margin: 0 auto; }
+        {{ nav_styles }}
+
+        .schedules { display: grid; grid-template-columns: 1fr; gap: 18px; }
+        @media (min-width: 768px) { .schedules { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+
+        .sched-card { background: #FFFFFF; border-radius: 16px; padding: 18px; box-shadow: 0 4px 14px rgba(30,64,175,0.10); }
+        .sched-label { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .sched-type { font-size: 12px; font-weight: 600; color: #2563EB; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+
+        .rows { display: flex; flex-direction: column; gap: 2px; }
+        .row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 10px; border-radius: 9px; font-size: 14px; }
+        .row:nth-child(odd) { background: #F8FAFC; }
+        .row.is-break { background: #FFF7ED; }
+        .name { font-weight: 600; }
+        .row.is-break .name { color: #C2410C; }
+        .time { color: #475569; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+
+        <div class="schedules">
+            {% for s in schedules %}
+            <div class="sched-card">
+                <div class="sched-label">{{ s.label }}</div>
+                <div class="sched-type">{{ s.type|replace('type_', 'Schedule ')|upper }}</div>
+                <div class="rows">
+                    {% for name, start, end in s.slots %}
+                    <div class="row {{ 'is-break' if name in ['Break', 'Rec Time'] else '' }}">
+                        <span class="name">{{ name }}</span>
+                        <span class="time">{{ start }} - {{ end }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
