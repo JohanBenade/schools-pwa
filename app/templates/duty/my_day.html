@@ -358,6 +358,25 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        {% if can_revoke %}
+        <div style="margin-top: 24px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;">
+            <div style="font-size: 13px; color: #94a3b8; margin-bottom: 4px;">Access status</div>
+            {% if viewed_is_active %}
+            <div style="font-size: 15px; color: #4ade80; font-weight: 600; margin-bottom: 12px;">● Active</div>
+            <form method="POST" action="/duty/toggle-access" onsubmit="return confirm('Revoke access for {{ viewing_name }}? They will be signed out immediately and cannot log in until access is restored.');">
+                <input type="hidden" name="staff_id" value="{{ viewed_staff_id }}">
+                <button type="submit" style="width: 100%; padding: 14px; background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Revoke access</button>
+            </form>
+            {% else %}
+            <div style="font-size: 15px; color: #f87171; font-weight: 600; margin-bottom: 12px;">● Revoked</div>
+            <form method="POST" action="/duty/toggle-access">
+                <input type="hidden" name="staff_id" value="{{ viewed_staff_id }}">
+                <button type="submit" style="width: 100%; padding: 14px; background: #14532d; color: #bbf7d0; border: 1px solid #15803d; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Restore access</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <div class="modal-overlay" id="declineModal">
