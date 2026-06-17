@@ -1071,3 +1071,43 @@ def my_terrain():
                           days_count=days_count,
                           nav_header=nav_header,
                           nav_styles=nav_styles)
+
+
+@duty_bp.route('/toggle-access', methods=['POST'])
+def toggle_access():
+    """Leadership revoke/restore another user's access (flips is_active)."""
+    # --- Guard 1: viewer must be privileged ---
+    viewer_role = session.get('role')
+    viewer_staff_id = session.get('staff_id')
+    if viewer_role not in ('principal', 'deputy', 'admin', 'management'):
+        return redirect('/')
+
+    target_staff_id = request.form.get('staff_id', '').strip()
+    if not target_staff_id:
+        return redirect('/timetables/?from=ops')
+
+    # --- Guard 2: cannot revoke self ---
+    if target_staff_id == viewer_staff_id:
+        return redirect(f'/duty/my-day?staff={target_staff_id}&from=ops')
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Read target's current role + active state (tenant-scoped)
+        cursor.execute(
+            "SELECT role, is_active FROM user_session WHERE staff_id = ? AND tenant_id = ? LIMIT 1",
+            (target_staff_id, TENANT_ID)
+        )
+        row = cursor.fetchone()
+        # --- Guard 3: target must exist, and must not be an admin ---
+        if not row or row['role'] == 'admin':
+            return redirect(f'/duty/my-day?staff={target_staff_id}&from=ops')
+
+        # Flip is_active (1 -> 0 revoke, 0 -> 1 restore)
+        new_state = 0 if row['is_active'] == 1 else 1
+        cursor.execute(
+            "UPDATE user_session SET is_active = ? WHERE staff_id = ? AND tenant_id = ?",
+            (new_state, target_staff_id, TENANT_ID)
+        )
+        conn.commit()
+
+    return redirect(f'/duty/my-day?staff={target_staff_id}&from=ops')
