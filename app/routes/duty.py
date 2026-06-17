@@ -61,6 +61,10 @@ def my_day():
     viewing_other = False
     viewing_name = None
     
+    # Revoke-access state (only populated when leadership views another user)
+    viewed_role = None
+    viewed_is_active = None
+
     if staff_override:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -70,6 +74,15 @@ def my_day():
                 staff_id = row['id']
                 viewing_other = True
                 viewing_name = row['display_name']
+                # Pull the viewed user's role + active state for the revoke control
+                cursor.execute(
+                    "SELECT role, is_active FROM user_session WHERE staff_id = ? AND tenant_id = ? LIMIT 1",
+                    (staff_id, TENANT_ID)
+                )
+                us_row = cursor.fetchone()
+                if us_row:
+                    viewed_role = us_row['role']
+                    viewed_is_active = us_row['is_active']
             else:
                 return redirect('/timetables/')
     else:
@@ -559,6 +572,15 @@ def my_day():
                           extend_default=extend_default,
                           viewing_other=viewing_other,
                           viewing_name=viewing_name,
+                          can_revoke=(
+                              viewing_other
+                              and session.get('role') in ('principal', 'deputy', 'admin', 'management')
+                              and staff_id != session.get('staff_id')
+                              and viewed_role is not None
+                              and viewed_role != 'admin'
+                          ),
+                          viewed_is_active=viewed_is_active,
+                          viewed_staff_id=staff_id,
                           today_str=date.today().isoformat())
 
 
