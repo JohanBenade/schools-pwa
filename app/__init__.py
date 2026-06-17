@@ -74,7 +74,8 @@ def create_app():
         magic_code = request.args.get('u', '') or request.form.get('u', '')
         if request.method == 'POST':
             password = request.form.get('password', '')
-            if password == 'maragon2026':
+            expected = os.environ.get('GATE_PASSWORD')
+            if expected and password == expected:
                 session['gate_passed'] = True
                 if magic_code:
                     return redirect(f'/?u={magic_code}')
