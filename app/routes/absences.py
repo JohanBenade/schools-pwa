@@ -2,7 +2,7 @@
 Absences Module - Teacher and Learner absence tracking for leadership
 """
 from flask import Blueprint, render_template, session, redirect, request
-from app.services.db import get_connection, get_whos_out_by_period
+from app.services.db import get_connection, get_whos_out_by_period, get_period_roster
 from datetime import datetime, date, timedelta
 
 absences_bp = Blueprint('absences', __name__, url_prefix='/absences')
@@ -238,4 +238,49 @@ def my_periods():
                            today_display=today_display,
                            total_absent=total_absent,
                            no_school_day=False,
+                           back_url=back_url, back_label=back_label)
+
+
+@absences_bp.route('/class-register')
+def class_register():
+    """Full roster for one period's class+subject: who's in, who's out.
+
+    Read-only. Exceptions-first; full in-class list collapsed in the template.
+    Reached from My Day (teaching/sub period tap). class_name + subject identify
+    the roster, so it resolves the same set regardless of who views it (covers
+    the substitute case automatically).
+    """
+    class_name = request.args.get('class', '').strip()
+    subject = request.args.get('subject', '').strip()
+    if not class_name or not subject:
+        return redirect('/duty/my-day')
+
+    date_str = request.args.get('date', '').strip() or date.today().isoformat()
+    try:
+        display_date = date.fromisoformat(date_str).strftime('%a %d %b')
+    except ValueError:
+        date_str = date.today().isoformat()
+        display_date = date.today().strftime('%a %d %b')
+
+    period_label = request.args.get('period', '').strip()
+    period_time = request.args.get('time', '').strip()
+    back_url, back_label = resolve_sub_back()
+
+    roster = get_period_roster(class_name, subject, date_str, TENANT_ID)
+
+    # Split exceptions (not Present) from the in-class (Present) list.
+    exceptions = [lr for lr in roster['learners'] if lr['status'] != 'Present']
+    in_class = [lr for lr in roster['learners'] if lr['status'] == 'Present']
+
+    return render_template('absences/class_register.html',
+                           class_name=class_name,
+                           subject=subject,
+                           period_label=period_label,
+                           period_time=period_time,
+                           display_date=display_date,
+                           total=roster['total'],
+                           present_count=roster['present_count'],
+                           exception_count=roster['exception_count'],
+                           exceptions=exceptions,
+                           in_class=in_class,
                            back_url=back_url, back_label=back_label)
