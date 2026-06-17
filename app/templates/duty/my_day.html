@@ -324,6 +324,13 @@
             {% else %}
             <div class="slot {% if slot.is_duty %}is-duty{% endif %} {% if slot.is_sub %}is-sub{% endif %} {% if slot.is_free %}is-free{% endif %} {% if slot.is_free_occupied %}is-free-occupied{% endif %} {% if slot.slot_type == 'break' and not slot.is_duty %}is-break{% endif %}">
                 <div class="slot-time">{{ slot.start_time }}</div>
+                {% set is_register_link = slot.class_name and slot.subject and current_tab == today_str %}
+                {% if is_register_link %}
+                <a href="/absences/class-register?class={{ slot.class_name|urlencode }}&subject={{ slot.subject|urlencode }}&date={{ today_str }}&period={{ slot.slot_name|urlencode }}&time={{ slot.start_time }}&from=my-day" class="slot-content" style="text-decoration:none; color:inherit; flex:1;">
+                    <div class="slot-name">{{ slot.slot_name }}</div>
+                    <div class="slot-detail">{{ slot.content or '—' }}</div>
+                </a>
+                {% else %}
                 <div class="slot-content">
                     <div class="slot-name">{{ slot.slot_name }}</div>
                     <div class="slot-detail">
@@ -339,6 +346,7 @@
                     <div class="room-label">📍 {{ slot.room_occupant }} in your room</div>
                     {% endif %}
                 </div>
+                {% endif %}
                 {% if slot.badge %}
                 <span class="badge badge-{{ slot.badge_color }}">{{ slot.badge }}</span>
                 {% endif %}

@@ -461,11 +461,15 @@ def my_day():
                     item['badge_color'] = 'orange'
                     item['is_sub'] = True
                     item['request_id'] = sub['id']
+                    item['class_name'] = sub.get('class_name', '')
+                    item['subject'] = sub.get('subject', '')
                 elif p_num and p_num in teaching_slots:
                     # Normal teaching
                     ts = teaching_slots[p_num]
                     venue = ts.get('venue_code') or 'TBC'
                     item['content'] = f"{ts.get('class_name', '')} {ts.get('subject', '')} • {venue}"
+                    item['class_name'] = ts.get('class_name', '')
+                    item['subject'] = ts.get('subject', '')
                 else:
                     # Free period - check if room is occupied
                     if p_num and p_num in room_occupants:
