@@ -968,3 +968,57 @@ def get_whos_out_by_period(staff_id: str, date_str: str, cycle_day: int, tenant_
             })
 
         return result
+
+
+def get_period_roster(class_name: str, subject: str, date_str: str, tenant_id: str = "MARAGON") -> dict:
+    """Full roster for ONE period's class+subject on a given date.
+
+    Same enrolment spine as get_whos_out_by_period (learner_subject by
+    class_name + subject), widened to EVERY enrolled learner with their status,
+    not only absentees.
+
+    Join shape: attendance_entry is matched to each learner via a
+    subquery-scoped attendance_id (the register(s) for this tenant+date), so the
+    result stays constrained to the enrolled class - one row per enrolled
+    learner, no fan-out. A learner with no entry resolves to 'Unmarked'.
+    notes carried through (empty today; reason-capture epic fills it later).
+
+    PROVEN against production 2026-06-17 (Gr8 SM / Arts and Culture):
+    25 learners, 22 Present / 3 Absent, zero phantom rows.
+
+    Returns:
+        {
+          'learners': [ {id, first_name, surname, status, notes}, ... ]  # ASC first_name
+          'total': int,
+          'present_count': int,
+          'exception_count': int,    # anyone not 'Present'
+        }
+    """
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT l.id, l.first_name, l.surname,
+                   COALESCE(ae.status, 'Unmarked') AS status,
+                   ae.notes AS notes
+            FROM learner_subject ls
+            JOIN learner l ON ls.learner_id = l.id
+            LEFT JOIN attendance_entry ae
+                   ON ae.learner_id = l.id
+                  AND ae.attendance_id IN (
+                        SELECT id FROM attendance
+                        WHERE tenant_id = ls.tenant_id AND date = ?
+                      )
+            WHERE ls.class_name = ? AND ls.subject = ? AND ls.is_active = 1
+              AND ls.tenant_id = ?
+            ORDER BY l.first_name, l.surname
+        """, (date_str, class_name, subject, tenant_id)).fetchall()
+
+        learners = [dict(r) for r in rows]
+        present_count = sum(1 for lr in learners if lr['status'] == 'Present')
+        total = len(learners)
+        return {
+            'learners': learners,
+            'total': total,
+            'present_count': present_count,
+            'exception_count': total - present_count,
+        }
+
