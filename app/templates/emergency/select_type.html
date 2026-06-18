@@ -72,6 +72,7 @@
         
         <div class="type-grid">
             <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="alert_type" value="Medical">
                 <button type="submit" class="type-btn medical">
                     <span class="icon">🏥</span>
@@ -80,6 +81,7 @@
             </form>
             
             <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="alert_type" value="Security">
                 <button type="submit" class="type-btn security">
                     <span class="icon">🚨</span>
@@ -88,6 +90,7 @@
             </form>
             
             <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="alert_type" value="Fire">
                 <button type="submit" class="type-btn fire">
                     <span class="icon">🔥</span>
@@ -96,6 +99,7 @@
             </form>
             
             <form action="/emergency/trigger" method="POST" style="display:contents;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="alert_type" value="General">
                 <button type="submit" class="type-btn general">
                     <span class="icon">⚡</span>

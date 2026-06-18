@@ -181,6 +181,7 @@
             </div>
             
             <form method="POST" action="{{ url_for('substitute.early_return') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="absence_id" value="{{ active_absence.id }}">
                 
                 <div class="form-group">
@@ -204,7 +205,7 @@
             </div>
             
             <form method="POST" action="{{ url_for('substitute.report_absence') }}" id="absenceForm"
-                  hx-post="{{ url_for('substitute.report_absence') }}"
+                  hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}' hx-post="{{ url_for('substitute.report_absence') }}"
                   hx-target="#reportCard"
                   hx-swap="outerHTML">
                 <div class="form-group">

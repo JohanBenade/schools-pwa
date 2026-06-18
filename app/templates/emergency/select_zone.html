@@ -153,6 +153,7 @@
         
         {% if default_venue_name %}
         <form action="/emergency/send-default" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="venue_id" value="{{ default_venue_id or '' }}">
             <input type="hidden" name="venue_name" value="{{ default_venue_name }}">
             <button type="submit" class="quick-send">

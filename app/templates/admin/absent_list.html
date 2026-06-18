@@ -105,12 +105,14 @@
                             {% if not entry.advtech_captured %}
                             <div class="flex gap-2">
                                 <form method="post" action="/admin/capture/{{ entry.id }}" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="date" value="{{ target_date }}">
                                     <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
                                         Capture
                                     </button>
                                 </form>
                                 <form method="post" action="/admin/override/{{ entry.id }}" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="date" value="{{ target_date }}">
                                     <input type="hidden" name="learner_page_id" value="{{ entry.learner_page_id }}">
                                     <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded text-xs font-medium">

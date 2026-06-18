@@ -167,6 +167,7 @@
             <h2>Decline Duty</h2>
             <p id="declineInfo"></p>
             <form id="declineForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="/duty/my-terrain">
                 <textarea name="reason" rows="3" placeholder="Reason for declining (optional)"></textarea>
                 <div class="modal-buttons">

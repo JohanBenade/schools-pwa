@@ -101,10 +101,13 @@ async function getAndSaveToken() {
     if (token) {
       console.log('FCM Token:', token);
       
+      const _m = document.querySelector('meta[name=csrf-token]');
+      if (!_m || !_m.content) { console.error('CSRF token missing - aborting push registration'); return false; }
       const response = await fetch('/push/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': _m.content,
         },
         body: JSON.stringify({ token: token })
       });
