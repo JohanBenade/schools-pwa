@@ -137,6 +137,7 @@
         {% endif %}
         
         <form action="/emergency/resolve" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="section-title">Resolution Type</div>
             <div class="resolution-options">
                 <label class="resolution-option selected" onclick="selectOption(this)">

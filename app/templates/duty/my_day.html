@@ -205,6 +205,7 @@
                 <h3 style="margin-bottom:4px; font-size:18px;" id="confirmTitle"></h3>
                 <p style="opacity:0.6; font-size:14px; margin-bottom:20px;" id="confirmSubtitle"></p>
                 <form method="POST" id="confirmForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="absence_id" id="confirmAbsenceId">
                     <input type="hidden" name="return_date" id="confirmReturnDate">
                     <div style="display:flex; gap:10px;">
@@ -226,6 +227,7 @@
                 <h3 style="margin-bottom:4px; font-size:18px;">Extend Absence</h3>
                 <p style="opacity:0.6; font-size:14px; margin-bottom:16px;">Push your return date out further</p>
                 <form method="POST" action="/substitute/extend">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="absence_id" value="{{ absence_id }}">
                     <label style="font-size:13px; opacity:0.7; display:block; margin-bottom:6px;">New last day absent:</label>
                     <input type="date" name="new_end_date" min="{{ extend_default or absence_end or absence_start }}"
@@ -365,12 +367,14 @@
             {% if viewed_is_active %}
             <div style="font-size: 15px; color: #4ade80; font-weight: 600; margin-bottom: 12px;">● Active</div>
             <form method="POST" action="/duty/toggle-access" onsubmit="return confirm('Revoke access for {{ viewing_name }}? They will be signed out immediately and cannot log in until access is restored.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="staff_id" value="{{ viewed_staff_id }}">
                 <button type="submit" style="width: 100%; padding: 14px; background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Revoke access</button>
             </form>
             {% else %}
             <div style="font-size: 15px; color: #f87171; font-weight: 600; margin-bottom: 12px;">● Revoked</div>
             <form method="POST" action="/duty/toggle-access">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="staff_id" value="{{ viewed_staff_id }}">
                 <button type="submit" style="width: 100%; padding: 14px; background: #14532d; color: #bbf7d0; border: 1px solid #15803d; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Restore access</button>
             </form>
@@ -384,6 +388,7 @@
             <h2>Decline Assignment</h2>
             <p id="declineInfo"></p>
             <form id="declineForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="/duty/my-day?tab={{ current_tab }}">
                 <textarea name="reason" rows="3" placeholder="Reason for declining" required></textarea>
                 <div class="modal-buttons">

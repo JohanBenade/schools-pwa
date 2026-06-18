@@ -160,6 +160,7 @@
             <h2>Decline Assignment</h2>
             <p id="declineInfo"></p>
             <form id="declineForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="/substitute/sub-duties">
                 <textarea name="reason" rows="3" placeholder="Reason for declining" required></textarea>
                 <div class="modal-buttons">

@@ -3,6 +3,7 @@ SchoolOps Flask Application
 """
 from flask import Flask, session, request, redirect, render_template
 from dotenv import load_dotenv
+from flask_wtf import CSRFProtect
 import os
 
 load_dotenv()
@@ -25,6 +26,8 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['WTF_CSRF_TIME_LIMIT'] = None  # token valid for session lifetime (365d sessions)
+    csrf = CSRFProtect(app)
     
     from app.routes.attendance import attendance_bp
     from app.routes.admin import admin_bp
@@ -270,5 +273,7 @@ def create_app():
                     return redirect('/')
         return redirect('/?error=invalid')
 
+    csrf.exempt(password_gate)   # pre-auth: shared-secret gate, no session to forge
+    csrf.exempt(login_code)      # pre-auth: magic-code login, runs before user session
     return app
 

@@ -23,6 +23,7 @@
 <div style="margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;">Select Venue</div>
 
 <form action="/emergency/send" method="POST" id="venue-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% for venue in venues %}
 <label class="venue-option" onclick="selectVenue(this)">
     <input type="radio" name="venue_id" value="{{ venue.id }}" required>

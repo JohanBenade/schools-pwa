@@ -79,6 +79,7 @@
         {% if is_coordinator %}
         <div class="section-title">Add Duty Assignment</div>
         <form class="add-form" action="/sport/coordination/event/{{ event.id }}/add-duty" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <label>Teacher *</label>
                 <input type="hidden" name="staff_id" id="staffId" required>
@@ -143,6 +144,7 @@
                     </div>
                     {% if is_coordinator %}
                     <form action="/sport/coordination/duty/{{ duty.id }}/remove" method="POST" onsubmit="return confirm('Remove {{ duty.display_name }} from {{ group.type }}?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-danger">Remove</button>
                     </form>
                     {% endif %}

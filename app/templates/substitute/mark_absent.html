@@ -214,7 +214,7 @@
                 </div>
                 
                 <form method="POST" action="{{ url_for('substitute.mark_absent_submit') }}" id="absenceForm"
-                      hx-post="{{ url_for('substitute.mark_absent_submit') }}"
+                      hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}' hx-post="{{ url_for('substitute.mark_absent_submit') }}"
                       hx-target="#markAbsentCard"
                       hx-swap="outerHTML">
                     <input type="hidden" name="staff_id" id="staffIdInput">

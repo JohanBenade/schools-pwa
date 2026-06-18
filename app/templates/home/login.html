@@ -33,6 +33,7 @@
         {% endif %}
         <p class="prompt">Enter your personal code</p>
         <form method="POST" action="/login-code">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="code" placeholder="e.g. pierre" autofocus autocomplete="off" autocapitalize="none" spellcheck="false">
             <button type="submit">Login</button>
         </form>

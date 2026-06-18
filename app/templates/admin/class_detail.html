@@ -64,18 +64,21 @@
                         <div class="flex items-center gap-2">
                             <!-- Status buttons -->
                             <form action="{{ url_for('admin.override_status', entry_id=e.entry_id) }}" method="POST" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
                                 <input type="hidden" name="return_to" value="class">
                                 <input type="hidden" name="status" value="Present">
                                 <button type="submit" class="px-2 py-1 rounded text-xs {% if e.status == 'Present' %}bg-green-600 text-white{% else %}bg-green-100 text-green-700 hover:bg-green-200{% endif %}">P</button>
                             </form>
                             <form action="{{ url_for('admin.override_status', entry_id=e.entry_id) }}" method="POST" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
                                 <input type="hidden" name="return_to" value="class">
                                 <input type="hidden" name="status" value="Absent">
                                 <button type="submit" class="px-2 py-1 rounded text-xs {% if e.status == 'Absent' %}bg-red-600 text-white{% else %}bg-red-100 text-red-700 hover:bg-red-200{% endif %}">A</button>
                             </form>
                             <form action="{{ url_for('admin.override_status', entry_id=e.entry_id) }}" method="POST" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
                                 <input type="hidden" name="return_to" value="class">
                                 <input type="hidden" name="status" value="Late">
@@ -86,12 +89,14 @@
                             {% if e.status in ['Absent', 'Late'] %}
                             {% if e.stasy_captured %}
                             <form action="{{ url_for('admin.uncapture_entry', entry_id=e.entry_id) }}" method="POST" class="inline ml-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
                                 <input type="hidden" name="return_to" value="class">
                                 <button type="submit" class="px-2 py-1 rounded text-xs bg-green-600 text-white">✓ STASY</button>
                             </form>
                             {% else %}
                             <form action="{{ url_for('admin.capture_entry', entry_id=e.entry_id) }}" method="POST" class="inline ml-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
                                 <input type="hidden" name="return_to" value="class">
                                 <button type="submit" class="px-2 py-1 rounded text-xs bg-gray-200 text-gray-600 hover:bg-green-100">STASY</button>

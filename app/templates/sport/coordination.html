@@ -130,6 +130,7 @@
                     <div>
                         {% if event.is_unclaimed %}
                         <form action="/sport/coordination/claim/{{ event.id }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-claim">Claim</button>
                         </form>
                         {% else %}

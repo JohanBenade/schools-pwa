@@ -53,6 +53,7 @@
     
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
         <form action="{{ url_for('attendance.submit_attendance_route') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" id="submit-btn" disabled
                     class="w-full py-3 px-4 rounded-xl font-semibold transition-all
                            bg-gray-300 text-gray-500 cursor-not-allowed">
@@ -171,7 +172,7 @@ function markLearner(learnerId, status, clickedBtn) {
     
     fetch('/attendance/mark/' + learnerId, {
         method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content},
         body: 'status=' + status
     }).then(() => {
         if (typeof htmx !== 'undefined') {
