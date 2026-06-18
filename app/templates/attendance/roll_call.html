@@ -170,9 +170,11 @@ function markLearner(learnerId, status, clickedBtn) {
     // Track change in JavaScript (survives HTMX swaps)
     currentStatuses[learnerId] = status;
     
+    var _m = document.querySelector('meta[name=csrf-token]');
+    if (!_m || !_m.content) { console.error('CSRF token missing - aborting mark'); return; }
     fetch('/attendance/mark/' + learnerId, {
         method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content},
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': _m.content},
         body: 'status=' + status
     }).then(() => {
         if (typeof htmx !== 'undefined') {
