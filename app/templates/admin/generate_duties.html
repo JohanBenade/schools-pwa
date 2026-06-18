@@ -156,6 +156,7 @@
                 closeModal();
                 htmx.ajax('POST', '/admin/terrain/generate/confirm', {
                     target: '#preview-area',
+                    headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                     values: { start_date: startDate, end_date: endDate }
                 });
             };
@@ -173,6 +174,7 @@
                 closeModal();
                 htmx.ajax('POST', '/admin/terrain/generate/clear', {
                     target: '#preview-area',
+                    headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                     values: { start_date: startDate, end_date: endDate }
                 });
             };
