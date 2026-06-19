@@ -71,7 +71,7 @@ def get_teacher_schedule(staff_id, cycle_day):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT t.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   v.venue_code, v.venue_name
+                   p.sort_order, v.venue_code, v.venue_name
             FROM timetable_slot t
             JOIN period p ON t.period_id = p.id
             LEFT JOIN venue v ON t.venue_id = v.id
@@ -467,8 +467,42 @@ def process_absence(absence_id):
             # Get teachers already assigned on this specific date
             already_assigned_today = get_teachers_assigned_on_date(target_date)
             
+            # Teacher's teaching schedule for this cycle day (ordered by sort_order)
+            schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
+            
+            # === E-03 PARTIAL-DAY WINDOW RESOLUTION ===
+            # Window applies ONLY to a single-day partial absence. Multi-day = full
+            # days each (spec decision #5), so window is ignored when start != end.
+            is_single_day = (end_date == start_date)
+            window_start_sort = None
+            window_end_sort = None
+            if (absence['is_full_day'] == 0 and is_single_day
+                    and absence['start_period_id'] and absence['end_period_id']):
+                cursor.execute(
+                    "SELECT sort_order FROM period WHERE id = ?",
+                    (absence['start_period_id'],))
+                _ws = cursor.fetchone()
+                cursor.execute(
+                    "SELECT sort_order FROM period WHERE id = ?",
+                    (absence['end_period_id'],))
+                _we = cursor.fetchone()
+                if _ws and _we:
+                    window_start_sort = _ws['sort_order']
+                    window_end_sort = _we['sort_order']
+            
+            # First teaching slot's sort_order = threshold for "window includes register"
+            first_teaching_sort = schedule[0]['sort_order'] if schedule else None
+            
+            # Register is covered when full-day, OR the window starts at the day's
+            # first teaching period (teacher out from the start -> missed register).
+            cover_register = (
+                window_start_sort is None
+                or (first_teaching_sort is not None
+                    and window_start_sort <= first_teaching_sort)
+            )
+            
             # === MENTOR ROLL CALL ===
-            if absence['mentor_group_id']:
+            if absence['mentor_group_id'] and cover_register:
                 # New logic: Grade Backup -> Grade Head -> No Cover
                 cover = get_mentor_register_cover(absence['mentor_group_id'], target_date)
                 
@@ -522,9 +556,11 @@ def process_absence(absence_id):
                     }
             
                         # === TEACHING PERIODS ===
-            schedule = get_teacher_schedule(absence['staff_id'], cycle_day)
-            
             for slot in schedule:
+                # E-03: skip periods outside the partial-day window (if active)
+                if window_start_sort is not None and not (
+                        window_start_sort <= slot['sort_order'] <= window_end_sort):
+                    continue
                 period_result = {
                     'period_name': slot['period_name'],
                     'period_number': slot['period_number'],
