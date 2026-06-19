@@ -495,6 +495,11 @@ def process_absence(absence_id):
             
             # Register is covered when full-day, OR the window starts at the day's
             # first teaching period (teacher out from the start -> missed register).
+            # NOTE: window_start_sort and first_teaching_sort are BOTH teaching-period
+            # sort_orders (the form only offers is_teaching=1 periods), so they share
+            # one scale. The register's own (lower) sort_order is deliberately NOT the
+            # threshold - "window starts at the first teaching period" is the proxy for
+            # "teacher missed the register".
             cover_register = (
                 window_start_sort is None
                 or (first_teaching_sort is not None
@@ -558,8 +563,8 @@ def process_absence(absence_id):
                         # === TEACHING PERIODS ===
             for slot in schedule:
                 # E-03: skip periods outside the partial-day window (if active)
-                if window_start_sort is not None and not (
-                        window_start_sort <= slot['sort_order'] <= window_end_sort):
+                if (window_start_sort is not None and window_end_sort is not None
+                        and not (window_start_sort <= slot['sort_order'] <= window_end_sort)):
                     continue
                 period_result = {
                     'period_name': slot['period_name'],
