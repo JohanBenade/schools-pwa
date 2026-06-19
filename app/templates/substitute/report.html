@@ -309,8 +309,8 @@
         function nowHHMM(){ const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
         function defaultWindow(){
             if (!PERIODS.length) return {from:'08:00', to:'14:00'};
-            const firstStart = PERIODS[0].start_time;
-            const lastEnd = PERIODS[PERIODS.length-1].end_time;
+            const firstStart = PERIODS.reduce((m,p)=> p.start_time < m ? p.start_time : m, PERIODS[0].start_time);
+            const lastEnd = PERIODS.reduce((m,p)=> p.end_time > m ? p.end_time : m, PERIODS[0].end_time);
             const now = nowHHMM();
             // Start = later of {first teaching period start, now}; End = last period end
             const from = now > firstStart ? now : firstStart;
@@ -326,8 +326,9 @@
             for (let i=0;i<PERIODS.length;i++){ if (PERIODS[i].start_time < toT) exitIdx = i; }
             if (entryIdx === -1 || exitIdx === -1) return {error:'no_overlap'};
             if (entryIdx > exitIdx) return {error:'no_lesson_in_window'};
-            if (entryIdx === 0 && exitIdx === PERIODS.length-1
-                && fromT <= first.start_time && toT >= last.end_time){
+            const dayStart = PERIODS.reduce((m,p)=> p.start_time < m ? p.start_time : m, PERIODS[0].start_time);
+            const dayEnd = PERIODS.reduce((m,p)=> p.end_time > m ? p.end_time : m, PERIODS[0].end_time);
+            if (fromT <= dayStart && toT >= dayEnd){
                 return {is_full_day:1, start_period_id:'', end_period_id:''};
             }
             return {is_full_day:0, start_period_id:PERIODS[entryIdx].id, end_period_id:PERIODS[exitIdx].id};

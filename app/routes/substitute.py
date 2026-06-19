@@ -128,6 +128,22 @@ def report_absence():
     if is_full_day:
         start_period_id = None
         end_period_id = None
+    # E-03 Phase B hardening: validate client-supplied period ids server-side.
+    # If either id is not a real teaching period for this tenant, degrade to full day.
+    if start_period_id or end_period_id:
+        with get_connection() as _vconn:
+            _vc = _vconn.cursor()
+            _vc.execute(
+                "SELECT COUNT(*) FROM period "
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (?, ?)",
+                (TENANT_ID, start_period_id, end_period_id))
+            _valid = _vc.fetchone()[0]
+        # Need both ids to resolve to teaching periods (2 distinct, or 1 if equal).
+        _needed = 1 if start_period_id == end_period_id else 2
+        if _valid < _needed:
+            start_period_id = None
+            end_period_id = None
+            is_full_day = True
     
     # If open-ended, clear end_date
     if is_open_ended:
@@ -1291,6 +1307,22 @@ def mark_absent_submit():
     if is_full_day:
         start_period_id = None
         end_period_id = None
+    # E-03 Phase B hardening: validate client-supplied period ids server-side.
+    # If either id is not a real teaching period for this tenant, degrade to full day.
+    if start_period_id or end_period_id:
+        with get_connection() as _vconn:
+            _vc = _vconn.cursor()
+            _vc.execute(
+                "SELECT COUNT(*) FROM period "
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (?, ?)",
+                (TENANT_ID, start_period_id, end_period_id))
+            _valid = _vc.fetchone()[0]
+        # Need both ids to resolve to teaching periods (2 distinct, or 1 if equal).
+        _needed = 1 if start_period_id == end_period_id else 2
+        if _valid < _needed:
+            start_period_id = None
+            end_period_id = None
+            is_full_day = True
     
     # Create absence using existing function
     absence_id = create_absence_multiday(
