@@ -292,7 +292,7 @@
         const openEnded = document.getElementById('openEnded');
 
         // E-03 Phase B: partial-day window elements
-        const PERIODS = {{ periods|tojson }};
+        const PERIODS = ({{ periods|tojson }} || []).slice().sort((a,b)=> a.start_time < b.start_time ? -1 : (a.start_time > b.start_time ? 1 : 0));
         const isFullDay = document.getElementById('isFullDay');
         const startPeriodId = document.getElementById('startPeriodId');
         const endPeriodId = document.getElementById('endPeriodId');
@@ -320,7 +320,6 @@
         // ---- time -> bounding period ids (spec section 4) ----
         function mapWindow(fromT, toT){
             if (fromT >= toT) return {error:'from_after_to'};
-            const first = PERIODS[0], last = PERIODS[PERIODS.length-1];
             let entryIdx = PERIODS.findIndex(p => p.end_time > fromT);
             let exitIdx = -1;
             for (let i=0;i<PERIODS.length;i++){ if (PERIODS[i].start_time < toT) exitIdx = i; }

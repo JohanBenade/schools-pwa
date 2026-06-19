@@ -129,18 +129,19 @@ def report_absence():
         start_period_id = None
         end_period_id = None
     # E-03 Phase B hardening: validate client-supplied period ids server-side.
-    # If either id is not a real teaching period for this tenant, degrade to full day.
+    # Every distinct non-null id must be a real teaching period for this tenant;
+    # otherwise degrade to full day (safe: over-cover, never under-cover).
     if start_period_id or end_period_id:
+        _ids = list({pid for pid in (start_period_id, end_period_id) if pid})
+        _placeholders = ",".join("?" for _ in _ids)
         with get_connection() as _vconn:
             _vc = _vconn.cursor()
             _vc.execute(
                 "SELECT COUNT(*) FROM period "
-                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (?, ?)",
-                (TENANT_ID, start_period_id, end_period_id))
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (%s)" % _placeholders,
+                tuple([TENANT_ID] + _ids))
             _valid = _vc.fetchone()[0]
-        # Need both ids to resolve to teaching periods (2 distinct, or 1 if equal).
-        _needed = 1 if start_period_id == end_period_id else 2
-        if _valid < _needed:
+        if _valid < len(_ids):
             start_period_id = None
             end_period_id = None
             is_full_day = True
@@ -1308,18 +1309,19 @@ def mark_absent_submit():
         start_period_id = None
         end_period_id = None
     # E-03 Phase B hardening: validate client-supplied period ids server-side.
-    # If either id is not a real teaching period for this tenant, degrade to full day.
+    # Every distinct non-null id must be a real teaching period for this tenant;
+    # otherwise degrade to full day (safe: over-cover, never under-cover).
     if start_period_id or end_period_id:
+        _ids = list({pid for pid in (start_period_id, end_period_id) if pid})
+        _placeholders = ",".join("?" for _ in _ids)
         with get_connection() as _vconn:
             _vc = _vconn.cursor()
             _vc.execute(
                 "SELECT COUNT(*) FROM period "
-                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (?, ?)",
-                (TENANT_ID, start_period_id, end_period_id))
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (%s)" % _placeholders,
+                tuple([TENANT_ID] + _ids))
             _valid = _vc.fetchone()[0]
-        # Need both ids to resolve to teaching periods (2 distinct, or 1 if equal).
-        _needed = 1 if start_period_id == end_period_id else 2
-        if _valid < _needed:
+        if _valid < len(_ids):
             start_period_id = None
             end_period_id = None
             is_full_day = True
