@@ -122,6 +122,29 @@ def report_absence():
     end_date = request.form.get('end_date', start_date)
     is_open_ended = request.form.get('is_open_ended') == '1'
     is_full_day = request.form.get('is_full_day', '1') == '1'
+    # E-03 Phase B: partial-day window (single-day only). Empty -> None (full day).
+    start_period_id = request.form.get('start_period_id') or None
+    end_period_id = request.form.get('end_period_id') or None
+    if is_full_day:
+        start_period_id = None
+        end_period_id = None
+    # E-03 Phase B hardening: validate client-supplied period ids server-side.
+    # Every distinct non-null id must be a real teaching period for this tenant;
+    # otherwise degrade to full day (safe: over-cover, never under-cover).
+    if start_period_id or end_period_id:
+        _ids = list({pid for pid in (start_period_id, end_period_id) if pid})
+        _placeholders = ",".join("?" for _ in _ids)
+        with get_connection() as _vconn:
+            _vc = _vconn.cursor()
+            _vc.execute(
+                "SELECT COUNT(*) FROM period "
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (%s)" % _placeholders,
+                tuple([TENANT_ID] + _ids))
+            _valid = _vc.fetchone()[0]
+        if _valid < len(_ids):
+            start_period_id = None
+            end_period_id = None
+            is_full_day = True
     
     # If open-ended, clear end_date
     if is_open_ended:
@@ -134,7 +157,9 @@ def report_absence():
         is_open_ended=is_open_ended,
         absence_type=absence_type,
         reason=reason,
-        is_full_day=is_full_day
+        is_full_day=is_full_day,
+        start_period_id=start_period_id,
+        end_period_id=end_period_id
     )
     
     # Phase 1: absence created. Return the spinner interstitial INSTANTLY.
@@ -1243,10 +1268,20 @@ def mark_absent():
             ORDER BY display_name
         """, (TENANT_ID,))
         all_staff = [dict(row) for row in cursor.fetchall()]
+
+        # E-03 Phase B: teaching periods for the partial-day time->period mapping
+        cursor.execute("""
+            SELECT id, period_number, period_name, start_time, end_time
+            FROM period
+            WHERE tenant_id = ? AND is_teaching = 1
+            ORDER BY sort_order
+        """, (TENANT_ID,))
+        periods = [dict(row) for row in cursor.fetchall()]
     
     _back_url = '/tools/' if request.args.get('from') == 'ops' else '/'
     return render_template('substitute/mark_absent.html',
                           all_staff=all_staff,
+                          periods=periods,
                           back_url=_back_url,
                           today=date.today().isoformat())
 
@@ -1267,6 +1302,29 @@ def mark_absent_submit():
     start_date = request.form.get('start_date', date.today().isoformat())
     end_date = request.form.get('end_date', start_date)
     is_full_day = request.form.get('is_full_day', '1') == '1'
+    # E-03 Phase B: partial-day window (single-day only). Empty -> None (full day).
+    start_period_id = request.form.get('start_period_id') or None
+    end_period_id = request.form.get('end_period_id') or None
+    if is_full_day:
+        start_period_id = None
+        end_period_id = None
+    # E-03 Phase B hardening: validate client-supplied period ids server-side.
+    # Every distinct non-null id must be a real teaching period for this tenant;
+    # otherwise degrade to full day (safe: over-cover, never under-cover).
+    if start_period_id or end_period_id:
+        _ids = list({pid for pid in (start_period_id, end_period_id) if pid})
+        _placeholders = ",".join("?" for _ in _ids)
+        with get_connection() as _vconn:
+            _vc = _vconn.cursor()
+            _vc.execute(
+                "SELECT COUNT(*) FROM period "
+                "WHERE tenant_id = ? AND is_teaching = 1 AND id IN (%s)" % _placeholders,
+                tuple([TENANT_ID] + _ids))
+            _valid = _vc.fetchone()[0]
+        if _valid < len(_ids):
+            start_period_id = None
+            end_period_id = None
+            is_full_day = True
     
     # Create absence using existing function
     absence_id = create_absence_multiday(
@@ -1276,7 +1334,9 @@ def mark_absent_submit():
         is_open_ended=False,
         absence_type=absence_type,
         reason=f"Reported by {session.get('display_name', 'Office')}",
-        is_full_day=is_full_day
+        is_full_day=is_full_day,
+        start_period_id=start_period_id,
+        end_period_id=end_period_id
     )
     
     # Phase 1: absence created. Return the spinner interstitial INSTANTLY.
