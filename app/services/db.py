@@ -68,25 +68,6 @@ def today_iso() -> str:
 # ATTENDANCE FUNCTIONS
 # ============================================
 
-def create_attendance(
-    tenant_id: str,
-    date_str: str,
-    mentor_group_id: str,
-    submitted_by_id: Optional[str] = None
-) -> str:
-    """Create attendance record. Returns attendance ID."""
-    attendance_id = generate_id()
-    
-    with get_connection() as conn:
-        conn.execute("""
-            INSERT INTO attendance (id, tenant_id, date, mentor_group_id, submitted_by_id, status)
-            VALUES (?, ?, ?, ?, ?, 'Pending')
-        """, (attendance_id, tenant_id, date_str, mentor_group_id, submitted_by_id))
-        conn.commit()
-    
-    return attendance_id
-
-
 def get_attendance(attendance_id: str) -> Optional[Dict]:
     """Get attendance record by ID."""
     with get_connection() as conn:
@@ -145,25 +126,6 @@ def get_attendance_summary(tenant_id: str, date_str: str) -> List[Dict]:
 # ============================================
 # ATTENDANCE ENTRY FUNCTIONS
 # ============================================
-
-def create_attendance_entry(
-    attendance_id: str,
-    learner_id: str,
-    status: str = 'Unmarked',
-    notes: Optional[str] = None
-) -> str:
-    """Create attendance entry. Returns entry ID."""
-    entry_id = generate_id()
-    
-    with get_connection() as conn:
-        conn.execute("""
-            INSERT INTO attendance_entry (id, attendance_id, learner_id, status, notes)
-            VALUES (?, ?, ?, ?, ?)
-        """, (entry_id, attendance_id, learner_id, status, notes))
-        conn.commit()
-    
-    return entry_id
-
 
 def bulk_create_entries(attendance_id: str, learner_ids: List[str]) -> int:
     """Create entries for multiple learners. Returns count created."""
