@@ -35,7 +35,7 @@
             color: #374151;
             margin-bottom: 8px;
         }
-        .form-group select, .form-group input[type="date"], .form-group input[type="text"], .form-group textarea {
+        .form-group select, .form-group input[type="date"], .form-group input[type="time"], .form-group input[type="text"], .form-group textarea {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid #e5e7eb;
@@ -239,8 +239,41 @@
                     </select>
                 </div>
                 
-                <!-- Duration: partial day support parked for post-pilot -->
-                <input type="hidden" name="is_full_day" value="1">
+                <!-- E-03 Phase B: full-day / partial-day toggle (single-day only) -->
+                <input type="hidden" name="is_full_day" id="isFullDay" value="1">
+                <input type="hidden" name="start_period_id" id="startPeriodId" value="">
+                <input type="hidden" name="end_period_id" id="endPeriodId" value="">
+
+                <div class="form-group" id="durationGroup">
+                    <label>Duration</label>
+                    <div class="radio-group">
+                        <div class="radio-option" id="optFullDay">
+                            <input type="radio" name="duration_choice" value="full" checked>
+                            <span>Full day</span>
+                        </div>
+                        <div class="radio-option" id="optPartDay">
+                            <input type="radio" name="duration_choice" value="part">
+                            <span>Part of the day</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group hidden" id="timeWindowGroup">
+                    <label>Time out of school</label>
+                    <div class="date-row">
+                        <div class="form-group">
+                            <input type="time" id="windowStart">
+                            <small style="color: #64748b; font-size: 12px;">From</small>
+                        </div>
+                        <div class="form-group">
+                            <input type="time" id="windowEnd">
+                            <small style="color: #64748b; font-size: 12px;">To</small>
+                        </div>
+                    </div>
+                    <div class="info-box blue" id="windowHint" style="margin-bottom:0;margin-top:8px;">
+                        Substitutes are assigned only for the lessons inside this window.
+                    </div>
+                </div>
                 
                 
                 <button type="submit" class="submit-btn">
@@ -257,25 +290,122 @@
         const endDate = document.getElementById('endDate');
         const endDateGroup = document.getElementById('endDateGroup');
         const openEnded = document.getElementById('openEnded');
-        
-        // Sync end date min with start date
+
+        // E-03 Phase B: partial-day window elements
+        const PERIODS = {{ periods|tojson }};
+        const isFullDay = document.getElementById('isFullDay');
+        const startPeriodId = document.getElementById('startPeriodId');
+        const endPeriodId = document.getElementById('endPeriodId');
+        const durationGroup = document.getElementById('durationGroup');
+        const timeWindowGroup = document.getElementById('timeWindowGroup');
+        const optFullDay = document.getElementById('optFullDay');
+        const optPartDay = document.getElementById('optPartDay');
+        const windowStart = document.getElementById('windowStart');
+        const windowEnd = document.getElementById('windowEnd');
+        const absenceForm = document.getElementById('absenceForm');
+
+        // ---- default-window rule (spec decision #4) ----
+        function pad(n){ return String(n).padStart(2,'0'); }
+        function nowHHMM(){ const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+        function defaultWindow(){
+            if (!PERIODS.length) return {from:'08:00', to:'14:00'};
+            const firstStart = PERIODS[0].start_time;
+            const lastEnd = PERIODS[PERIODS.length-1].end_time;
+            const now = nowHHMM();
+            // Start = later of {first teaching period start, now}; End = last period end
+            const from = now > firstStart ? now : firstStart;
+            return {from: (from < lastEnd ? from : firstStart), to: lastEnd};
+        }
+
+        // ---- time -> bounding period ids (spec section 4) ----
+        function mapWindow(fromT, toT){
+            if (fromT >= toT) return {error:'from_after_to'};
+            const first = PERIODS[0], last = PERIODS[PERIODS.length-1];
+            let entryIdx = PERIODS.findIndex(p => p.end_time > fromT);
+            let exitIdx = -1;
+            for (let i=0;i<PERIODS.length;i++){ if (PERIODS[i].start_time < toT) exitIdx = i; }
+            if (entryIdx === -1 || exitIdx === -1) return {error:'no_overlap'};
+            if (entryIdx > exitIdx) return {error:'no_lesson_in_window'};
+            if (entryIdx === 0 && exitIdx === PERIODS.length-1
+                && fromT <= first.start_time && toT >= last.end_time){
+                return {is_full_day:1, start_period_id:'', end_period_id:''};
+            }
+            return {is_full_day:0, start_period_id:PERIODS[entryIdx].id, end_period_id:PERIODS[exitIdx].id};
+        }
+
+        function isMultiDay(){ return endDate && endDate.value && endDate.value !== startDate.value; }
+
+        function selectFull(){
+            isFullDay.value = '1';
+            startPeriodId.value = '';
+            endPeriodId.value = '';
+            timeWindowGroup.classList.add('hidden');
+            if (optFullDay) optFullDay.querySelector('input').checked = true;
+        }
+        function selectPart(){
+            isFullDay.value = '0';
+            timeWindowGroup.classList.remove('hidden');
+            const dw = defaultWindow();
+            if (!windowStart.value) windowStart.value = dw.from;
+            if (!windowEnd.value) windowEnd.value = dw.to;
+            if (optPartDay) optPartDay.querySelector('input').checked = true;
+        }
+
+        if (optFullDay) optFullDay.addEventListener('click', selectFull);
+        if (optPartDay) optPartDay.addEventListener('click', function(){
+            if (isMultiDay()) return; // guard: should be hidden anyway
+            selectPart();
+        });
+
+        // ---- multi-day: hide the toggle, force full day ----
+        function refreshDurationVisibility(){
+            if (isMultiDay()){
+                durationGroup.classList.add('hidden');
+                selectFull();
+            } else {
+                durationGroup.classList.remove('hidden');
+            }
+        }
+
+        // Sync end date min with start date + refresh duration visibility
         startDate.addEventListener('change', function() {
             endDate.min = this.value;
-            if (endDate.value < this.value) {
-                endDate.value = this.value;
-            }
+            if (endDate.value < this.value) { endDate.value = this.value; }
+            refreshDurationVisibility();
         });
-        
+        endDate.addEventListener('change', refreshDurationVisibility);
+
         // Toggle end date visibility when "until further notice" is checked
-        openEnded.addEventListener('change', function() {
-            if (this.checked) {
-                endDateGroup.style.opacity = '0.4';
-                endDate.disabled = true;
-            } else {
-                endDateGroup.style.opacity = '1';
-                endDate.disabled = false;
+        // (checkbox is commented out for demo; guard against null)
+        if (openEnded) {
+            openEnded.addEventListener('change', function() {
+                if (this.checked) {
+                    endDateGroup.style.opacity = '0.4';
+                    endDate.disabled = true;
+                } else {
+                    endDateGroup.style.opacity = '1';
+                    endDate.disabled = false;
+                }
+            });
+        }
+
+        // ---- on submit: map the window, block invalid, populate hidden ids ----
+        absenceForm.addEventListener('submit', function(e){
+            if (isFullDay.value === '1' || isMultiDay()) { selectFull(); return; }
+            const res = mapWindow(windowStart.value, windowEnd.value);
+            if (res.error){
+                e.preventDefault();
+                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                alert('Please choose a time range that covers at least one lesson (From must be before To).');
+                return false;
             }
+            isFullDay.value = String(res.is_full_day);
+            startPeriodId.value = res.start_period_id;
+            endPeriodId.value = res.end_period_id;
         });
+
+        // init
+        refreshDurationVisibility();
     </script>
 </body>
 </html>
