@@ -867,6 +867,8 @@ def create_absence_multiday(
     absence_type: str = 'Sick',
     reason: str = None,
     is_full_day: bool = True,
+    start_period_id: str = None,
+    end_period_id: str = None,
     tenant_id: str = "MARAGON"
 ) -> str:
     """Create teacher absence record with multi-day support. Returns absence ID."""
@@ -881,11 +883,13 @@ def create_absence_multiday(
         cursor.execute("""
             INSERT INTO absence 
             (id, tenant_id, staff_id, absence_date, end_date, is_open_ended,
-             absence_type, is_full_day, reported_by_id, reported_at, reason, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Reported')
+             absence_type, is_full_day, start_period_id, end_period_id,
+             reported_by_id, reported_at, reason, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Reported')
         """, (absence_id, tenant_id, staff_id, start_date, end_date,
               1 if is_open_ended else 0, absence_type, 
-              1 if is_full_day else 0, staff_id, now, reason))
+              1 if is_full_day else 0, start_period_id, end_period_id,
+              staff_id, now, reason))
         conn.commit()
     
     return absence_id
