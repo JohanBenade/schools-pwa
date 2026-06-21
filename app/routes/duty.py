@@ -284,6 +284,17 @@ def my_day():
                 window_start_sort = _ws['sort_order']
                 window_end_sort = _we['sort_order']
         
+        # B-18b: does the partial window include the register? Mirrors the
+        # engine's cover_register rule (substitute_engine): register is covered
+        # when full-day OR the window starts at/before the first teaching period.
+        first_teaching_sort = min((ts['sort_order'] for ts in teaching_slots.values()),
+                                  default=None)
+        window_includes_register = (
+            window_start_sort is None
+            or (first_teaching_sort is not None
+                and window_start_sort <= first_teaching_sort)
+        )
+        
         # Compute default extend date (next weekday after current end)
         extend_default = None
         if is_absent and absence_end:
@@ -426,11 +437,18 @@ def my_day():
                             item['badge_color'] = 'red'
                             item['is_no_cover'] = True
                     elif mentor_group:
-                        # Has mentor group but no coverage record yet
-                        item['content'] = "No cover assigned"
-                        item['badge'] = 'PENDING'
-                        item['badge_color'] = 'red'
-                        item['is_no_cover'] = True
+                        # B-18b: partial window that excludes the register means
+                        # the teacher was present for register -> calm grey badge.
+                        if window_start_sort is not None and not window_includes_register:
+                            item['content'] = ""
+                            item['badge'] = "You're in"
+                            item['badge_color'] = 'grey'
+                        else:
+                            # Has mentor group but no coverage record yet
+                            item['content'] = "No cover assigned"
+                            item['badge'] = 'PENDING'
+                            item['badge_color'] = 'red'
+                            item['is_no_cover'] = True
                     else:
                         # Not a mentor teacher
                         item['content'] = "Register"
@@ -478,7 +496,7 @@ def my_day():
                         # present, no cover ever needed -> calm grey "You're in".
                         if (window_start_sort is not None and window_end_sort is not None
                                 and not (window_start_sort <= ts['sort_order'] <= window_end_sort)):
-                            item['content'] = "You taught this period" + (f" • {class_info}" if class_info else "")
+                            item['content'] = class_info
                             item['badge'] = "You're in"
                             item['badge_color'] = 'grey'
                         else:
