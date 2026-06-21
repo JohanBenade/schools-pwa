@@ -305,6 +305,128 @@ def early_return():
     if not absence_id:
         return redirect(url_for('substitute.report_absence'))
     
+    # === E-03 Phase D: same-day PARTIAL period-level return ===
+    # If this is a single-day partial absence being returned TODAY, release ONLY
+    # today's not-yet-started periods (period.start_time >= server now). The
+    # absence stays live if earlier-today periods remain covered. Return time is
+    # derived server-side (NOT the client clock). Falls through to the existing
+    # day-granular path for full-day / multi-day / future returns.
+    _today = date.today().isoformat()
+    with get_connection() as conn:
+        _cur = conn.cursor()
+        _cur.execute("""
+            SELECT a.id, a.staff_id, a.absence_date, a.end_date, a.is_full_day,
+                   a.start_period_id, a.end_period_id, s.display_name AS teacher_name
+            FROM absence a JOIN staff s ON a.staff_id = s.id
+            WHERE a.id = ? AND a.staff_id = ?
+        """, (absence_id, staff_id))
+        _ab = _cur.fetchone()
+
+        _is_partial_today = bool(
+            _ab is not None
+            and _ab['is_full_day'] == 0
+            and _ab['absence_date'] == _today
+            and _ab['absence_date'] == _ab['end_date']
+            and _ab['start_period_id'] and _ab['end_period_id']
+        )
+
+        if _is_partial_today:
+            teacher_name = _ab['teacher_name']
+            return_time = datetime.now().strftime('%H:%M')
+
+            # Capture subs for today's not-yet-started periods BEFORE releasing.
+            _cur.execute("""
+                SELECT DISTINCT sr.substitute_id, sr.request_date
+                FROM substitute_request sr
+                JOIN period p ON sr.period_id = p.id
+                WHERE sr.absence_id = ? AND sr.request_date = ?
+                  AND sr.status IN ('Pending', 'Assigned')
+                  AND sr.substitute_id IS NOT NULL
+                  AND p.start_time >= ?
+            """, (absence_id, _today, return_time))
+            affected_subs = [dict(r) for r in _cur.fetchall()]
+
+            # Release today's not-yet-started period rows only.
+            _cur.execute("""
+                UPDATE substitute_request
+                SET status = 'Cancelled',
+                    cancelled_at = ?, cancel_reason = 'early_return_partial',
+                    updated_at = ?
+                WHERE absence_id = ? AND request_date = ?
+                  AND status IN ('Pending', 'Assigned')
+                  AND period_id IN (
+                      SELECT id FROM period WHERE start_time >= ?
+                  )
+            """, (datetime.now().isoformat(), datetime.now().isoformat(),
+                  absence_id, _today, return_time))
+            released_count = _cur.rowcount
+
+            # Same-day duty release (duty_roster is day-granular: no time column,
+            # so release today's replaced duties wholesale - she is back today).
+            _cur.execute("""
+                SELECT dr.replacement_id, dr.duty_date, ta.area_name
+                FROM duty_roster dr
+                LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
+                WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.replacement_id IS NOT NULL
+            """, (staff_id, _today))
+            affected_duties = [dict(r) for r in _cur.fetchall()]
+            _cur.execute("""
+                UPDATE duty_roster SET replacement_id = NULL, updated_at = datetime('now')
+                WHERE staff_id = ? AND duty_date = ? AND replacement_id IS NOT NULL
+            """, (staff_id, _today))
+
+            # Does any covered period remain for this absence? If so, keep it live.
+            _cur.execute("""
+                SELECT COUNT(*) AS c FROM substitute_request
+                WHERE absence_id = ? AND status IN ('Pending', 'Assigned')
+            """, (absence_id,))
+            _remaining = _cur.fetchone()['c']
+
+            if _remaining == 0:
+                _cur.execute("""
+                    UPDATE absence
+                    SET returned_early = 1, returned_at = ?, return_reported_by_id = ?,
+                        status = 'Resolved', updated_at = ?
+                    WHERE id = ?
+                """, (datetime.now().isoformat(), staff_id,
+                      datetime.now().isoformat(), absence_id))
+            else:
+                _cur.execute("""
+                    UPDATE absence
+                    SET returned_early = 1, returned_at = ?, return_reported_by_id = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                """, (datetime.now().isoformat(), staff_id,
+                      datetime.now().isoformat(), absence_id))
+
+            # Log the partial return.
+            _cur.execute("""
+                INSERT INTO substitute_log (id, tenant_id, absence_id, event_type, staff_id, details, created_at)
+                VALUES (?, ?, ?, 'early_return_partial', ?, ?, ?)
+            """, (str(uuid.uuid4()), TENANT_ID, absence_id, staff_id,
+                  f'{{"return_time": "{return_time}", "released_requests": {released_count}, "remaining": {_remaining}}}',
+                  datetime.now().isoformat()))
+
+            conn.commit()
+
+            # Notify released subs + management + returning teacher (after commit).
+            try:
+                from app.routes.push import (send_sub_cancelled_push,
+                                             send_duty_cancelled_push,
+                                             send_management_return_push,
+                                             send_teacher_return_push)
+                for sub in affected_subs:
+                    send_sub_cancelled_push(sub['substitute_id'], teacher_name, sub['request_date'])
+                for duty in affected_duties:
+                    send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
+                send_management_return_push(teacher_name, 'returned')
+                send_teacher_return_push(staff_id, 'returned')
+            except Exception as e:
+                print(f'Partial return push error: {e}')
+
+            return redirect('/duty/my-day')
+    # === end Phase D partial branch; day-granular path continues below ===
+    
     # end_date = day before return (teacher is NOT absent on return day)
     return_dt = datetime.strptime(return_date, '%Y-%m-%d').date()
     adjusted_end_date = (return_dt - timedelta(days=1)).isoformat()
