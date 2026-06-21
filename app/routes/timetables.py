@@ -13,10 +13,7 @@ TENANT_ID = "MARAGON"
 
 @timetables_bp.route('/')
 def index():
-    """Teacher search page for leadership."""
-    role = session.get('role', 'teacher')
-    if role not in ['principal', 'deputy', 'admin']:
-        return redirect('/')
+    """Timetable finder - any app user can look up any staff member's day."""
     
     # Get all teachers, sort by name after title (Mr/Ms/Mrs)
     with get_connection() as conn:
