@@ -151,7 +151,7 @@ def my_day():
         teaching_slots = {}
         if cycle_day:
             cursor.execute("""
-                SELECT t.*, p.period_number, p.period_name, v.venue_code
+                SELECT t.*, p.period_number, p.period_name, p.sort_order, v.venue_code
                 FROM timetable_slot t
                 JOIN period p ON t.period_id = p.id
                 LEFT JOIN venue v ON t.venue_id = v.id
@@ -253,7 +253,7 @@ def my_day():
 
         # Check if this teacher is absent on target date (get id for coverage lookup)
         cursor.execute("""
-            SELECT id, absence_type, absence_date, end_date, is_open_ended, status FROM absence
+            SELECT id, absence_type, absence_date, end_date, is_open_ended, status, is_full_day, start_period_id, end_period_id FROM absence
             WHERE staff_id = ? AND tenant_id = ?
             AND absence_date <= ? AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
             AND status IN ('Reported', 'Covered', 'Partial')
@@ -266,6 +266,23 @@ def my_day():
         absence_start = absence_row['absence_date'] if absence_row else None
         absence_end = absence_row['end_date'] if absence_row else None
         absence_open_ended = absence_row['is_open_ended'] if absence_row else False
+        
+        # === E-03 / B-18: resolve partial-day window (single-day only) ===
+        # Mirrors substitute_engine in-window test: a teaching slot is in-window
+        # when window_start_sort <= period.sort_order <= window_end_sort. Out-of-
+        # window periods (teacher was present) must NOT show red PENDING.
+        window_start_sort = None
+        window_end_sort = None
+        if (is_absent and absence_row['is_full_day'] == 0
+                and absence_start == absence_end
+                and absence_row['start_period_id'] and absence_row['end_period_id']):
+            cursor.execute("SELECT sort_order FROM period WHERE id = ?", (absence_row['start_period_id'],))
+            _ws = cursor.fetchone()
+            cursor.execute("SELECT sort_order FROM period WHERE id = ?", (absence_row['end_period_id'],))
+            _we = cursor.fetchone()
+            if _ws and _we:
+                window_start_sort = _ws['sort_order']
+                window_end_sort = _we['sort_order']
         
         # Compute default extend date (next weekday after current end)
         extend_default = None
@@ -457,10 +474,18 @@ def my_day():
                         # Has teaching but no coverage record
                         ts = teaching_slots[p_num]
                         class_info = f"{ts.get('class_name', '')} {ts.get('subject', '')}".strip()
-                        item['content'] = "No cover assigned" + (f" • {class_info}" if class_info else "")
-                        item['badge'] = 'PENDING'
-                        item['badge_color'] = 'red'
-                        item['is_no_cover'] = True
+                        # B-18: out-of-window period (partial absence) = teacher was
+                        # present, no cover ever needed -> calm grey "You're in".
+                        if (window_start_sort is not None and window_end_sort is not None
+                                and not (window_start_sort <= ts['sort_order'] <= window_end_sort)):
+                            item['content'] = "You taught this period" + (f" • {class_info}" if class_info else "")
+                            item['badge'] = "You're in"
+                            item['badge_color'] = 'grey'
+                        else:
+                            item['content'] = "No cover assigned" + (f" • {class_info}" if class_info else "")
+                            item['badge'] = 'PENDING'
+                            item['badge_color'] = 'red'
+                            item['is_no_cover'] = True
                     else:
                         # Free period - no coverage needed
                         item['content'] = "Free"
