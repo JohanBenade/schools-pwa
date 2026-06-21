@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learner Timetable - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        .container { max-width: 500px; margin: 0 auto; }
+        {{ nav_styles }}
+
+        .learner-head { text-align: center; margin-bottom: 8px; }
+        .learner-head h2 { font-size: 24px; font-weight: 700; }
+        .learner-head .meta { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+        .date-line { text-align: center; font-size: 13px; opacity: 0.55; margin-bottom: 20px; }
+        .cycle-pill { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; background: rgba(96,165,250,0.15); color: #93c5fd; font-size: 12px; font-weight: 600; }
+
+        .slot { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 8px; }
+        .slot-period { flex: 0 0 44px; text-align: center; }
+        .slot-period .num { font-size: 20px; font-weight: 700; color: #60a5fa; }
+        .slot-period .time { font-size: 10px; opacity: 0.55; margin-top: 2px; white-space: nowrap; }
+        .slot-body { flex: 1; min-width: 0; }
+        .slot-subject { font-size: 16px; font-weight: 600; }
+        .slot-detail { font-size: 13px; opacity: 0.7; margin-top: 2px; }
+        .slot-room { flex: 0 0 auto; text-align: right; }
+        .slot-room .room { font-size: 15px; font-weight: 700; color: #fbbf24; }
+
+        .empty { text-align: center; padding: 48px 20px; opacity: 0.6; }
+        .empty .icon { font-size: 40px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {{ nav_header|safe }}
+
+        <div class="learner-head">
+            <h2>{{ learner.first_name }} {{ learner.surname }}</h2>
+            <div class="meta">
+                {% if learner.grade_name %}{{ learner.grade_name }}{% endif %}
+                {% if learner.group_name %} &middot; {{ learner.group_name }}{% endif %}
+            </div>
+        </div>
+        <div class="date-line">
+            {{ display_date }}
+            {% if cycle_day and day_type == 'academic' %}
+            <div><span class="cycle-pill">{{ day_name }} &middot; Cycle Day {{ cycle_day }}</span></div>
+            {% endif %}
+        </div>
+
+        {% if not cycle_day or day_type != 'academic' %}
+        <div class="empty">
+            <div class="icon">&#128197;</div>
+            <div>No classes today</div>
+            <div style="font-size:13px; margin-top:6px;">Not an academic school day.</div>
+        </div>
+        {% elif slots|length == 0 %}
+        <div class="empty">
+            <div class="icon">&#128203;</div>
+            <div>No periods found for today</div>
+            <div style="font-size:13px; margin-top:6px;">This learner has no scheduled classes on this cycle day.</div>
+        </div>
+        {% else %}
+        {% for slot in slots %}
+        <div class="slot">
+            <div class="slot-period">
+                <div class="num">{{ slot.period_number }}</div>
+                <div class="time">{{ slot.start_time }}</div>
+            </div>
+            <div class="slot-body">
+                <div class="slot-subject">{{ slot.subject }}</div>
+                <div class="slot-detail">
+                    {% if slot.teacher_name %}{{ slot.teacher_name }}{% endif %}
+                    {% if slot.class_name %} &middot; {{ slot.class_name }}{% endif %}
+                </div>
+            </div>
+            <div class="slot-room">
+                <div class="room">{{ slot.venue_code or '&mdash;' }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</body>
+</html>
