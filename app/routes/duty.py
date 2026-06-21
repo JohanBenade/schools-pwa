@@ -440,7 +440,8 @@ def my_day():
                         # B-18b: partial window that excludes the register means
                         # the teacher was present for register -> calm grey badge.
                         if window_start_sort is not None and not window_includes_register:
-                            item['content'] = ""
+                            venue_suffix = f" → {mentor_group['mentor_venue']}" if mentor_group.get('mentor_venue') else ""
+                            item['content'] = f"{mentor_group['group_name']}{venue_suffix}"
                             item['badge'] = "You're in"
                             item['badge_color'] = 'grey'
                         else:
