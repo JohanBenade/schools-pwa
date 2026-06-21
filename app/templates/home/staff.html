@@ -56,18 +56,10 @@
         <h2>Staff</h2>
     </div>
     <div class="grid">
-        <!-- Row 1: Your day -->
-        <a href="/emergency/" class="app-icon">
-            <div class="icon-box bg-red {{ 'emergency-pulse' if active_alert else '' }}">🚨</div>
-            <span class="app-label">Emergency</span>
-        </a>
+        <!-- Personal: what's on me today -->
         <a href="/duty/my-day" class="app-icon">
             <div class="icon-box bg-green">📅</div>
             <span class="app-label">My Day</span>
-        </a>
-        <a href="/substitute/report" class="app-icon">
-            <div class="icon-box bg-orange">✋</div>
-            <span class="app-label">I'm Absent</span>
         </a>
         <a href="/attendance/" class="app-icon">
             <div class="icon-box bg-blue">📋</div>
@@ -85,6 +77,15 @@
             <div class="icon-box bg-teal">🎽</div>
             <span class="app-label">Sport Duties</span>
         </a>
+        <a href="/schedule/" class="app-icon">
+            <div class="icon-box bg-blue">&#128276;</div>
+            <span class="app-label">Schedule</span>
+        </a>
+        <!-- Actions + overviews -->
+        <a href="/substitute/report" class="app-icon">
+            <div class="icon-box bg-orange">✋</div>
+            <span class="app-label">I'm Absent</span>
+        </a>
         <a href="/absences/?from=staff" class="app-icon">
             <div class="icon-box bg-indigo">📋</div>
             <span class="app-label">Who's Out</span>
@@ -101,9 +102,10 @@
             <div class="icon-box bg-teal">🏆</div>
             <span class="app-label">Sport</span>
         </a>
-        <a href="/schedule/" class="app-icon">
-            <div class="icon-box bg-blue">&#128276;</div>
-            <span class="app-label">Schedule</span>
+        <!-- Emergency last (mis-tap safety; active alert still pulses via banner) -->
+        <a href="/emergency/" class="app-icon">
+            <div class="icon-box bg-red {{ 'emergency-pulse' if active_alert else '' }}">🚨</div>
+            <span class="app-label">Emergency</span>
         </a>
     </div>
     <div class="footer">Term 3 2026 Pilot</div>
