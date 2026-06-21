@@ -174,8 +174,9 @@
         </div>
         {% if is_absent %}
         <div class="absent-banner">
-            <h3>⚠️ {% if today_str < absence_start %}Absence booked{% else %}You are marked absent{% endif %}</h3>
-            <p>{{ absence_type|replace("_", " ")|title }}{% if absence_end and absence_end != absence_start %} · {{ absence_start }} to {{ absence_end }}{% elif absence_open_ended %} · Open-ended from {{ absence_start }}{% else %} · {{ absence_start }}{% endif %}</p>
+            <h3>⚠️ {% if viewing_other %}Absent today{% elif today_str < absence_start %}Absence booked{% else %}You are marked absent{% endif %}</h3>
+            <p>{% if not viewing_other %}{{ absence_type|replace("_", " ")|title }} · {% endif %}{% if absence_end and absence_end != absence_start %}{{ absence_start }} to {{ absence_end }}{% elif absence_open_ended %}Open-ended from {{ absence_start }}{% else %}{{ absence_start }}{% endif %}</p>
+            {% if not viewing_other %}
             <div style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
                 {% if today_str < absence_start %}
                 <!-- Future absence: Cancel button -->
@@ -204,6 +205,7 @@
                 </button>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
 
         <!-- Confirm Action Modal -->
