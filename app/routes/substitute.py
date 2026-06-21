@@ -235,6 +235,23 @@ def report_process(absence_id):
     except Exception as e:
         print(f'Absence reported push error: {e}')
 
+    # E-03 Phase C: notify the absent teacher (book-out)
+    try:
+        from app.routes.push import send_absence_covered_push
+        _dr = results.get('date_range', {})
+        _start = _dr.get('start', start_date)
+        _end = _dr.get('end', end_date)
+        _disp = _start if (not _end or _end == _start) else f"{_start} - {_end}"
+        if duty_staff_id:
+            send_absence_covered_push(
+                duty_staff_id,
+                results.get('covered_count', 0),
+                results.get('total_count', 0),
+                _disp
+            )
+    except Exception as e:
+        print(f'Absent teacher push error: {e}')
+
     # Send push notifications to substitutes
     try:
         from app.routes.push import send_substitute_assigned_push
@@ -406,6 +423,9 @@ def early_return():
             send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
         
         send_management_return_push(teacher_name, 'cancelled' if is_full_cancel else 'returned')
+        # E-03 Phase C: notify the returning teacher (book-in)
+        from app.routes.push import send_teacher_return_push
+        send_teacher_return_push(staff_id, 'cancelled' if is_full_cancel else 'returned')
     except Exception as e:
         print(f'Cancel push error: {e}')
     
@@ -547,6 +567,9 @@ def mark_back():
             send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
         
         send_management_return_push(teacher_name, 'returned')
+        # E-03 Phase C: notify the returning teacher (book-in)
+        from app.routes.push import send_teacher_return_push
+        send_teacher_return_push(absence['staff_id'], 'returned')
     except Exception as e:
         print(f'Mark-back push error: {e}')
     
@@ -1225,6 +1248,19 @@ def extend_absence():
         )
     except Exception as e:
         print(f'Extend management push error: {e}')
+
+    # E-03 Phase C: notify the absent teacher (extend = book-out)
+    try:
+        from app.routes.push import send_absence_covered_push
+        _disp = old_end if (not new_end_date or new_end_date == old_end) else f"{old_end} - {new_end_date}"
+        send_absence_covered_push(
+            absence['staff_id'],
+            results.get('covered_count', 0),
+            results.get('total_count', 0),
+            _disp
+        )
+    except Exception as e:
+        print(f'Extend absent teacher push error: {e}')
     
     # Send push to newly assigned substitutes
     try:
@@ -1410,6 +1446,23 @@ def mark_absent_process(absence_id):
         )
     except Exception as e:
         print(f'Management absence reported push error: {e}')
+
+    # E-03 Phase C: notify the absent teacher (book-out)
+    try:
+        from app.routes.push import send_absence_covered_push
+        _dr = results.get('date_range', {})
+        _start = _dr.get('start', start_date)
+        _end = _dr.get('end', end_date)
+        _disp = _start if (not _end or _end == _start) else f"{_start} - {_end}"
+        if duty_staff_id:
+            send_absence_covered_push(
+                duty_staff_id,
+                results.get('covered_count', 0),
+                results.get('total_count', 0),
+                _disp
+            )
+    except Exception as e:
+        print(f'Management absent teacher push error: {e}')
 
     # Send push to each assigned substitute
     try:

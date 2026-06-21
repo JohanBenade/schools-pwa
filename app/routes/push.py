@@ -725,3 +725,42 @@ def send_management_return_push(teacher_name, action_type):
             success_count += 1
     
     return success_count
+
+
+def send_teacher_return_push(staff_id, action_type):
+    """
+    Send push to the RETURNING teacher confirming their book-in / cancel.
+    action_type: 'cancelled' or 'returned'. Book-in counterpart to
+    send_management_return_push (E-03 Phase C, spec decision #3).
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT token FROM push_token
+            WHERE tenant_id = ? AND staff_id = ?
+        ''', (TENANT_ID, staff_id))
+        tokens = cursor.fetchall()
+    
+    if not tokens:
+        return 0
+    
+    if action_type == 'cancelled':
+        title = "\u2705 Absence Cancelled"
+        body = "Your absence has been cancelled. You're all set."
+    else:
+        title = "\u2705 Welcome Back"
+        body = "You're marked back in. Remaining cover has been released."
+    
+    success_count = 0
+    for row in tokens:
+        if send_push_notification(
+            row['token'], title, body,
+            data={'type': 'absence_update', 'link': '/duty/my-day'}
+        ):
+            success_count += 1
+    
+    return success_count
