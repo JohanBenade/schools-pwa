@@ -9,7 +9,26 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
         .container { max-width: 500px; margin: 0 auto; }
         {{ nav_styles }}
-        
+
+        .toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+        .toggle button {
+            flex: 1;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle button.active {
+            background: rgba(96,165,250,0.18);
+            border-color: #60a5fa;
+            color: #93c5fd;
+        }
+
         .search-box { margin-bottom: 20px; }
         .search-input {
             width: 100%;
@@ -23,9 +42,10 @@
         }
         .search-input::placeholder { color: rgba(255,255,255,0.5); }
         .search-input:focus { border-color: #60a5fa; background: rgba(255,255,255,0.15); }
-        
-        .teacher-list { display: flex; flex-direction: column; gap: 8px; }
-        .teacher-item {
+
+        .list { display: flex; flex-direction: column; gap: 8px; }
+        .list.hidden { display: none; }
+        .item {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -36,75 +56,110 @@
             color: white;
             transition: background 0.2s;
         }
-        .teacher-item:hover { background: rgba(255,255,255,0.15); }
-        .teacher-item.hidden { display: none; }
-        .teacher-name { font-weight: 500; }
-        .teacher-role { font-size: 12px; opacity: 0.6; text-transform: capitalize; }
+        .item:hover { background: rgba(255,255,255,0.15); }
+        .item.hidden { display: none; }
+        .item-name { font-weight: 500; }
+        .item-sub { font-size: 12px; opacity: 0.6; text-transform: capitalize; }
         .arrow { opacity: 0.5; }
-        
-        .no-results {
-            text-align: center;
-            padding: 40px 20px;
-            opacity: 0.6;
-            display: none;
-        }
+
+        .no-results { text-align: center; padding: 40px 20px; opacity: 0.6; display: none; }
         .no-results.show { display: block; }
-        
         .count { text-align: center; font-size: 13px; opacity: 0.5; margin-top: 16px; }
     </style>
 </head>
 <body>
     <div class="container">
         {{ nav_header|safe }}
-        
-        <div class="search-box">
-            <input type="text" class="search-input" id="searchInput" placeholder="Search by name..." autofocus>
+
+        <div class="toggle">
+            <button id="tabStaff" class="active" onclick="switchMode('staff')">Staff</button>
+            <button id="tabLearners" onclick="switchMode('learners')">Learners</button>
         </div>
-        
-        <div class="teacher-list" id="teacherList">
+
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search staff by name..." autofocus>
+        </div>
+
+        <div class="list" id="staffList">
             {% for teacher in teachers %}
-            <a href="/duty/my-day?staff={{ teacher.id }}" class="teacher-item" data-name="{{ teacher.display_name|lower }}" data-firstname="{{ teacher.sort_name|lower }}">
+            <a href="/duty/my-day?staff={{ teacher.id }}" class="item staff-item" data-firstname="{{ teacher.sort_name|lower }}">
                 <div>
-                    <div class="teacher-name">{{ teacher.display_name }}</div>
-                    <div class="teacher-role">{{ teacher.role or 'Staff' }}</div>
+                    <div class="item-name">{{ teacher.display_name }}</div>
+                    <div class="item-sub">{{ teacher.role or 'Staff' }}</div>
                 </div>
-                <span class="arrow">→</span>
+                <span class="arrow">&rarr;</span>
             </a>
             {% endfor %}
         </div>
-        
-        <div class="no-results" id="noResults">No teachers match your search</div>
-        
+
+        <div class="list hidden" id="learnerList">
+            {% for learner in learners %}
+            <a href="/timetables/learner/{{ learner.id }}" class="item learner-item"
+               data-firstname="{{ learner.first_name|lower }}" data-surname="{{ learner.surname|lower }}">
+                <div>
+                    <div class="item-name">{{ learner.first_name }} {{ learner.surname }}</div>
+                    <div class="item-sub">{{ learner.group_name or 'Learner' }}</div>
+                </div>
+                <span class="arrow">&rarr;</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="no-results" id="noResults">No matches</div>
         <div class="count" id="countDisplay">{{ teachers|length }} staff members</div>
     </div>
-    
+
     <script>
-        const searchInput = document.getElementById('searchInput');
-        const teacherItems = document.querySelectorAll('.teacher-item');
-        const noResults = document.getElementById('noResults');
-        const countDisplay = document.getElementById('countDisplay');
-        const totalCount = {{ teachers|length }};
-        
-        searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            let visibleCount = 0;
-            
-            teacherItems.forEach(item => {
-                const firstname = item.dataset.firstname;
-                // Match if first name STARTS with query
-                if (query === '' || firstname.startsWith(query)) {
-                    item.classList.remove('hidden');
-                    visibleCount++;
+        var mode = 'staff';
+        var searchInput = document.getElementById('searchInput');
+        var staffList = document.getElementById('staffList');
+        var learnerList = document.getElementById('learnerList');
+        var noResults = document.getElementById('noResults');
+        var countDisplay = document.getElementById('countDisplay');
+        var staffItems = document.querySelectorAll('.staff-item');
+        var learnerItems = document.querySelectorAll('.learner-item');
+        var staffTotal = staffItems.length;
+        var learnerTotal = learnerItems.length;
+
+        function switchMode(m) {
+            mode = m;
+            document.getElementById('tabStaff').classList.toggle('active', m === 'staff');
+            document.getElementById('tabLearners').classList.toggle('active', m === 'learners');
+            staffList.classList.toggle('hidden', m !== 'staff');
+            learnerList.classList.toggle('hidden', m !== 'learners');
+            searchInput.value = '';
+            searchInput.placeholder = m === 'staff' ? 'Search staff by name...' : 'Search learners by name...';
+            applyFilter();
+            searchInput.focus();
+        }
+
+        function applyFilter() {
+            var query = searchInput.value.toLowerCase().trim();
+            var items = mode === 'staff' ? staffItems : learnerItems;
+            var total = mode === 'staff' ? staffTotal : learnerTotal;
+            var label = mode === 'staff' ? 'staff members' : 'learners';
+            var visible = 0;
+
+            items.forEach(function(item) {
+                var match;
+                if (query === '') {
+                    match = true;
+                } else if (mode === 'staff') {
+                    match = item.dataset.firstname.startsWith(query);
                 } else {
-                    item.classList.add('hidden');
+                    match = item.dataset.firstname.startsWith(query) || item.dataset.surname.startsWith(query);
                 }
+                item.classList.toggle('hidden', !match);
+                if (match) visible++;
             });
-            
-            noResults.classList.toggle('show', visibleCount === 0 && query !== '');
-            countDisplay.textContent = query === '' 
-                ? totalCount + ' staff members'
-                : visibleCount + ' of ' + totalCount + ' shown';
-        });
+
+            noResults.classList.toggle('show', visible === 0 && query !== '');
+            countDisplay.textContent = query === ''
+                ? total + ' ' + label
+                : visible + ' of ' + total + ' shown';
+        }
+
+        searchInput.addEventListener('input', applyFilter);
     </script>
 </body>
 </html>
