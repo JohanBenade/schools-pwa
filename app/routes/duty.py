@@ -294,6 +294,19 @@ def my_day():
             or (first_teaching_sort is not None
                 and window_start_sort <= first_teaching_sort)
         )
+
+        # === E-03 Phase D: same-day partial-return signal (Option A) ===
+        # The "I'm Back" button collects a return TIME (period-level release)
+        # only when this is a single-day partial absence being returned TODAY.
+        # Otherwise the button behaves exactly as before (day-granular).
+        _today_str = date.today().isoformat()
+        is_full_day = bool(absence_row['is_full_day']) if is_absent else True
+        is_same_day_partial = bool(
+            is_absent
+            and not is_full_day
+            and window_start_sort is not None
+            and absence_start == _today_str
+        )
         
         # Compute default extend date (next weekday after current end)
         extend_default = None
@@ -625,6 +638,8 @@ def my_day():
                           ),
                           viewed_is_active=viewed_is_active,
                           viewed_staff_id=staff_id,
+                          is_full_day=is_full_day,
+                          is_same_day_partial=is_same_day_partial,
                           today_str=date.today().isoformat())
 
 
