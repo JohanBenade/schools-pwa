@@ -126,7 +126,9 @@ def learner_timetable(learner_id):
             slots = [dict(row) for row in cursor.fetchall()]
 
     display_date = target_date.strftime('%A, %d %B %Y')
-    nav_header = get_nav_header("Learner Timetable", "/timetables/", "Find")
+    _from = request.args.get('from')
+    _back = "/timetables/?from=ops" if _from == 'ops' else "/timetables/"
+    nav_header = get_nav_header("Learner Timetable", _back, "Find")
     nav_styles = get_nav_styles()
 
     return render_template('timetables/learner.html',

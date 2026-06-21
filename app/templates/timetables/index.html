@@ -94,7 +94,7 @@
 
         <div class="list hidden" id="learnerList">
             {% for learner in learners %}
-            <a href="/timetables/learner/{{ learner.id }}" class="item learner-item"
+            <a href="/timetables/learner/{{ learner.id }}{% if request.args.get('from') == 'ops' %}?from=ops{% endif %}" class="item learner-item"
                data-firstname="{{ learner.first_name|lower }}" data-surname="{{ learner.surname|lower }}">
                 <div>
                     <div class="item-name">{{ learner.first_name }} {{ learner.surname }}</div>
