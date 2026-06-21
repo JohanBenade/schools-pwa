@@ -27,7 +27,7 @@ def _resolve_day(cursor, target_date):
     if cal_row:
         return (cal_row['cycle_day'], cal_row['day_type'],
                 cal_row['bell_schedule'], cal_row['day_name'])
-    cycle_day = get_cycle_day()
+    cycle_day = get_cycle_day(target_date)
     day_type = 'academic' if weekday < 5 else 'weekend'
     if weekday in [0, 2]:
         bell_schedule = 'type_a'
@@ -120,9 +120,9 @@ def learner_timetable(learner_id):
                 JOIN learner_subject ls
                      ON ls.subject = t.subject AND ls.class_name = t.class_name
                      AND ls.tenant_id = t.tenant_id AND ls.is_active = 1
-                WHERE ls.learner_id = ? AND t.cycle_day = ? AND t.tenant_id = ?
+                WHERE ls.learner_id = ? AND ls.tenant_id = ? AND t.cycle_day = ? AND t.tenant_id = ?
                 ORDER BY p.sort_order
-            """, (learner_id, cycle_day, TENANT_ID))
+            """, (learner_id, TENANT_ID, cycle_day, TENANT_ID))
             slots = [dict(row) for row in cursor.fetchall()]
 
     display_date = target_date.strftime('%A, %d %B %Y')
