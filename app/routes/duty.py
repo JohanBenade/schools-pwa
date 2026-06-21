@@ -1121,7 +1121,7 @@ def my_terrain():
         # Count unique days
         days_count = len(duties_by_date)
 
-    nav_header = get_nav_header("My Terrain", "/", "Home")
+    nav_header = get_nav_header("Terrain Duties", "/", "Home")
     nav_styles = get_nav_styles()
 
     return render_template('duty/my_terrain.html',
