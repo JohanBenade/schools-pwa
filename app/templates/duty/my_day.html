@@ -215,7 +215,6 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="absence_id" id="confirmAbsenceId">
                     <input type="hidden" name="return_date" id="confirmReturnDate">
-                    <input type="hidden" name="return_time" id="confirmReturnTime">
                     <div style="display:flex; gap:10px;">
                         <button type="button" onclick="document.getElementById('confirmModal').style.display='none'"
                                 style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:white; font-size:14px; cursor:pointer;">
@@ -408,13 +407,12 @@
     </div>
 
     <script>
-        function openConfirmAction(title, subtitle, action, absenceId, returnDate, color, btnText, returnTime) {
+        function openConfirmAction(title, subtitle, action, absenceId, returnDate, color, btnText) {
             document.getElementById('confirmTitle').textContent = title;
             document.getElementById('confirmSubtitle').textContent = subtitle;
             document.getElementById('confirmForm').action = action;
             document.getElementById('confirmAbsenceId').value = absenceId;
             document.getElementById('confirmReturnDate').value = returnDate;
-            document.getElementById('confirmReturnTime').value = returnTime || '';
             var btn = document.getElementById('confirmBtn');
             btn.textContent = btnText;
             btn.style.background = color;
