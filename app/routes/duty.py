@@ -303,6 +303,7 @@ def my_day():
         is_full_day = bool(absence_row['is_full_day']) if is_absent else True
         is_same_day_partial = bool(
             is_absent
+            and not is_full_day
             and window_start_sort is not None
             and absence_start == _today_str
         )
