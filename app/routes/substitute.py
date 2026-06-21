@@ -242,12 +242,13 @@ def report_process(absence_id):
         _start = _dr.get('start', start_date)
         _end = _dr.get('end', end_date)
         _disp = _start if (not _end or _end == _start) else f"{_start} - {_end}"
-        send_absence_covered_push(
-            duty_staff_id,
-            results.get('covered_count', 0),
-            results.get('total_count', 0),
-            _disp
-        )
+        if duty_staff_id:
+            send_absence_covered_push(
+                duty_staff_id,
+                results.get('covered_count', 0),
+                results.get('total_count', 0),
+                _disp
+            )
     except Exception as e:
         print(f'Absent teacher push error: {e}')
 
@@ -424,7 +425,7 @@ def early_return():
         send_management_return_push(teacher_name, 'cancelled' if is_full_cancel else 'returned')
         # E-03 Phase C: notify the returning teacher (book-in)
         from app.routes.push import send_teacher_return_push
-        send_teacher_return_push(absence['staff_id'], 'cancelled' if is_full_cancel else 'returned')
+        send_teacher_return_push(staff_id, 'cancelled' if is_full_cancel else 'returned')
     except Exception as e:
         print(f'Cancel push error: {e}')
     
