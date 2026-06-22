@@ -65,6 +65,9 @@
         .slot-content { flex: 1; }
         .slot-name { font-size: 12px; opacity: 0.8; margin-bottom: 2px; }
         .slot-detail { font-size: 14px; font-weight: 500; }
+        .slot-link { display: flex; align-items: center; gap: 12px; }
+        .slot-link-text { flex: 1; min-width: 0; }
+        .slot-chevron { font-size: 22px; line-height: 1; color: rgba(255,255,255,0.4); flex-shrink: 0; }
         .room-label { font-size: 11px; color: #f59e0b; margin-top: 2px; }
         .badge { font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
         .badge-orange { background: #f97316; color: white; }
@@ -337,9 +340,12 @@
                 <div class="slot-time">{{ slot.start_time }}</div>
                 {% set is_register_link = slot.class_name and slot.subject and current_tab == today_str %}
                 {% if is_register_link %}
-                <a href="/absences/class-register?class={{ slot.class_name|urlencode }}&subject={{ slot.subject|urlencode }}&date={{ today_str }}&period={{ slot.slot_name|urlencode }}&time={{ slot.start_time }}&from=my-day" class="slot-content" style="text-decoration:none; color:inherit; flex:1;">
-                    <div class="slot-name">{{ slot.slot_name }}</div>
-                    <div class="slot-detail">{{ slot.content or '—' }}</div>
+                <a href="/absences/class-register?class={{ slot.class_name|urlencode }}&subject={{ slot.subject|urlencode }}&date={{ today_str }}&period={{ slot.slot_name|urlencode }}&time={{ slot.start_time }}&from=my-day" class="slot-content slot-link" style="text-decoration:none; color:inherit; flex:1;">
+                    <div class="slot-link-text">
+                        <div class="slot-name">{{ slot.slot_name }}</div>
+                        <div class="slot-detail">{{ slot.content or '—' }}</div>
+                    </div>
+                    <span class="slot-chevron" aria-hidden="true">›</span>
                 </a>
                 {% else %}
                 <div class="slot-content">
