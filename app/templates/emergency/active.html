@@ -135,6 +135,11 @@
             padding: 10px;
         }
         {{ nav_styles|safe }}
+        /* dark-screen nav contrast override (emergency stays dark; nav.py is light default) */
+        .nav-back { color: #93c5fd; }
+        .nav-back:hover { background: rgba(255,255,255,0.1); }
+        .nav-title { color: #ffffff; }
+        .nav-home:hover { background: rgba(255,255,255,0.1); }
         .nav-header { border-bottom-color: rgba(255,255,255,0.2); }
     </style>
 </head>
