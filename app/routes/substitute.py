@@ -423,7 +423,8 @@ def early_return():
                 for duty in affected_duties:
                     send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
                 send_management_return_push(teacher_name, 'returned')
-                send_teacher_return_push(staff_id, 'returned')
+                if released_count > 0:
+                    send_teacher_return_push(staff_id, 'returned')
             except Exception as e:
                 print(f'Partial return push error: {e}')
 
@@ -692,7 +693,8 @@ def mark_back():
                 for duty in affected_duties:
                     send_duty_cancelled_push(duty['replacement_id'], duty.get('area_name', 'Duty'), duty['duty_date'])
                 send_management_return_push(teacher_name, 'returned')
-                send_teacher_return_push(_staff_id, 'returned')
+                if released_count > 0:
+                    send_teacher_return_push(_staff_id, 'returned')
             except Exception as e:
                 print(f'Partial return push error (mgmt): {e}')
 
