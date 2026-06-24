@@ -6,7 +6,7 @@
     <title>Timetables - SchoolOps</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 20px; color: #1E293B; }
         .container { max-width: 500px; margin: 0 auto; }
         {{ nav_styles }}
 
@@ -16,17 +16,17 @@
             padding: 12px;
             font-size: 15px;
             font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(0,0,0,0.12);
             border-radius: 10px;
-            background: rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.6);
+            background: #ffffff;
+            color: #64748b;
             cursor: pointer;
             transition: all 0.2s;
         }
         .toggle button.active {
-            background: rgba(96,165,250,0.18);
-            border-color: #60a5fa;
-            color: #93c5fd;
+            background: #DBEAFE;
+            border-color: #1E4FA0;
+            color: #1E4FA0;
         }
 
         .search-box { margin-bottom: 20px; }
@@ -34,14 +34,14 @@
             width: 100%;
             padding: 14px 16px;
             font-size: 16px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(0,0,0,0.12);
             border-radius: 12px;
-            background: rgba(255,255,255,0.1);
-            color: white;
+            background: #ffffff;
+            color: #1E293B;
             outline: none;
         }
-        .search-input::placeholder { color: rgba(255,255,255,0.5); }
-        .search-input:focus { border-color: #60a5fa; background: rgba(255,255,255,0.15); }
+        .search-input::placeholder { color: #94a3b8; }
+        .search-input:focus { border-color: #1E4FA0; background: #ffffff; }
 
         .list { display: flex; flex-direction: column; gap: 8px; }
         .list.hidden { display: none; }
@@ -50,13 +50,14 @@
             align-items: center;
             justify-content: space-between;
             padding: 14px 16px;
-            background: rgba(255,255,255,0.1);
+            background: #ffffff;
             border-radius: 12px;
             text-decoration: none;
-            color: white;
+            color: #1E293B;
             transition: background 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
-        .item:hover { background: rgba(255,255,255,0.15); }
+        .item:hover { background: #f8fafc; }
         .item.hidden { display: none; }
         .item-name { font-weight: 500; }
         .item-sub { font-size: 12px; opacity: 0.6; text-transform: capitalize; }

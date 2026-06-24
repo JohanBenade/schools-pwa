@@ -8,52 +8,52 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; min-height: 100vh; color: white; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; color: #1E293B; }
         .container { max-width: 600px; margin: 0 auto; padding: 0 16px 100px; }
         
         /* Nav styles */
-        .nav-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; margin-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.08); }
         .nav-back { color: #60a5fa; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 8px; transition: background 0.2s; }
         .nav-back:hover { background: rgba(96, 165, 250, 0.1); }
-        .nav-title { font-size: 18px; font-weight: 600; color: white; }
+        .nav-title { font-size: 18px; font-weight: 600; color: #1E293B; }
         .nav-home { font-size: 20px; text-decoration: none; padding: 8px 12px; border-radius: 8px; transition: background 0.2s; }
         .nav-home:hover { background: rgba(255,255,255,0.1); }
         
         /* Filter tabs */
         .filter-tabs { display: flex; gap: 8px; margin: 20px 0; overflow-x: auto; padding-bottom: 8px; }
-        .filter-tab { padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); text-decoration: none; white-space: nowrap; transition: all 0.2s; }
+        .filter-tab { padding: 8px 16px; background: rgba(0,0,0,0.05); border-radius: 20px; font-size: 13px; color: #64748b; text-decoration: none; white-space: nowrap; transition: all 0.2s; }
         .filter-tab.active { background: #3b82f6; color: white; }
-        .filter-tab:hover { background: rgba(255,255,255,0.2); }
+        .filter-tab:hover { background: rgba(0,0,0,0.08); }
         .filter-tab.active:hover { background: #2563eb; }
         
         /* Stats */
-        .stats { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+        .stats { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .stats-number { font-size: 32px; font-weight: 700; color: #3b82f6; }
-        .stats-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .stats-label { font-size: 13px; color: #64748b; margin-top: 4px; }
         
         /* Date group */
         .date-group { margin-bottom: 24px; }
-        .date-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .date-badge { background: #1e293b; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 60px; }
+        .date-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+        .date-badge { background: #ffffff; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 60px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
         .date-badge.today { background: #3b82f6; }
         .date-badge.tomorrow { background: #6366f1; }
-        .date-day { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+        .date-day { font-size: 11px; color: #64748b; text-transform: uppercase; }
         .date-badge.today .date-day,
-        .date-badge.tomorrow .date-day { color: rgba(255,255,255,0.8); }
+        .date-badge.tomorrow .date-day { color: rgba(255,255,255,0.9); }
         .date-num { font-size: 16px; font-weight: 600; margin-top: 2px; }
-        .date-title { font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.9); }
+        .date-title { font-size: 15px; font-weight: 500; color: #1E293B; }
         
         /* Event card */
-        .event-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; transition: transform 0.1s, background 0.2s; cursor: pointer; }
+        .event-card { background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; transition: transform 0.1s, background 0.2s; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .event-card:active { transform: scale(0.98); }
-        .event-card:hover { background: #263548; }
+        .event-card:hover { background: #f8fafc; }
         
         .event-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .event-name { font-size: 16px; font-weight: 600; color: white; }
-        .event-sport { font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 12px; color: rgba(255,255,255,0.7); }
+        .event-name { font-size: 16px; font-weight: 600; color: #1E293B; }
+        .event-sport { font-size: 12px; background: #f1f5f9; padding: 4px 10px; border-radius: 12px; color: #64748b; }
         
         .event-details { display: flex; gap: 16px; flex-wrap: wrap; }
-        .event-detail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255,255,255,0.6); }
+        .event-detail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; }
         .event-detail-icon { font-size: 14px; }
         
         .location-home { color: #22c55e; }
@@ -63,7 +63,7 @@
         .affects-badge { display: inline-flex; align-items: center; gap: 4px; background: #7c3aed; padding: 4px 8px; border-radius: 6px; font-size: 11px; color: white; margin-top: 8px; }
         
         /* Empty state */
-        .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.5); }
+        .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
         .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
         .empty-state-text { font-size: 15px; }
         {{ nav_styles }}
