@@ -253,7 +253,7 @@ def my_day():
 
         # Check if this teacher is absent on target date (get id for coverage lookup)
         cursor.execute("""
-            SELECT id, absence_type, absence_date, end_date, is_open_ended, status, is_full_day, start_period_id, end_period_id FROM absence
+            SELECT id, absence_type, absence_date, end_date, is_open_ended, status, is_full_day, start_period_id, end_period_id, returned_early FROM absence
             WHERE staff_id = ? AND tenant_id = ?
             AND absence_date <= ? AND (end_date >= ? OR end_date IS NULL OR is_open_ended = 1)
             AND status IN ('Reported', 'Covered', 'Partial')
@@ -306,6 +306,17 @@ def my_day():
             and not is_full_day
             and window_start_sort is not None
             and absence_start == _today_str
+        )
+
+        # === B-NEW-A: returned-but-partially-covered state (Option ii) ===
+        # When a partial-day absence has been returned early but earlier periods
+        # were already covered (status stays 'Covered'), the teacher IS back.
+        # Show a distinct "you're back" banner with NO action buttons, instead
+        # of the red absent banner. State-aware UI per role spec 2.4.4.
+        show_return_state = bool(
+            is_absent
+            and not viewing_other
+            and absence_row['returned_early'] == 1
         )
         
         # Compute default extend date (next weekday after current end)
@@ -640,6 +651,7 @@ def my_day():
                           viewed_staff_id=staff_id,
                           is_full_day=is_full_day,
                           is_same_day_partial=is_same_day_partial,
+                          show_return_state=show_return_state,
                           today_str=date.today().isoformat())
 
 
