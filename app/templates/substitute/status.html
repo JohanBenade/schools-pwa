@@ -8,9 +8,9 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
             min-height: 100vh;
-            color: white;
+            color: #1E293B;
         }
         .container { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
 
@@ -24,29 +24,29 @@
             font-weight: 600;
             margin-bottom: 10px;
         }
-        .status-pill.covered { background: rgba(34,197,94,0.2); color: #4ade80; }
-        .status-pill.partial { background: rgba(251,191,36,0.2); color: #fbbf24; }
-        .status-pill.escalated { background: rgba(239,68,68,0.2); color: #f87171; }
-        .status-pill.reported { background: rgba(96,165,250,0.2); color: #60a5fa; }
-        .status-pill.resolved { background: rgba(148,163,184,0.2); color: #94a3b8; }
+        .status-pill.covered { background: #dcfce7; color: #16a34a; }
+        .status-pill.partial { background: #fef3c7; color: #b45309; }
+        .status-pill.escalated { background: #fee2e2; color: #dc2626; }
+        .status-pill.reported { background: #dbeafe; color: #1E4FA0; }
+        .status-pill.resolved { background: #f1f5f9; color: #64748b; }
         .header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
         .header .sub { font-size: 14px; opacity: 0.6; }
 
         /* Return banner */
         .return-banner {
-            background: rgba(34,197,94,0.15);
-            border: 1px solid rgba(34,197,94,0.3);
+            background: #dcfce7;
+            border: 1px solid #dcfce7;
             border-radius: 12px;
             padding: 14px 16px;
             margin-bottom: 16px;
             text-align: center;
             font-size: 14px;
-            color: #4ade80;
+            color: #16a34a;
         }
 
         /* Summary cards */
         .card {
-            background: rgba(255,255,255,0.08);
+            background: #ffffff;
             border-radius: 14px;
             padding: 16px;
             margin-bottom: 12px;
@@ -70,10 +70,10 @@
             padding: 3px 10px;
             border-radius: 6px;
         }
-        .card-badge.green { background: rgba(34,197,94,0.2); color: #4ade80; }
-        .card-badge.amber { background: rgba(251,191,36,0.2); color: #fbbf24; }
-        .card-badge.red { background: rgba(239,68,68,0.2); color: #f87171; }
-        .card-badge.grey { background: rgba(148,163,184,0.2); color: #94a3b8; }
+        .card-badge.green { background: #dcfce7; color: #16a34a; }
+        .card-badge.amber { background: #fef3c7; color: #b45309; }
+        .card-badge.red { background: #fee2e2; color: #dc2626; }
+        .card-badge.grey { background: #f1f5f9; color: #64748b; }
 
         /* Big number */
         .big-number {
@@ -82,9 +82,9 @@
         }
         .big-number .num { font-size: 36px; font-weight: 800; }
         .big-number .label { font-size: 13px; opacity: 0.5; margin-top: 2px; }
-        .big-number.green .num { color: #4ade80; }
-        .big-number.amber .num { color: #fbbf24; }
-        .big-number.red .num { color: #f87171; }
+        .big-number.green .num { color: #16a34a; }
+        .big-number.amber .num { color: #b45309; }
+        .big-number.red .num { color: #dc2626; }
 
         /* Detail rows */
         .detail-row {
@@ -92,24 +92,24 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 0;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            border-top: 1px solid #f1f5f9;
             font-size: 14px;
         }
         .detail-row:first-child { border-top: none; }
         .detail-label { opacity: 0.7; }
         .detail-value { font-weight: 600; }
-        .detail-value.green { color: #4ade80; }
-        .detail-value.red { color: #f87171; }
-        .detail-value.grey { color: #94a3b8; }
+        .detail-value.green { color: #16a34a; }
+        .detail-value.red { color: #dc2626; }
+        .detail-value.grey { color: #64748b; }
 
         /* Uncovered list */
         .uncovered-item {
-            background: rgba(239,68,68,0.1);
+            background: #fee2e2;
             border-radius: 8px;
             padding: 10px 12px;
             margin-top: 8px;
             font-size: 13px;
-            color: #f87171;
+            color: #dc2626;
         }
 
         /* Back button */
@@ -118,17 +118,17 @@
             width: 100%;
             padding: 14px;
             margin-top: 20px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.08);
             border-radius: 12px;
-            color: white;
+            color: #1E293B;
             font-size: 15px;
             font-weight: 600;
             text-align: center;
             text-decoration: none;
             cursor: pointer;
         }
-        .back-btn:active { background: rgba(255,255,255,0.15); }
+        .back-btn:active { background: rgba(0,0,0,0.08); }
     </style>
 </head>
 <body>
