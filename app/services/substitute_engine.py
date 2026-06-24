@@ -566,6 +566,38 @@ def process_absence(absence_id):
                 if (window_start_sort is not None and window_end_sort is not None
                         and not (window_start_sort <= slot['sort_order'] <= window_end_sort)):
                     continue
+
+                # B-NEW-B: past-start book-out. If this period has ALREADY ENDED
+                # (same-day only), do NOT assign a sub to a finished class. Write
+                # an honest NULL-sub 'Pending' (uncovered) record instead. A future
+                # target_date can never be in the past, so this only fires today.
+                if (target_date == date.today()
+                        and slot['end_time'] <= datetime.now().strftime('%H:%M')):
+                    gap_request_id = str(uuid.uuid4())
+                    cursor.execute("""
+                        INSERT INTO substitute_request
+                        (id, tenant_id, absence_id, period_id, substitute_id, status,
+                         class_name, subject, venue_id, venue_name, request_date)
+                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?)
+                    """, (gap_request_id, TENANT_ID, absence_id, slot['period_id'],
+                          slot['class_name'], slot['subject'],
+                          slot['venue_id'], slot['venue_code'], target_date_str))
+                    conn.commit()
+                    log_event(absence_id, 'no_cover', None,
+                             f"[{target_date_str}] {slot['period_name']}: period already ended - uncovered (late book-out)",
+                             gap_request_id)
+                    total_periods += 1
+                    day_result['periods'].append({
+                        'period_name': slot['period_name'],
+                        'period_number': slot['period_number'],
+                        'class_name': slot['class_name'],
+                        'subject': slot['subject'],
+                        'venue': slot['venue_code'],
+                        'substitute': None,
+                        'status': 'no_cover',
+                        'request_id': gap_request_id
+                    })
+                    continue
                 period_result = {
                     'period_name': slot['period_name'],
                     'period_number': slot['period_number'],
