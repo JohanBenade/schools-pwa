@@ -91,7 +91,7 @@ function getCurrentStatus(learnerId) {
     // Fall back to reading from DOM
     const row = document.querySelector('[data-learner-id="' + learnerId + '"]');
     if (!row) return 'Unmarked';
-    const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-amber-600');
+    const activeBtn = row.querySelector('.status-btn.bg-green-600, .status-btn.bg-red-600, .status-btn.bg-orange-600');
     return activeBtn ? activeBtn.dataset.status : 'Unmarked';
 }
 
@@ -150,17 +150,17 @@ function syncButtonVisuals() {
         const buttons = row.querySelectorAll('.status-btn');
         buttons.forEach(btn => {
             const btnStatus = btn.dataset.status;
-            btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-amber-600', 'text-white');
+            btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-orange-600', 'text-white');
             
             if (btnStatus === 'Present') btn.classList.add('bg-green-100', 'text-green-700');
             else if (btnStatus === 'Absent') btn.classList.add('bg-red-100', 'text-red-700');
-            else if (btnStatus === 'Late') btn.classList.add('bg-amber-100', 'text-amber-700');
+            else if (btnStatus === 'Late') btn.classList.add('bg-orange-100', 'text-orange-700');
             
             if (btnStatus === status) {
-                btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-amber-100', 'text-green-700', 'text-red-700', 'text-amber-700');
+                btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-orange-100', 'text-green-700', 'text-red-700', 'text-orange-700');
                 if (status === 'Present') btn.classList.add('bg-green-600', 'text-white');
                 else if (status === 'Absent') btn.classList.add('bg-red-600', 'text-white');
-                else if (status === 'Late') btn.classList.add('bg-amber-600', 'text-white');
+                else if (status === 'Late') btn.classList.add('bg-orange-600', 'text-white');
             }
         });
     }
@@ -187,17 +187,17 @@ function markLearner(learnerId, status, clickedBtn) {
     
     buttons.forEach(btn => {
         const btnStatus = btn.dataset.status;
-        btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-amber-600', 'text-white');
+        btn.classList.remove('bg-green-600', 'bg-red-600', 'bg-orange-600', 'text-white');
         
         if (btnStatus === 'Present') btn.classList.add('bg-green-100', 'text-green-700');
         else if (btnStatus === 'Absent') btn.classList.add('bg-red-100', 'text-red-700');
-        else if (btnStatus === 'Late') btn.classList.add('bg-amber-100', 'text-amber-700');
+        else if (btnStatus === 'Late') btn.classList.add('bg-orange-100', 'text-orange-700');
         
         if (btnStatus === status) {
-            btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-amber-100', 'text-green-700', 'text-red-700', 'text-amber-700');
+            btn.classList.remove('bg-green-100', 'bg-red-100', 'bg-orange-100', 'text-green-700', 'text-red-700', 'text-orange-700');
             if (status === 'Present') btn.classList.add('bg-green-600', 'text-white');
             else if (status === 'Absent') btn.classList.add('bg-red-600', 'text-white');
-            else if (status === 'Late') btn.classList.add('bg-amber-600', 'text-white');
+            else if (status === 'Late') btn.classList.add('bg-orange-600', 'text-white');
         }
     });
     
