@@ -38,10 +38,10 @@ def get_nav_styles():
         align-items: center;
         padding: 16px 0;
         margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid rgba(0,0,0,0.1);
     }
     .nav-back {
-        color: #60a5fa;
+        color: #1E4FA0;  /* maragon-navy-accent (base.html --maragon-navy-accent) */
         text-decoration: none;
         font-size: 14px;
         font-weight: 500;
@@ -50,12 +50,12 @@ def get_nav_styles():
         transition: background 0.2s;
     }
     .nav-back:hover {
-        background: rgba(96, 165, 250, 0.1);
+        background: rgba(21, 51, 107, 0.08);
     }
     .nav-title {
         font-size: 18px;
         font-weight: 600;
-        color: white;
+        color: #15336B;  /* maragon-navy (base.html --maragon-navy) */
     }
     .nav-home {
         font-size: 20px;
@@ -65,12 +65,8 @@ def get_nav_styles():
         transition: background 0.2s;
     }
     .nav-home:hover {
-        background: rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.05);
     }
-    /* Light theme version */
-    .nav-header-light .nav-back { color: #2563eb; }
-    .nav-header-light .nav-title { color: #1e293b; }
-    .nav-header-light { border-bottom-color: rgba(0,0,0,0.1); }
     '''
 
 
