@@ -6,7 +6,7 @@
     <title>Duty Declines - SchoolOps</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 20px; color: white; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 20px; color: #1E293B; }
         .container { max-width: 600px; margin: 0 auto; }
         {{ nav_styles }}
         
@@ -15,22 +15,22 @@
         .page-header .subtitle { font-size: 14px; opacity: 0.7; margin-top: 4px; }
         
         .filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-        .filter-btn { padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); text-decoration: none; }
+        .filter-btn { padding: 8px 16px; background: rgba(0,0,0,0.05); border-radius: 20px; font-size: 13px; color: #64748b; text-decoration: none; }
         .filter-btn.active { background: #3b82f6; color: white; }
         
-        .decline-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #ef4444; }
+        .decline-card { background: #ffffff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #ef4444; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .decline-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .decline-staff { font-size: 15px; font-weight: 600; }
-        .decline-type { font-size: 11px; padding: 3px 10px; border-radius: 10px; background: rgba(255,255,255,0.15); }
-        .decline-type.substitute { background: rgba(249, 115, 22, 0.3); color: #fdba74; }
-        .decline-type.terrain { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
-        .decline-type.sport { background: rgba(20, 184, 166, 0.3); color: #5eead4; }
+        .decline-type { font-size: 11px; padding: 3px 10px; border-radius: 10px; background: #f1f5f9; color: #64748b; }
+        .decline-type.substitute { background: #ffedd5; color: #c2410c; }
+        .decline-type.terrain { background: #dbeafe; color: #1E4FA0; }
+        .decline-type.sport { background: #ccfbf1; color: #0f766e; }
         
-        .decline-details { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
-        .decline-reason { font-size: 13px; color: rgba(255,255,255,0.5); font-style: italic; }
-        .decline-time { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 8px; }
+        .decline-details { font-size: 13px; color: #475569; margin-bottom: 6px; }
+        .decline-reason { font-size: 13px; color: #64748b; font-style: italic; }
+        .decline-time { font-size: 11px; color: #94a3b8; margin-top: 8px; }
         
-        .empty-state { text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; }
+        .empty-state { text-align: center; padding: 40px 20px; background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
         .empty-state p { opacity: 0.6; }
     </style>
