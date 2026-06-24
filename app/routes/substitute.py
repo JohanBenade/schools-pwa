@@ -1543,11 +1543,17 @@ def mark_absent():
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, display_name,
-                   LOWER(SUBSTR(display_name, INSTR(display_name, ' ') + 1)) as sort_name
-            FROM staff
-            WHERE tenant_id = ? AND is_active = 1
-            ORDER BY display_name
+            SELECT s.id, s.display_name, us.role,
+                   CASE 
+                       WHEN s.display_name LIKE 'Mr %' THEN SUBSTR(s.display_name, 4)
+                       WHEN s.display_name LIKE 'Ms %' THEN SUBSTR(s.display_name, 4)
+                       WHEN s.display_name LIKE 'Mrs %' THEN SUBSTR(s.display_name, 5)
+                       ELSE s.display_name
+                   END as sort_name
+            FROM staff s
+            LEFT JOIN user_session us ON s.id = us.staff_id AND us.tenant_id = s.tenant_id
+            WHERE s.tenant_id = ? AND s.is_active = 1
+            ORDER BY sort_name
         """, (TENANT_ID,))
         all_staff = [dict(row) for row in cursor.fetchall()]
 
