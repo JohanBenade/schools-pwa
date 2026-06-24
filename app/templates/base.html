@@ -6,8 +6,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}SchoolOps{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'maragon-navy': {
+                DEFAULT: '#15336B',
+                50:  '#EAF0FA',
+                100: '#C7D6EE',
+                600: '#1E4FA0',
+                700: '#193F80',
+                800: '#15336B',
+                900: '#0E224A'
+              },
+              'maragon-gold': {
+                DEFAULT: '#E7B84B',
+                50:  '#FCF6E6',
+                100: '#F7E7B8',
+                600: '#D69E2E',
+                800: '#8A6516',
+                900: '#4A3608'
+              }
+            }
+          }
+        }
+      };
+    </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
+        :root {
+            --maragon-navy: #15336B;
+            --maragon-navy-accent: #1E4FA0;
+            --maragon-gold: #E7B84B;
+            --maragon-gold-ink: #4A3608;
+            --maragon-danger: #A32D2D;
+        }
         .touch-btn:active {
             transform: scale(0.98);
             opacity: 0.9;
