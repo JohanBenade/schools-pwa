@@ -101,6 +101,9 @@
         }
         .affects-notice { font-size: 10px; color: #a78bfa; margin-top: 4px; }
         .absent-banner { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+        .return-banner { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; }
+        .return-banner h3 { font-size: 16px; margin-bottom: 4px; }
+        .return-banner p { font-size: 13px; opacity: 0.92; }
         .absent-banner h3 { font-size: 16px; margin-bottom: 4px; }
         .absent-banner p { font-size: 13px; opacity: 0.9; }
         .schedule.greyed { opacity: 0.75; }
@@ -175,7 +178,12 @@
             <div class="cycle">{{ day_type|replace('_', ' ')|title }}</div>
             {% endif %}
         </div>
-        {% if is_absent %}
+        {% if show_return_state %}
+        <div class="return-banner">
+            <h3>✅ You're back</h3>
+            <p>Remaining periods released — you'll teach them yourself. Earlier periods that were already covered stay covered, so you may still appear as covered for those.</p>
+        </div>
+        {% elif is_absent %}
         <div class="absent-banner">
             <h3>⚠️ {% if viewing_other %}Absent today{% elif today_str < absence_start %}Absence booked{% else %}You are marked absent{% endif %}</h3>
             <p>{% if not viewing_other %}{{ absence_type|replace("_", " ")|title }} · {% endif %}{% if absence_end and absence_end != absence_start %}{{ absence_start }} to {{ absence_end }}{% elif absence_open_ended %}Open-ended from {{ absence_start }}{% else %}{{ absence_start }}{% endif %}</p>
