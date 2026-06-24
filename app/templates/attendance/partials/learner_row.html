@@ -4,7 +4,7 @@
             <p class="font-medium text-slate-800">{{ learner.display_name }}{% if learner.consecutive_absent_days > 0 %} <span class="text-red-500 text-sm">({{ learner.consecutive_absent_days }}d absent)</span>{% endif %}</p>
             <p class="text-xs text-slate-500">{{ learner.learner_id }}</p>
         </div>
-        <span class="text-sm font-medium {% if learner.status == 'Present' %}text-green-600{% elif learner.status == 'Absent' %}text-red-600{% elif learner.status == 'Late' %}text-amber-600{% else %}text-slate-400{% endif %}">
+        <span class="text-sm font-medium {% if learner.status == 'Present' %}text-green-600{% elif learner.status == 'Absent' %}text-red-600{% elif learner.status == 'Late' %}text-orange-600{% else %}text-slate-400{% endif %}">
             {{ learner.status }}
         </span>
     </div>
@@ -27,7 +27,7 @@
         <form method="POST" action="/attendance/mark/{{ learner.id }}" class="flex-1"
               hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}' hx-post="/attendance/mark/{{ learner.id }}" hx-target="#learner-list" hx-swap="innerHTML">
             <input type="hidden" name="status" value="Late">
-            <button type="submit" class="w-full py-3 rounded-lg font-medium text-sm active:opacity-50 {% if learner.status == 'Late' %}bg-amber-500 text-white{% else %}bg-amber-50 text-amber-700 border border-amber-200{% endif %}">
+            <button type="submit" class="w-full py-3 rounded-lg font-medium text-sm active:opacity-50 {% if learner.status == 'Late' %}bg-orange-500 text-white{% else %}bg-orange-50 text-orange-700 border border-orange-200{% endif %}">
                 ◷ Late
             </button>
         </form>
