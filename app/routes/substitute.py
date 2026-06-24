@@ -355,10 +355,13 @@ def early_return():
                 WHERE absence_id = ? AND request_date = ?
                   AND status IN ('Pending', 'Assigned')
                   AND period_id IN (
-                      SELECT id FROM period WHERE start_time >= ?
+                      SELECT sr2.period_id FROM substitute_request sr2
+                      JOIN period p ON sr2.period_id = p.id
+                      WHERE sr2.absence_id = ? AND sr2.request_date = ?
+                        AND p.start_time >= ?
                   )
             """, (datetime.now().isoformat(), datetime.now().isoformat(),
-                  absence_id, _today, return_time))
+                  absence_id, _today, absence_id, _today, return_time))
             released_count = _cur.rowcount
 
             # Same-day duty release (duty_roster is day-granular: no time column,
@@ -621,10 +624,13 @@ def mark_back():
                 WHERE absence_id = ? AND request_date = ?
                   AND status IN ('Pending', 'Assigned')
                   AND period_id IN (
-                      SELECT id FROM period WHERE start_time >= ?
+                      SELECT sr2.period_id FROM substitute_request sr2
+                      JOIN period p ON sr2.period_id = p.id
+                      WHERE sr2.absence_id = ? AND sr2.request_date = ?
+                        AND p.start_time >= ?
                   )
             """, (datetime.now().isoformat(), datetime.now().isoformat(),
-                  absence_id, _today, return_time))
+                  absence_id, _today, absence_id, _today, return_time))
             released_count = _cur.rowcount
 
             # Same-day duty release (duty_roster is day-granular: no time column,
