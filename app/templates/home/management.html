@@ -43,8 +43,8 @@
 </head>
 <body>
     <div class="user-bar">
-        <a href="/dashboard/" style="color: #1E4FA0; text-decoration: none; font-size: 14px;">← Dashboard</a>
-        <span>🏛️ {{ user_name }} · {{ current_user.role_label }}</span>
+        <a href="/dashboard/" style="color: #1E4FA0; text-decoration: none; font-size: 14px;">&#127968; Home</a>
+        <span>&#127963;&#65039; {{ user_name }} &#183; {{ current_user.role_label }}</span>
     </div>
     <div id="alert-banner" hx-get="/emergency/banner" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
     <div class="header">
@@ -53,56 +53,56 @@
         <div class="mgmt-chip">Management</div>
     </div>
     <a href="/timetables/?from=ops" style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 24px;max-width:420px;padding:14px 18px;border:1px solid #1E4FA0;border-radius:12px;color:#1E4FA0;text-decoration:none;font-size:16px;font-weight:600;background:#DBEAFE;">
-        <span style="font-size:18px;">🔍</span>
+        <span style="font-size:18px;">&#128269;</span>
         <span>Find Timetable</span>
     </a>
     <div class="grid">
         <a href="/emergency/?from=ops" class="app-icon">
-            <div class="icon-box bg-red {{ 'emergency-pulse' if active_alert else '' }}">🚨</div>
+            <div class="icon-box bg-red {{ 'emergency-pulse' if active_alert else '' }}">&#128680;</div>
             <span class="app-label">Emergency</span>
         </a>
         <a href="/duty/my-day?from=ops" class="app-icon">
-            <div class="icon-box bg-green">📅</div>
+            <div class="icon-box bg-green">&#128197;</div>
             <span class="app-label">My Day</span>
         </a>
         <a href="/substitute/mark-absent?from=ops" class="app-icon">
-            <div class="icon-box bg-orange">✋</div>
+            <div class="icon-box bg-orange">&#9995;</div>
             <span class="app-label">Mark Absent</span>
         </a>
         <a href="/absences/?from=ops" class="app-icon">
-            <div class="icon-box bg-indigo">📋</div>
+            <div class="icon-box bg-indigo">&#128203;</div>
             <span class="app-label">Who's Out</span>
         </a>
         <a href="/substitute/overview?from=ops" class="app-icon">
-            <div class="icon-box bg-orange">🔄</div>
+            <div class="icon-box bg-orange">&#128260;</div>
             <span class="app-label">Substitutes</span>
         </a>
         <a href="/duty/terrain?from=ops" class="app-icon">
-            <div class="icon-box bg-purple">🗺️</div>
+            <div class="icon-box bg-purple">&#128506;&#65039;</div>
             <span class="app-label">Terrain Roster</span>
         </a>
         <a href="/sport/events?from=ops" class="app-icon">
-            <div class="icon-box bg-teal">🏆</div>
+            <div class="icon-box bg-teal">&#127942;</div>
             <span class="app-label">Sport</span>
         </a>
         <a href="/sport/my-duties?from=ops" class="app-icon">
-            <div class="icon-box bg-teal">🎽</div>
+            <div class="icon-box bg-teal">&#127933;</div>
             <span class="app-label">Sport Duties</span>
         </a>
         <a href="/timetables/?from=ops" class="app-icon">
-            <div class="icon-box bg-cyan">🗓️</div>
+            <div class="icon-box bg-cyan">&#128467;&#65039;</div>
             <span class="app-label">Timetables</span>
         </a>
         <a href="/admin/terrain/generate?from=ops" class="app-icon">
-            <div class="icon-box bg-purple">⚙️</div>
+            <div class="icon-box bg-purple">&#9881;&#65039;</div>
             <span class="app-label">Roster Generator</span>
         </a>
         <a href="/admin/?from=ops" class="app-icon">
-            <div class="icon-box bg-amber">📒</div>
+            <div class="icon-box bg-amber">&#128210;</div>
             <span class="app-label">Registers</span>
         </a>
         <a href="/admin/declines?from=ops" class="app-icon">
-            <div class="icon-box bg-slate">📋</div>
+            <div class="icon-box bg-slate">&#128203;</div>
             <span class="app-label">Declines</span>
         </a>
     </div>
