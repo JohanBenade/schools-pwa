@@ -530,6 +530,9 @@ def index():
         .user-bar a {{ color: #1E4FA0; text-decoration: none; opacity: 0.85; }}
         .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-top: 8px; margin-bottom: 16px; }}
         .insight-line {{ font-size: 16px; line-height: 1.5; text-align: center; margin-bottom: 24px; opacity: 0.92; font-weight: 500; }}
+        .dash-header {{ text-align: center; margin-top: 8px; }}
+        .dash-header h1 {{ font-size: 18px; font-weight: 600; opacity: 0.7; }}
+        .dash-header h2 {{ font-size: 26px; font-weight: 700; margin-bottom: 4px; }}
         .spark-dip-label {{ font-size: 11px; opacity: 0.7; text-align: center; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 5px; }}
         .spark-dip-dot {{ width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }}
         .cards {{ display: flex; flex-direction: column; gap: 16px; }}
@@ -602,6 +605,10 @@ def index():
         <span>🏛️ {user_name} · {user_role_label}</span>
     </div>
     <div class="container">
+        <div class="dash-header">
+            <h1>Maragon Mooikloof</h1>
+            <h2>Overview</h2>
+        </div>
         <div class="header-date">{today_display}</div>
         <div class="insight-line">{insight_line}</div>
         
