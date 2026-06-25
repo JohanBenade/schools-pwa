@@ -163,20 +163,21 @@ def new_notice():
     if form['category'] not in CATEGORIES:
         return _render_form("Please choose a valid category.", form)
 
-    # Required image
+    # Optional image (Phase C 5.1: image is no longer required).
+    # Only read/validate when one is actually uploaded; image_path stays NULL
+    # otherwise (schema_version 14 made notice.image_path nullable).
     image = request.files.get('image')
-    if not image or not image.filename:
-        return _render_form("An image is required (it is the notice's cover).", form)
-
-    img_bytes = image.read()
-    if len(img_bytes) == 0:
-        return _render_form("The image file is empty.", form)
-    if len(img_bytes) > IMAGE_MAX_BYTES:
-        return _render_form("Image is too large (max 5 MB).", form)
-
-    canon_ext = _sniff_image(img_bytes[:16])
-    if canon_ext is None:
-        return _render_form("Image must be a JPG, PNG, or WEBP file.", form)
+    img_bytes = None
+    canon_ext = None
+    if image and image.filename:
+        img_bytes = image.read()
+        if len(img_bytes) == 0:
+            return _render_form("The image file is empty.", form)
+        if len(img_bytes) > IMAGE_MAX_BYTES:
+            return _render_form("Image is too large (max 5 MB).", form)
+        canon_ext = _sniff_image(img_bytes[:16])
+        if canon_ext is None:
+            return _render_form("Image must be a JPG, PNG, or WEBP file.", form)
 
     # Optional PDF
     doc = request.files.get('attachment')
@@ -188,21 +189,29 @@ def new_notice():
         if not doc_bytes[:4] == PDF_MAGIC:
             return _render_form("Attachment must be a PDF file.", form)
 
+    # Combined validity guard (Phase C 5.1): a notice needs title + category
+    # (checked above) PLUS at least one of {body, image, PDF}. Title+category
+    # alone is rejected. This must run AFTER both file inputs are resolved.
+    if not form['body'] and img_bytes is None and doc_bytes is None:
+        return _render_form(
+            "Add at least one of: a body message, an image, or a PDF.", form)
+
     # ---- Write files (UUID names, never trust uploaded filename) ----
     # Spec 3.3: store the RELATIVE filename in the DB, not the absolute path.
     # Phase C's serve route joins the stored filename back onto IMG_DIR / DOC_DIR.
     # This keeps the DB decoupled from the mount location.
-    os.makedirs(IMG_DIR, exist_ok=True)
-    os.makedirs(DOC_DIR, exist_ok=True)
-
-    img_name = "%s.%s" % (uuid.uuid4().hex, canon_ext)
-    with open(os.path.join(IMG_DIR, img_name), 'wb') as f:
-        f.write(img_bytes)
-    image_path = img_name  # store bare filename
+    image_path = None
+    if img_bytes is not None:
+        os.makedirs(IMG_DIR, exist_ok=True)
+        img_name = "%s.%s" % (uuid.uuid4().hex, canon_ext)
+        with open(os.path.join(IMG_DIR, img_name), 'wb') as f:
+            f.write(img_bytes)
+        image_path = img_name  # store bare filename
 
     attachment_path = None
     attachment_type = None
     if doc_bytes is not None:
+        os.makedirs(DOC_DIR, exist_ok=True)
         doc_name = "%s.pdf" % uuid.uuid4().hex
         with open(os.path.join(DOC_DIR, doc_name), 'wb') as f:
             f.write(doc_bytes)
