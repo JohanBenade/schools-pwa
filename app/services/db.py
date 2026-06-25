@@ -6,7 +6,7 @@ Reference data remains in Notion
 
 import sqlite3
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
@@ -15,6 +15,20 @@ from contextlib import contextmanager
 import os
 _default_path = Path(__file__).parent.parent / "data" / "schoolops.db"
 DB_PATH = Path(os.environ.get("DATABASE_PATH", _default_path))
+
+# South Africa has NO daylight saving - SAST is a permanent UTC+2 offset.
+# This is a pure-stdlib fixed offset (no IANA tzdata dependency, cannot fail
+# on a slim container).
+SAST = timezone(timedelta(hours=2))
+
+
+def sast_now():
+    """Naive wall-clock now in SAST (UTC+2, no DST in South Africa).
+    Use ONLY for comparison against stored bell/period/duty times,
+    which are stored as SAST wall-clock. NEVER use for stored ISO
+    timestamps (created_at, returned_at, audit logs) - those remain
+    UTC via datetime.now().isoformat()."""
+    return datetime.now(SAST).replace(tzinfo=None)
 
 
 def get_db_path() -> Path:
