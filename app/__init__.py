@@ -142,6 +142,7 @@ def create_app():
                     session['display_name'] = row['display_name']
                     session['role'] = row['role']
                     session['can_resolve'] = bool(row['can_resolve'])
+                    session['can_post_notice'] = bool(row['can_post_notice'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
@@ -267,6 +268,7 @@ def create_app():
                     session['display_name'] = row['display_name']
                     session['role'] = row['role']
                     session['can_resolve'] = bool(row['can_resolve'])
+                    session['can_post_notice'] = bool(row['can_post_notice'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
