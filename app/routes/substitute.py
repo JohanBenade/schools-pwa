@@ -5,7 +5,7 @@ Substitute routes - Report absence, view assignments, Substitute Overview
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
 from datetime import date, datetime, timedelta
 import uuid
-from app.services.db import get_connection, create_absence_multiday
+from app.services.db import get_connection, create_absence_multiday, sast_now
 from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
     get_teacher_schedule, get_current_pointer
@@ -332,7 +332,7 @@ def early_return():
 
         if _is_partial_today:
             teacher_name = _ab['teacher_name']
-            return_time = datetime.now().strftime('%H:%M')
+            return_time = sast_now().strftime('%H:%M')
 
             # Capture subs for today's not-yet-started periods BEFORE releasing.
             _cur.execute("""
@@ -602,7 +602,7 @@ def mark_back():
         if _is_partial_today:
             _staff_id = _ab['staff_id']
             teacher_name = _ab['teacher_name']
-            return_time = datetime.now().strftime('%H:%M')
+            return_time = sast_now().strftime('%H:%M')
 
             # Capture subs for today's not-yet-started periods BEFORE releasing.
             _cur.execute("""
@@ -1213,7 +1213,7 @@ def decline_assignment(request_id):
     reason = request.form.get('reason', '').strip()
     if not reason:
         return 'Reason is required', 400
-    now = datetime.now()
+    now = sast_now()
     
     with get_connection() as conn:
         cursor = conn.cursor()
