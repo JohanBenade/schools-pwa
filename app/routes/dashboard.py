@@ -563,8 +563,8 @@ def index():
         .year-pixels {{ display: flex; flex-direction: column; gap: 3px; margin-top: 16px; }}
         .yp-row {{ display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: center; }}
         .yp-daylabel {{ font-size: 10px; opacity: 0.55; text-align: right; }}
-        .yp-cells {{ display: grid; gap: 3px; }}
-        .yp-cell {{ aspect-ratio: 1; border-radius: 2px; min-height: 12px; }}
+        .yp-cells {{ display: grid; gap: 3px; min-width: 0; }}
+        .yp-cell {{ aspect-ratio: 1; border-radius: 2px; min-width: 0; }}
         .yp-green {{ background: #22c55e; }}
         .yp-amber {{ background: #f59e0b; }}
         .yp-red {{ background: #ef4444; }}
