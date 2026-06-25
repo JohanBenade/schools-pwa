@@ -6,7 +6,7 @@ Updated: Multi-day support + absence checking
 
 import uuid
 from datetime import datetime, date, timedelta
-from app.services.db import get_connection
+from app.services.db import get_connection, sast_now
 
 TENANT_ID = "MARAGON"
 
@@ -571,8 +571,9 @@ def process_absence(absence_id):
                 # (same-day only), do NOT assign a sub to a finished class. Write
                 # an honest NULL-sub 'Pending' (uncovered) record instead. A future
                 # target_date can never be in the past, so this only fires today.
-                if (target_date == date.today()
-                        and slot['end_time'] <= datetime.now().strftime('%H:%M')):
+                _sast = sast_now()
+                if (target_date == _sast.date()
+                        and slot['end_time'] <= _sast.strftime('%H:%M')):
                     gap_request_id = str(uuid.uuid4())
                     cursor.execute("""
                         INSERT INTO substitute_request
