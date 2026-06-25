@@ -538,9 +538,9 @@ def index():
         .card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }}
         .card-status {{ padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }}
         .status-green {{ background: #22c55e; }}
-        .status-yellow {{ background: #eab308; color: #000; }}
+        .status-yellow {{ background: #FEF3C7; color: #B45309; }}
         .status-red {{ background: #ef4444; }}
-        .status-info {{ background: #06b6d4; color: #022f37; }}
+        .status-info {{ background: #DBEAFE; color: #1E4FA0; }}
         .big-number {{ font-size: 48px; font-weight: 700; line-height: 1; }}
         .big-label {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
         .stat-row {{ display: flex; gap: 24px; margin-top: 16px; }}
