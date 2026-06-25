@@ -27,6 +27,10 @@ def create_app():
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['WTF_CSRF_TIME_LIMIT'] = None  # token valid for session lifetime (365d sessions)
+    # Global upload ceiling: 5 MB image + 10 MB PDF + multipart/header overhead.
+    # Rejects oversized bodies before they are read into memory; the friendly
+    # per-file 5/10 MB messages live in the notices route.
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     csrf = CSRFProtect(app)
     
     from app.routes.attendance import attendance_bp
@@ -42,6 +46,7 @@ def create_app():
     from app.routes.timetables import timetables_bp
     from app.routes.schedule import schedule_bp
     from app.routes.terrain_admin import terrain_admin_bp
+    from app.routes.notices import notices_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
@@ -56,6 +61,7 @@ def create_app():
     app.register_blueprint(timetables_bp)
     app.register_blueprint(schedule_bp)
     app.register_blueprint(terrain_admin_bp)
+    app.register_blueprint(notices_bp)
     
     @app.before_request
     def check_password_gate():
