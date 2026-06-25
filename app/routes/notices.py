@@ -78,12 +78,17 @@ def _sniff_image(head):
 
 
 def _render_form(error=None, form=None):
-    """Re-render the New Notice form, preserving entered text on error."""
+    """Re-render the New Notice form, preserving entered text on error.
+    Upload size limits are derived from the byte constants (single source of
+    truth) and passed to the template so the labels can never drift from
+    what the route actually enforces."""
     form = form or {}
     return render_template(
         'notices/new.html',
         categories=CATEGORIES,
         error=error,
+        image_max_mb=IMAGE_MAX_BYTES // (1024 * 1024),
+        pdf_max_mb=PDF_MAX_BYTES // (1024 * 1024),
         title=form.get('title', ''),
         body=form.get('body', ''),
         category=form.get('category', ''),
