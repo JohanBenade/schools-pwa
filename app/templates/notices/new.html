@@ -96,9 +96,9 @@
 
             <div class="card">
                 <div class="form-group">
-                    <label>Poster image <span class="req">*</span>
-                        <span class="hint">JPG, PNG or WEBP, max {{ image_max_mb }} MB</span></label>
-                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+                    <label>Poster image <span class="hint">optional &middot; JPG, PNG or WEBP, max {{ image_max_mb }} MB</span></label>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                    <span class="hint" style="display:block; margin-top:6px;">Add at least one of: an image, a message, or a PDF.</span>
                 </div>
 
                 <div class="form-group">
