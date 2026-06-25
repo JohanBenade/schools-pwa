@@ -40,22 +40,28 @@
         .staff-list {
             max-height: 300px;
             overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             margin-top: 12px;
         }
         .staff-list.hidden { display: none; }
         .staff-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             padding: 14px 16px;
             cursor: pointer;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             transition: background 0.2s;
         }
-        .staff-option:hover { background: #f1f5f9; }
+        .staff-option:hover { background: #f8fafc; }
         .staff-option.hidden { display: none; }
-        .staff-option:last-child { border-bottom: none; }
         .staff-name { font-weight: 500; }
-        .staff-role { font-size: 12px; opacity: 0.6; }
+        .staff-role { font-size: 12px; opacity: 0.6; text-transform: capitalize; }
+        .staff-option .arrow { opacity: 0.5; }
         
         .no-results {
             text-align: center;
@@ -199,8 +205,11 @@
             <div class="staff-list" id="staffList">
                 {% for staff in all_staff %}
                 <div class="staff-option" data-id="{{ staff.id }}" data-name="{{ staff.display_name }}" data-firstname="{{ staff.sort_name|lower }}">
-                    <div class="staff-name">{{ staff.display_name }}</div>
-                    <div class="staff-role">{{ staff.role or 'Teacher' }}</div>
+                    <div>
+                        <div class="staff-name">{{ staff.display_name }}</div>
+                        <div class="staff-role">{{ staff.role or 'Teacher' }}</div>
+                    </div>
+                    <span class="arrow">&rarr;</span>
                 </div>
                 {% endfor %}
             </div>
