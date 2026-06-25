@@ -5,7 +5,7 @@ Combines: teaching periods, terrain duty, homework duty, sub assignments, sport 
 
 from flask import Blueprint, render_template, request, redirect, session
 from datetime import date, datetime, timedelta
-from app.services.db import get_connection
+from app.services.db import get_connection, sast_now
 from app.services.substitute_engine import get_cycle_day
 from app.services.nav import get_nav_header, get_nav_styles
 
@@ -859,7 +859,7 @@ def decline_terrain_duty(duty_id):
         
         # Check cutoff: can't decline after 06:30 on duty day
         duty_date = date.fromisoformat(duty['duty_date'])
-        now = datetime.now()
+        now = sast_now()
         cutoff = datetime.combine(duty_date, time(6, 30))
         
         if now >= cutoff:
@@ -962,7 +962,7 @@ def decline_homework_duty(duty_id):
             return redirect(return_to)
 
         duty_date = date.fromisoformat(duty['duty_date'])
-        now = datetime.now()
+        now = sast_now()
         cutoff = datetime.combine(duty_date, time(6, 30))
 
         if now >= cutoff:
@@ -1111,7 +1111,7 @@ def my_terrain():
                 duty['area_display'] = duty['area_name'] or 'TBC'
 
             # Can decline if before 06:30 on duty day
-            now = datetime.now()
+            now = sast_now()
             cutoff = datetime.combine(duty_date, dt_time(6, 30))
             duty['can_decline'] = now < cutoff
 
