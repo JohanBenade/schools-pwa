@@ -37,7 +37,7 @@ def build_sparkline(daily_data, width=320, height=80, padding=8):
     dip_y = padding + (1 - (daily_data[dip_i][1] - min_pct) / range_pct) * inner_h
     marker = (
         f'<circle cx="{dip_x:.1f}" cy="{dip_y:.1f}" r="4.5" fill="#ef4444" '
-        f'stroke="#0f172a" stroke-width="1.5"/>'
+        f'stroke="#fff" stroke-width="1.5"/>'
     )
     return (
         f'<svg viewBox="0 0 {width} {height}" '
@@ -524,16 +524,16 @@ def index():
     <title>Dashboard - SchoolOps</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 80px 20px 40px; color: white; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 80px 20px 40px; color: #1E293B; }}
         .container {{ max-width: 600px; margin: 0 auto; }}
-        .user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
-        .user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
+        .user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 12px 20px; font-size: 14px; color: #1E293B; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.08); }}
+        .user-bar a {{ color: #1E4FA0; text-decoration: none; opacity: 0.85; }}
         .header-date {{ font-size: 14px; opacity: 0.7; text-align: center; margin-top: 8px; margin-bottom: 16px; }}
         .insight-line {{ font-size: 16px; line-height: 1.5; text-align: center; margin-bottom: 24px; opacity: 0.92; font-weight: 500; }}
         .spark-dip-label {{ font-size: 11px; opacity: 0.7; text-align: center; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 5px; }}
         .spark-dip-dot {{ width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }}
         .cards {{ display: flex; flex-direction: column; gap: 16px; }}
-        .card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; }}
+        .card {{ background: #fff; border-radius: 16px; padding: 20px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }}
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
         .card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }}
         .card-status {{ padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }}
@@ -547,18 +547,18 @@ def index():
         .stat {{ flex: 1; }}
         .stat-value {{ font-size: 24px; font-weight: 600; }}
         .stat-label {{ font-size: 12px; opacity: 0.6; }}
-        .detail-list {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }}
+        .detail-list {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid #E2E8F0; }}
         .detail-item {{ font-size: 13px; padding: 6px 0; opacity: 0.8; }}
-        .grade-breakdown {{ font-size: 13px; opacity: 0.85; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }}
-        .card-link {{ display: block; text-align: center; margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; color: white; text-decoration: none; font-size: 14px; }}
-        .card-link:hover {{ background: rgba(255,255,255,0.15); }}
+        .grade-breakdown {{ font-size: 13px; opacity: 0.85; margin-top: 12px; padding-top: 12px; border-top: 1px solid #E2E8F0; text-align: center; }}
+        .card-link {{ display: block; text-align: center; margin-top: 16px; padding: 12px; background: #F1F5F9; border-radius: 8px; color: #1E4FA0; text-decoration: none; font-size: 14px; }}
+        .card-link:hover {{ background: #E2E8F0; }}
         .sparkline-wrap {{ margin: 16px 0 4px; }}
         .sparkline-axis {{ display: flex; justify-content: space-between; font-size: 10px; opacity: 0.5; padding: 4px 4px 0; }}
-        .grade-bars {{ display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }}
+        .grade-bars {{ display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #E2E8F0; }}
         .grade-bar {{ display: grid; grid-template-columns: 44px 56px 1fr; gap: 12px; align-items: center; font-size: 13px; }}
         .grade-label {{ opacity: 0.7; font-weight: 500; }}
-        .grade-pct {{ font-weight: 600; text-align: right; color: #22d3ee; }}
-        .bar-track {{ background: rgba(255,255,255,0.08); height: 8px; border-radius: 4px; overflow: hidden; }}
+        .grade-pct {{ font-weight: 600; text-align: right; color: #0891b2; }}
+        .bar-track {{ background: #E2E8F0; height: 8px; border-radius: 4px; overflow: hidden; }}
         .bar-fill {{ background: linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee); height: 100%; border-radius: 4px; }}
         .year-pixels {{ display: flex; flex-direction: column; gap: 3px; margin-top: 16px; }}
         .yp-row {{ display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: center; }}
@@ -568,7 +568,7 @@ def index():
         .yp-green {{ background: #22c55e; }}
         .yp-amber {{ background: #f59e0b; }}
         .yp-red {{ background: #ef4444; }}
-        .yp-none {{ background: rgba(255,255,255,0.05); }}
+        .yp-none {{ background: #E2E8F0; }}
         .yp-legend {{ display: flex; gap: 14px; font-size: 11px; opacity: 0.8; margin-top: 14px; flex-wrap: wrap; justify-content: center; }}
         .yp-leg-item {{ display: flex; align-items: center; gap: 5px; }}
         .yp-swatch {{ width: 10px; height: 10px; border-radius: 2px; display: inline-block; }}
@@ -585,12 +585,12 @@ def index():
         .dot-critical {{ background: #ef4444; }}
         .dot-high {{ background: #f59e0b; }}
         .absentee-list {{ display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }}
-        .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
-        .absentee-row:hover {{ background: rgba(255,255,255,0.08); }}
-        .absentee-row:active {{ background: rgba(255,255,255,0.12); }}
+        .absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F1F5F9; border-radius: 8px; color: #1E293B; text-decoration: none; transition: background 0.15s; }}
+        .absentee-row:hover {{ background: #E2E8F0; }}
+        .absentee-row:active {{ background: #CBD5E1; }}
         .absentee-name {{ font-weight: 500; font-size: 14px; display: flex; align-items: center; }}
         .absentee-meta {{ font-size: 12px; opacity: 0.7; }}
-        .absence-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }}
+        .absence-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #E2E8F0; }}
         .absence-row:last-child {{ border-bottom: none; }}
         .absence-name {{ font-weight: 500; }}
         .absence-status {{ font-size: 12px; padding: 2px 8px; border-radius: 8px; background: #22c55e; }}
@@ -745,18 +745,18 @@ def chronic_absentees_list():
 <title>Chronic Absentees - SchoolOps</title>
 <style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 60px 20px 40px; color: #1E293B; }}
 .container {{ max-width: 600px; margin: 0 auto; }}
-.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
-.user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
+.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 12px 20px; font-size: 14px; color: #1E293B; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.08); }}
+.user-bar a {{ color: #1E4FA0; text-decoration: none; opacity: 0.85; }}
 .page-header {{ text-align: center; margin-bottom: 24px; }}
 .page-title {{ font-size: 24px; font-weight: 700; }}
 .page-subtitle {{ font-size: 13px; opacity: 0.7; margin-top: 6px; }}
 .page-count {{ font-size: 14px; opacity: 0.85; margin-top: 8px; }}
 .absentee-list {{ display: flex; flex-direction: column; gap: 6px; }}
-.absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 14px; background: rgba(255,255,255,0.06); border-radius: 8px; color: white; text-decoration: none; transition: background 0.15s; }}
-.absentee-row:hover {{ background: rgba(255,255,255,0.10); }}
-.absentee-row:active {{ background: rgba(255,255,255,0.14); }}
+.absentee-row {{ display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #F1F5F9; border-radius: 8px; color: #1E293B; text-decoration: none; transition: background 0.15s; }}
+.absentee-row:hover {{ background: #E2E8F0; }}
+.absentee-row:active {{ background: #CBD5E1; }}
 .absentee-name {{ font-weight: 500; font-size: 15px; display: flex; align-items: center; }}
 .absentee-meta {{ font-size: 13px; opacity: 0.7; }}
 .dot {{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; }}
@@ -828,14 +828,14 @@ def learner_detail(learner_id):
 <title>{full_name} - SchoolOps</title>
 <style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 60px 20px 40px; color: white; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 60px 20px 40px; color: #1E293B; }}
 .container {{ max-width: 600px; margin: 0 auto; }}
-.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); padding: 12px 20px; font-size: 14px; color: white; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); }}
-.user-bar a {{ color: white; text-decoration: none; opacity: 0.85; }}
+.user-bar {{ position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 12px 20px; font-size: 14px; color: #1E293B; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.08); }}
+.user-bar a {{ color: #1E4FA0; text-decoration: none; opacity: 0.85; }}
 .learner-header {{ text-align: center; margin-bottom: 24px; }}
 .learner-name {{ font-size: 28px; font-weight: 700; }}
 .learner-meta {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
-.card {{ background: rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-bottom: 16px; }}
+.card {{ background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }}
 .card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; margin-bottom: 16px; }}
 .stat-row {{ display: flex; gap: 12px; }}
 .stat {{ flex: 1; text-align: center; }}
