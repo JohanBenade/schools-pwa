@@ -537,9 +537,9 @@ def index():
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
         .card-title {{ font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }}
         .card-status {{ padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }}
-        .status-green {{ background: #22c55e; }}
+        .status-green {{ background: #22c55e; color: #fff; }}
         .status-yellow {{ background: #FEF3C7; color: #B45309; }}
-        .status-red {{ background: #ef4444; }}
+        .status-red {{ background: #ef4444; color: #fff; }}
         .status-info {{ background: #DBEAFE; color: #1E4FA0; }}
         .big-number {{ font-size: 48px; font-weight: 700; line-height: 1; }}
         .big-label {{ font-size: 14px; opacity: 0.7; margin-top: 4px; }}
@@ -593,7 +593,7 @@ def index():
         .absence-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #E2E8F0; }}
         .absence-row:last-child {{ border-bottom: none; }}
         .absence-name {{ font-weight: 500; }}
-        .absence-status {{ font-size: 12px; padding: 2px 8px; border-radius: 8px; background: #22c55e; }}
+        .absence-status {{ font-size: 12px; padding: 2px 8px; border-radius: 8px; background: #22c55e; color: #fff; }}
     </style>
 </head>
 <body>
