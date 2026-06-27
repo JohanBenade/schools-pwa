@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Schedule - SchoolOps</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 24px; padding-top: 16px; }
+        .header h1 { font-size: 24px; color: #1e293b; margin-bottom: 4px; }
+        .header p { color: #64748b; font-size: 14px; }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+        }
+        .meta { font-size: 14px; color: #475569; line-height: 1.7; }
+        .meta .label { font-weight: 600; color: #334155; }
+        .badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 999px;
+            padding: 2px 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-draft { color: #b45309; font-weight: 600; }
+        .status-published { color: #15803d; font-weight: 600; }
+        .filelink {
+            display: inline-block;
+            margin-top: 10px;
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .notice {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        h2 { font-size: 16px; color: #1e293b; margin-bottom: 12px; }
+        .contract {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .hint { color: #94a3b8; font-size: 13px; margin-bottom: 12px; }
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 14px;
+            color: #1e293b;
+            background: white;
+            resize: vertical;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .btn-save { background: #2563eb; color: white; }
+        .btn-save:active { background: #1d4ed8; }
+        .btn-publish { background: #16a34a; color: white; }
+        .btn-publish:active { background: #15803d; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td {
+            text-align: left;
+            padding: 8px 6px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: top;
+        }
+        th { color: #64748b; font-weight: 600; font-size: 12px; }
+        td .sub { color: #94a3b8; font-size: 12px; }
+        .empty { color: #94a3b8; font-size: 14px; }
+        .back { display: block; text-align: center; margin-top: 16px; color: #64748b; font-size: 14px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Review Schedule</h1>
+            <p>Check the items, then publish to the spine</p>
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        {% if notice %}
+        <div class="notice">{{ notice }}</div>
+        {% endif %}
+
+        <div class="card">
+            <p class="meta">
+                <span class="badge">{{ source.programme_name }}</span>
+                {% if source.status == 'published' %}
+                <span class="status-published">&middot; Published</span>
+                {% else %}
+                <span class="status-draft">&middot; Draft</span>
+                {% endif %}
+            </p>
+            <p class="meta" style="margin-top:10px;">
+                <span class="label">{{ source.title }}</span>
+                {% if source.term_label %}<br>{{ source.term_label }}{% endif %}
+            </p>
+            {% if source.file_path and source.file_type %}
+            <a class="filelink" href="/schedules/file/{{ source.id }}/{{ source.file_type }}" target="_blank" rel="noopener">
+                Open original file &rarr;
+            </a>
+            {% endif %}
+        </div>
+
+        {% if source.status == 'draft' %}
+        <div class="card">
+            <h2>Paste items</h2>
+            <p class="hint">One row per line, columns separated by TAB. Required: date + label. A header row is skipped. Pasting replaces the current items.</p>
+            <div class="contract">item_date&nbsp;&rarr;&nbsp;label&nbsp;&rarr;&nbsp;end_date&nbsp;&rarr;&nbsp;start_time&nbsp;&rarr;&nbsp;end_time&nbsp;&rarr;&nbsp;grade&nbsp;&rarr;&nbsp;session&nbsp;&rarr;&nbsp;venue&nbsp;&rarr;&nbsp;sub_label&nbsp;&rarr;&nbsp;sort_hint</div>
+            <form method="POST" action="/schedules/items/{{ source.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea name="rows" placeholder="2026-07-27&#9;Mr Smith&#10;2026-08-03&#9;Mrs Naidoo&#9;&#9;&#9;&#9;&#9;&#9;&#9;(Academic Top 10)"></textarea>
+                <button type="submit" class="btn-save">Save items</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <h2>Current items ({{ items|length }})</h2>
+            {% if items %}
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Time</th><th>Label</th><th>Venue</th></tr>
+                </thead>
+                <tbody>
+                    {% for it in items %}
+                    <tr>
+                        <td>{{ it.item_date }}{% if it.end_date %}<br>&rarr; {{ it.end_date }}{% endif %}</td>
+                        <td>{% if it.start_time %}{{ it.start_time }}{% if it.end_time %}-{{ it.end_time }}{% endif %}{% else %}&mdash;{% endif %}</td>
+                        <td>{{ it.label }}{% if it.sub_label %}<br><span class="sub">{{ it.sub_label }}</span>{% endif %}{% if it.grade %}<br><span class="sub">Gr {{ it.grade }}</span>{% endif %}{% if it.session %}<span class="sub"> &middot; S{{ it.session }}</span>{% endif %}</td>
+                        <td>{% if it.venue %}{{ it.venue }}{% else %}&mdash;{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty">No items yet. Paste rows above.</p>
+            {% endif %}
+        </div>
+
+        {% if source.status == 'draft' and items %}
+        <div class="card">
+            <form method="POST" action="/schedules/publish/{{ source.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-publish">Publish to spine</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <a class="back" href="/schedules/">&larr; Back to schedules</a>
+    </div>
+</body>
+</html>
