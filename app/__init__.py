@@ -47,6 +47,7 @@ def create_app():
     from app.routes.schedule import schedule_bp
     from app.routes.terrain_admin import terrain_admin_bp
     from app.routes.notices import notices_bp
+    from app.routes.schedules import schedules_bp
     
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
@@ -62,6 +63,7 @@ def create_app():
     app.register_blueprint(schedule_bp)
     app.register_blueprint(terrain_admin_bp)
     app.register_blueprint(notices_bp)
+    app.register_blueprint(schedules_bp)
     
     @app.before_request
     def check_password_gate():
@@ -149,6 +151,7 @@ def create_app():
                     session['role'] = row['role']
                     session['can_resolve'] = bool(row['can_resolve'])
                     session['can_post_notice'] = bool(row['can_post_notice'])
+                    session['can_post_schedule'] = bool(row['can_post_schedule'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
@@ -275,6 +278,7 @@ def create_app():
                     session['role'] = row['role']
                     session['can_resolve'] = bool(row['can_resolve'])
                     session['can_post_notice'] = bool(row['can_post_notice'])
+                    session['can_post_schedule'] = bool(row['can_post_schedule'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
