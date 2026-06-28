@@ -20,7 +20,7 @@ Notice Board un-parks. Tenant-scoped from day one. ASCII-only.
 """
 
 from flask import Blueprint, render_template, request, redirect, session, send_file, abort
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import os
 import re
 import uuid
@@ -119,11 +119,80 @@ def board():
     else:
         _back_url, _back_label = "/", "Home"
     nav_header = get_nav_header("Schedules", _back_url, _back_label)
+
+    # ---- Spine feed (Step 2): published, active, tenant-scoped items -----
+    # One published source today (the Assessment Timetable); the query is
+    # written for many. Grade is stored as text ('8'..'12'); CAST so 10/11/12
+    # sort after 8/9 rather than lexically. Rows carry their source's id +
+    # file_type so each date-card can tap through to the original artifact.
+    today_iso = date.today().isoformat()
+    show_all = request.args.get('range') == 'all'
+    with get_connection() as conn:
+        cur = conn.cursor()
+        sql = (
+            "SELECT i.item_date, i.grade, i.label, "
+            "       i.source_id, s.file_type "
+            "FROM schedule_item i "
+            "JOIN schedule_source s ON i.source_id = s.id "
+            "WHERE i.tenant_id = ? AND i.is_active = 1 "
+            "  AND s.is_active = 1 AND s.status = 'published' ")
+        params = [TENANT_ID]
+        if not show_all:
+            sql += "AND i.item_date >= ? "
+            params.append(today_iso)
+        sql += ("ORDER BY i.item_date, "
+                "CAST(i.grade AS INTEGER), i.label")
+        cur.execute(sql, params)
+        item_rows = [dict(r) for r in cur.fetchall()]
+        # Total published count (ignores the date filter) so the toggle can
+        # show how many are hidden when in today-forward mode.
+        cur.execute(
+            "SELECT COUNT(*) AS n FROM schedule_item i "
+            "JOIN schedule_source s ON i.source_id = s.id "
+            "WHERE i.tenant_id = ? AND i.is_active = 1 "
+            "  AND s.is_active = 1 AND s.status = 'published'",
+            (TENANT_ID,))
+        total_published = cur.fetchone()['n']
+
+    # Group rows by date, preserving the ORDER BY (Python dict keeps insertion
+    # order). Each group renders as one card (Model A).
+    groups = []
+    by_date = {}
+    for r in item_rows:
+        d = r['item_date']
+        if d not in by_date:
+            g = {
+                'item_date': d,
+                'display': _date_display(d),
+                'source_id': r['source_id'],
+                'file_type': r['file_type'],
+                'rows': [],
+            }
+            by_date[d] = g
+            groups.append(g)
+        by_date[d]['rows'].append(
+            {'grade': r['grade'], 'label': r['label']})
+
     return render_template(
         'schedules/index.html',
         can_post=_can_post(),
         nav_header=nav_header,
-        nav_styles=get_nav_styles())
+        nav_styles=get_nav_styles(),
+        groups=groups,
+        show_all=show_all,
+        shown_count=len(item_rows),
+        total_published=total_published,
+        from_param=_from)
+
+
+def _date_display(iso):
+    """'2026-07-28' -> 'Tue 28 Jul'. Falls back to the raw string on any
+    parse failure (never raises into a reader view)."""
+    try:
+        d = date.fromisoformat(iso)
+    except (ValueError, TypeError):
+        return iso
+    return d.strftime('%a %d %b')
 
 
 def _esc(s):
