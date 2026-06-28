@@ -120,23 +120,49 @@ def board():
         _back_url, _back_label = "/", "Home"
     nav_header = get_nav_header("Schedules", _back_url, _back_label)
 
-    # ---- Spine feed (Step 2): published, active, tenant-scoped items -----
-    # One published source today (the Assessment Timetable); the query is
-    # written for many. Grade is stored as text ('8'..'12'); CAST so 10/11/12
+    # ---- Spine feed: published, active, tenant-scoped items, programme-aware
+    # Multiple programmes published (Term 3 ingest); the query spans all of
+    # them. Grade is stored as text ('8'..'12'); CAST so 10/11/12
     # sort after 8/9 rather than lexically. Rows carry their source's id +
     # file_type so each date-card can tap through to the original artifact.
     today_iso = date.today().isoformat()
     show_all = request.args.get('range') == 'all'
     with get_connection() as conn:
         cur = conn.cursor()
+        # Programmes that actually have published+active items -> the chip row.
+        # A chip is only shown for a programme with content (no empty lenses).
+        cur.execute(
+            "SELECT DISTINCT p.slug, p.name, p.colour, p.sort_order "
+            "FROM programme p "
+            "JOIN schedule_item i ON i.programme_id = p.id "
+            "JOIN schedule_source s ON i.source_id = s.id "
+            "WHERE p.tenant_id = ? AND p.is_active = 1 "
+            "  AND i.is_active = 1 AND s.is_active = 1 "
+            "  AND s.status = 'published' "
+            "ORDER BY p.sort_order",
+            (TENANT_ID,))
+        active_programmes = [dict(r) for r in cur.fetchall()]
+
+        # Selected chip: ?programme=<slug>. Validate against the active set;
+        # an unknown/blank slug silently falls back to All (never 500s).
+        req_slug = request.args.get('programme', '').strip()
+        valid_slugs = {p['slug'] for p in active_programmes}
+        selected_slug = req_slug if req_slug in valid_slugs else None
+
+        # Spine feed: published, active, tenant-scoped items, programme-aware.
         sql = (
             "SELECT i.item_date, i.grade, i.label, "
-            "       i.source_id, s.file_type "
+            "       i.source_id, s.file_type, "
+            "       p.name AS programme_name, p.colour AS programme_colour "
             "FROM schedule_item i "
             "JOIN schedule_source s ON i.source_id = s.id "
+            "JOIN programme p ON i.programme_id = p.id "
             "WHERE i.tenant_id = ? AND i.is_active = 1 "
             "  AND s.is_active = 1 AND s.status = 'published' ")
         params = [TENANT_ID]
+        if selected_slug:
+            sql += "AND p.slug = ? "
+            params.append(selected_slug)
         if not show_all:
             sql += "AND i.item_date >= ? "
             params.append(today_iso)
@@ -144,14 +170,19 @@ def board():
                 "CAST(i.grade AS INTEGER), i.label")
         cur.execute(sql, params)
         item_rows = [dict(r) for r in cur.fetchall()]
-        # Total published count (ignores the date filter) so the toggle can
-        # show how many are hidden when in today-forward mode.
-        cur.execute(
+        # Total published count (ignores the date filter, respects the chip
+        # filter) so the toggle shows how many are hidden in today-forward mode.
+        csql = (
             "SELECT COUNT(*) AS n FROM schedule_item i "
             "JOIN schedule_source s ON i.source_id = s.id "
+            "JOIN programme p ON i.programme_id = p.id "
             "WHERE i.tenant_id = ? AND i.is_active = 1 "
-            "  AND s.is_active = 1 AND s.status = 'published'",
-            (TENANT_ID,))
+            "  AND s.is_active = 1 AND s.status = 'published' ")
+        cparams = [TENANT_ID]
+        if selected_slug:
+            csql += "AND p.slug = ? "
+            cparams.append(selected_slug)
+        cur.execute(csql, cparams)
         total_published = cur.fetchone()['n']
 
     # Group rows by date, preserving the ORDER BY (Python dict keeps insertion
@@ -171,7 +202,9 @@ def board():
             by_date[d] = g
             groups.append(g)
         by_date[d]['rows'].append(
-            {'grade': r['grade'], 'label': r['label']})
+            {'grade': r['grade'], 'label': r['label'],
+             'programme_name': r['programme_name'],
+             'programme_colour': r['programme_colour']})
 
     return render_template(
         'schedules/index.html',
@@ -182,6 +215,8 @@ def board():
         show_all=show_all,
         shown_count=len(item_rows),
         total_published=total_published,
+        active_programmes=active_programmes,
+        selected_slug=selected_slug,
         from_param=_from)
 
 

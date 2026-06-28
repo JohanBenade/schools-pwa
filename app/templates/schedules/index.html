@@ -31,8 +31,14 @@
         .bg-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
         .bg-indigo { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
 
-        /* Filter chips (Step 3 fills this; empty placeholder for now) */
+        /* Filter chips (Step 3) + per-item programme pills */
         .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; text-decoration: none; border: 1.5px solid #CBD5E1; color: #475569; background: #FFFFFF; -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
+        .chip:active { transform: scale(0.95); }
+        .chip.is-on { color: #FFFFFF; border-color: transparent; }
+        .chip-all { border-color: #94A3B8; }
+        .chip-all.is-on { background: #475569; color: #FFFFFF; border-color: transparent; }
+        .prog-pill { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 999px; color: #FFFFFF; white-space: nowrap; }
 
         /* Spine feed (Step 2 fills this; empty placeholder for now) */
         .feed { display: flex; flex-direction: column; gap: 12px; }
@@ -73,8 +79,18 @@
             </a>
         </div>
 
-        <!-- STEP 3 ANCHOR: filter chips render here (per-programme lens, "All" default) -->
-        <div class="chip-row" id="chip-row"></div>
+        <!-- Filter chips: per-programme lens, "All" default (decision #2) -->
+        {% if active_programmes %}
+        <div class="chip-row" id="chip-row">
+            <a href="/schedules/{% if show_all %}?range=all{% endif %}{% if from_param == 'ops' %}{% if show_all %}&amp;{% else %}?{% endif %}from=ops{% endif %}"
+               class="chip chip-all{% if not selected_slug %} is-on{% endif %}">All</a>
+            {% for p in active_programmes %}
+            <a href="/schedules/?programme={{ p.slug }}{% if show_all %}&amp;range=all{% endif %}{% if from_param == 'ops' %}&amp;from=ops{% endif %}"
+               class="chip{% if selected_slug == p.slug %} is-on{% endif %}"
+               style="{% if selected_slug == p.slug %}background: {{ p.colour }};{% else %}color: {{ p.colour }}; border-color: {{ p.colour }};{% endif %}">{{ p.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="section-label">Calendar</div>
         <div class="feed" id="feed">
@@ -88,6 +104,7 @@
                         {% for row in g.rows %}
                         <div class="item-row">
                             <span class="grade-pill">{% if row.grade %}Gr {{ row.grade }}{% else %}&mdash;{% endif %}</span>
+                            <span class="prog-pill" style="background: {{ row.programme_colour or '#64748B' }};">{{ row.programme_name }}</span>
                             <span class="item-subject">{{ row.label }}</span>
                         </div>
                         {% endfor %}
@@ -101,10 +118,10 @@
             {% endif %}
         </div>
         {% if show_all %}
-        <div class="feed-toggle"><a href="/schedules/{% if from_param == 'ops' %}?from=ops{% endif %}">&#8593; Upcoming only</a></div>
+        <div class="feed-toggle"><a href="/schedules/{% if selected_slug %}?programme={{ selected_slug }}{% if from_param == 'ops' %}&amp;from=ops{% endif %}{% elif from_param == 'ops' %}?from=ops{% endif %}">&#8593; Upcoming only</a></div>
         {% else %}
             {% if total_published > shown_count %}
-            <div class="feed-toggle"><a href="/schedules/?range=all{% if from_param == 'ops' %}&amp;from=ops{% endif %}">Show full term ({{ total_published }} items) &#8595;</a></div>
+            <div class="feed-toggle"><a href="/schedules/?range=all{% if selected_slug %}&amp;programme={{ selected_slug }}{% endif %}{% if from_param == 'ops' %}&amp;from=ops{% endif %}">Show full term ({{ total_published }} items) &#8595;</a></div>
             {% endif %}
         {% endif %}
 
