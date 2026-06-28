@@ -12,7 +12,7 @@ Data sources:
 """
 
 from datetime import date
-from flask import Blueprint, render_template, redirect
+from flask import Blueprint, render_template, redirect, request
 from app.services.db import get_connection
 from app.services.nav import get_nav_header, get_nav_styles
 
@@ -151,7 +151,12 @@ def bell_times():
         {"type": t, "label": BELL_TIMES[t]["label"], "slots": BELL_TIMES[t]["slots"]}
         for t in BELL_TIMES_ORDER
     ]
-    nav_header = get_nav_header("Bell Times", "/schedule/", "Schedule")
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/schedules/?from=ops", "Schedules"
+    else:
+        _back_url, _back_label = "/schedules/", "Schedules"
+    nav_header = get_nav_header("Bell Times", _back_url, _back_label)
     nav_styles = get_nav_styles()
     return render_template(
         'schedule/bell_times.html',
@@ -185,7 +190,12 @@ def days_calendar():
         terms.setdefault(t, []).append(r)
     grouped = [{"term": t, "days": terms[t]} for t in sorted(terms, key=lambda x: (x is None, x))]
 
-    nav_header = get_nav_header("Days Calendar", "/schedule/", "Schedule")
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/schedules/?from=ops", "Schedules"
+    else:
+        _back_url, _back_label = "/schedules/", "Schedules"
+    nav_header = get_nav_header("Days Calendar", _back_url, _back_label)
     nav_styles = get_nav_styles()
     return render_template(
         'schedule/days_calendar.html',
