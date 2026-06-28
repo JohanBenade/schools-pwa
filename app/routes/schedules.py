@@ -25,6 +25,7 @@ import os
 import re
 import uuid
 from app.services.db import get_connection
+from app.services.extract import extract_rows
 
 schedules_bp = Blueprint('schedules', __name__, url_prefix='/schedules')
 
@@ -249,6 +250,44 @@ def upload():
             except OSError:
                 pass
             raise
+
+    # ---- E-05 Phase 2: in-app vision extraction (Assessment Timetable) ----
+    # The draft + file are now safely persisted. Extraction is a pure
+    # ENHANCEMENT layered on top: on ANY failure we do nothing extra and the
+    # author lands on the review screen with the empty paste box (the B-3
+    # path stays as the permanent safety net). The returned TSV is NOT
+    # trusted - it runs through the SAME _parse_rows a human paste does, so a
+    # model misread is rejected identically to a bad hand-paste (Model B:
+    # never auto-publish; these rows land as an unpublished draft for review).
+    prog_slug = next(
+        (p['slug'] for p in _load_programmes()
+         if p['id'] == form['programme_id']), None)
+    if prog_slug == 'assessment-timetable':
+        tsv, _err = extract_rows(raw, file_kind, prog_slug)
+        if tsv:
+            rows, parse_err = _parse_rows(tsv)
+            if not parse_err and rows:
+                try:
+                    with get_connection() as conn:
+                        cur = conn.cursor()
+                        for r in rows:
+                            cur.execute(
+                                "INSERT INTO schedule_item "
+                                "(id, tenant_id, source_id, programme_id, "
+                                " item_date, end_date, start_time, end_time, "
+                                " grade, session, venue, label, sub_label, "
+                                " sort_hint, is_active) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                                (str(uuid.uuid4()), TENANT_ID, source_id,
+                                 form['programme_id'], r['item_date'],
+                                 r['end_date'], r['start_time'], r['end_time'],
+                                 r['grade'], r['session'], r['venue'],
+                                 r['label'], r['sub_label'], r['sort_hint']))
+                        conn.commit()
+                except Exception:
+                    # Extraction is best-effort: a DB hiccup here must not
+                    # break the upload. Swallow and fall back to empty paste.
+                    pass
 
     # B-3 switches this redirect to the review screen (see below).
     return redirect('/schedules/review/' + source_id)
