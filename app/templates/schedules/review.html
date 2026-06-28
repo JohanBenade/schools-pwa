@@ -101,6 +101,8 @@
         .btn-save { background: #2563eb; color: white; }
         .btn-save:active { background: #1d4ed8; }
         .btn-publish { background: #16a34a; color: white; }
+        details.replace summary { cursor: pointer; color: #2563eb; font-weight: 600; padding: 4px 0; }
+        details.replace[open] summary { margin-bottom: 12px; }
         .btn-publish:active { background: #15803d; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td {
@@ -150,19 +152,6 @@
             {% endif %}
         </div>
 
-        {% if source.status == 'draft' %}
-        <div class="card">
-            <h2>Paste items</h2>
-            <p class="hint">One row per line, columns separated by TAB. Required: date + label. A header row is skipped. Pasting replaces the current items.</p>
-            <div class="contract">item_date&nbsp;&rarr;&nbsp;label&nbsp;&rarr;&nbsp;end_date&nbsp;&rarr;&nbsp;start_time&nbsp;&rarr;&nbsp;end_time&nbsp;&rarr;&nbsp;grade&nbsp;&rarr;&nbsp;session&nbsp;&rarr;&nbsp;venue&nbsp;&rarr;&nbsp;sub_label&nbsp;&rarr;&nbsp;sort_hint</div>
-            <form method="POST" action="/schedules/items/{{ source.id }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <textarea name="rows" placeholder="2026-07-27&#9;Mr Smith&#10;2026-08-03&#9;Mrs Naidoo&#9;&#9;&#9;&#9;&#9;&#9;&#9;(Academic Top 10)"></textarea>
-                <button type="submit" class="btn-save">Save items</button>
-            </form>
-        </div>
-        {% endif %}
-
         <div class="card">
             <h2>Current items ({{ items|length }})</h2>
             {% if items %}
@@ -185,6 +174,34 @@
             <p class="empty">No items yet. Paste rows above.</p>
             {% endif %}
         </div>
+
+        {% if source.status == 'draft' %}
+        {% if not items %}
+        <div class="card">
+            <h2>Paste items</h2>
+            <p class="hint">One row per line, columns separated by TAB. Required: date + label. A header row is skipped. Pasting replaces the current items.</p>
+            <div class="contract">item_date&nbsp;&rarr;&nbsp;label&nbsp;&rarr;&nbsp;end_date&nbsp;&rarr;&nbsp;start_time&nbsp;&rarr;&nbsp;end_time&nbsp;&rarr;&nbsp;grade&nbsp;&rarr;&nbsp;session&nbsp;&rarr;&nbsp;venue&nbsp;&rarr;&nbsp;sub_label&nbsp;&rarr;&nbsp;sort_hint</div>
+            <form method="POST" action="/schedules/items/{{ source.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea name="rows" placeholder="2026-07-27&#9;Mr Smith&#10;2026-08-03&#9;Mrs Naidoo&#9;&#9;&#9;&#9;&#9;&#9;&#9;(Academic Top 10)"></textarea>
+                <button type="submit" class="btn-save">Save items</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="card">
+            <details class="replace">
+                <summary>Replace items manually</summary>
+            <p class="hint">One row per line, columns separated by TAB. Required: date + label. A header row is skipped. Pasting replaces the current items.</p>
+            <div class="contract">item_date&nbsp;&rarr;&nbsp;label&nbsp;&rarr;&nbsp;end_date&nbsp;&rarr;&nbsp;start_time&nbsp;&rarr;&nbsp;end_time&nbsp;&rarr;&nbsp;grade&nbsp;&rarr;&nbsp;session&nbsp;&rarr;&nbsp;venue&nbsp;&rarr;&nbsp;sub_label&nbsp;&rarr;&nbsp;sort_hint</div>
+            <form method="POST" action="/schedules/items/{{ source.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea name="rows" placeholder="2026-07-27&#9;Mr Smith&#10;2026-08-03&#9;Mrs Naidoo&#9;&#9;&#9;&#9;&#9;&#9;&#9;(Academic Top 10)"></textarea>
+                <button type="submit" class="btn-save">Save items</button>
+            </form>
+            </details>
+        </div>
+        {% endif %}
+        {% endif %}
 
         {% if source.status == 'draft' and items %}
         <div class="card">
