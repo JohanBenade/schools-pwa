@@ -26,6 +26,7 @@ import re
 import uuid
 from app.services.db import get_connection
 from app.services.extract import extract_rows
+from app.services.nav import get_nav_header, get_nav_styles
 
 schedules_bp = Blueprint('schedules', __name__, url_prefix='/schedules')
 
@@ -98,41 +99,31 @@ def _render_upload(error=None, form=None):
 @schedules_bp.route('/')
 def board():
     """
-    PHASE B STUB - replaced by the reader spine view in Phase C.
-    Lists every source (draft + published) so the upload flow is testable.
+    E-05 Phase C - Schedules hub (Step 1 shell).
+    Renders the hub: slim header + Bell Times / Days Calendar reference tiles
+    + (Step 3) filter-chip row + (Step 2) spine feed. Reference tiles link OUT
+    to the existing /schedule/... routes (reference, never duplicate). The feed
+    and chips are empty placeholders this step; Step 2 wires the published
+    schedule_item spine, Step 3 the per-programme chips. can_post is passed for
+    forward use; the hub surfaces no author control yet (read-first pilot).
     """
     if not session.get('staff_id'):
         return redirect('/')
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT s.id, s.title, s.status, s.term_label, p.name AS programme_name "
-            "FROM schedule_source s JOIN programme p ON s.programme_id = p.id "
-            "WHERE s.tenant_id = ? AND s.is_active = 1 "
-            "ORDER BY s.posted_at DESC",
-            (TENANT_ID,))
-        rows = [dict(r) for r in cur.fetchall()]
-    can_post = _can_post()
-    items = "".join(
-        '<li><strong>%s</strong> &middot; %s &middot; <em>%s</em></li>' % (
-            _esc(r['title']), _esc(r['programme_name']), _esc(r['status']))
-        for r in rows
-    ) or "<li>No schedules uploaded yet.</li>"
-    new_link = ('<p><a href="/schedules/upload">+ Upload Schedule</a></p>'
-                if can_post else '')
-    return (
-        "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-        "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-        "<title>Schedules - SchoolOps</title></head>"
-        "<body style=\"font-family:-apple-system,sans-serif;max-width:500px;"
-        "margin:0 auto;padding:20px;\">"
-        "<h1 style='font-size:22px;color:#1e293b;'>Schedules &amp; Programmes</h1>"
-        "<p style='color:#64748b;font-size:13px;'>(Phase B stub - spine view in Phase C)</p>"
-        + new_link +
-        "<ul style='line-height:1.8;color:#374151;'>" + items + "</ul>"
-        "<p><a href='/'>Home</a></p>"
-        "</body></html>"
-    )
+    # Back-context convention (mirrors timetables.py): ops users return to the
+    # Operations tools page; everyone else to Home. get_nav_header applies its
+    # own management-role override (-> /dashboard/ "Dashboard") on the Home
+    # branch, so we pass the plain default and let the shared service decide.
+    _from = request.args.get('from')
+    if _from == 'ops':
+        _back_url, _back_label = "/tools/", "Operations"
+    else:
+        _back_url, _back_label = "/", "Home"
+    nav_header = get_nav_header("Schedules", _back_url, _back_label)
+    return render_template(
+        'schedules/index.html',
+        can_post=_can_post(),
+        nav_header=nav_header,
+        nav_styles=get_nav_styles())
 
 
 def _esc(s):
