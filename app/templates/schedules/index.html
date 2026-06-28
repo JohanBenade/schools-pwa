@@ -37,6 +37,18 @@
         /* Spine feed (Step 2 fills this; empty placeholder for now) */
         .feed { display: flex; flex-direction: column; gap: 12px; }
         .feed-empty { background: #FFFFFF; border-radius: 16px; padding: 22px; text-align: center; color: #64748B; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .date-card { background: #FFFFFF; border-radius: 16px; padding: 16px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .date-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+        .date-label { font-size: 16px; font-weight: 700; color: #1E293B; }
+        .date-open { font-size: 12px; font-weight: 600; color: #2563EB; text-decoration: none; white-space: nowrap; }
+        .item-rows { display: flex; flex-direction: column; gap: 2px; }
+        .item-row { display: flex; align-items: baseline; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 15px; }
+        .item-row:nth-child(odd) { background: #F8FAFC; }
+        .grade-pill { flex-shrink: 0; min-width: 30px; text-align: center; background: #DBEAFE; color: #1E40AF; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+        .item-subject { color: #1E293B; }
+        .feed-toggle { text-align: center; margin-top: 6px; }
+        .feed-toggle a { color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 600; }
+        .feed-hint { text-align: center; color: #94A3B8; font-size: 12px; margin-top: 8px; }
 
         .footer { text-align: center; color: #94A3B8; font-size: 12px; margin-top: 32px; }
     </style>
@@ -64,11 +76,38 @@
         <!-- STEP 3 ANCHOR: filter chips render here (per-programme lens, "All" default) -->
         <div class="chip-row" id="chip-row"></div>
 
-        <!-- STEP 2 ANCHOR: spine feed renders here (published items, date-ordered) -->
         <div class="section-label">Calendar</div>
         <div class="feed" id="feed">
-            <div class="feed-empty">No published schedule items yet.</div>
+            {% if groups %}
+                {% for g in groups %}
+                <div class="date-card">
+                    <div class="date-card-head">
+                        <span class="date-label">{{ g.display }}</span>
+                        <a class="date-open" href="/schedules/file/{{ g.source_id }}/{{ g.file_type }}" target="_blank" rel="noopener">Open original &#8599;</a>
+                    </div>
+                    <div class="item-rows">
+                        {% for row in g.rows %}
+                        <div class="item-row">
+                            <span class="grade-pill">{% if row.grade %}Gr {{ row.grade }}{% else %}&mdash;{% endif %}</span>
+                            <span class="item-subject">{{ row.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="feed-empty">
+                    {% if show_all %}No published schedule items yet.{% else %}No upcoming assessments. {% endif %}
+                </div>
+            {% endif %}
         </div>
+        {% if show_all %}
+        <div class="feed-toggle"><a href="/schedules/{% if from_param == 'ops' %}?from=ops{% endif %}">&#8593; Upcoming only</a></div>
+        {% else %}
+            {% if total_published > shown_count %}
+            <div class="feed-toggle"><a href="/schedules/?range=all{% if from_param == 'ops' %}&amp;from=ops{% endif %}">Show full term ({{ total_published }} items) &#8595;</a></div>
+            {% endif %}
+        {% endif %}
 
         <div class="footer">Term 3 2026 Pilot</div>
     </div>
