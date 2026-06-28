@@ -11,7 +11,6 @@ Data sources:
 - Bell TIMES themselves are static for the year and live here as a constant.
 """
 
-from datetime import date
 from flask import Blueprint, render_template, redirect, request
 from app.services.db import get_connection
 from app.services.nav import get_nav_header, get_nav_styles
@@ -81,67 +80,6 @@ BELL_TIMES = {
 
 # Display order for the three types on the Bell Times page.
 BELL_TIMES_ORDER = ["type_a", "type_b", "type_c"]
-
-
-def _calendar_row(conn, the_date):
-    """Return the school_calendar row dict for a date, or None."""
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, tenant_id, date, cycle_day, day_type, day_name, weekday, bell_schedule, is_school_day, term, notes, created_at FROM school_calendar WHERE tenant_id = ? AND date = ?",
-        (TENANT_ID, the_date),
-    )
-    row = cursor.fetchone()
-    return dict(row) if row else None
-
-
-def _next_school_day(conn, after_date):
-    """Return the next row with is_school_day = 1 strictly after after_date, or None."""
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT id, tenant_id, date, cycle_day, day_type, day_name, weekday, bell_schedule, is_school_day, term, notes, created_at FROM school_calendar
-        WHERE tenant_id = ? AND date > ? AND is_school_day = 1
-        ORDER BY date ASC
-        LIMIT 1
-        """,
-        (TENANT_ID, after_date),
-    )
-    row = cursor.fetchone()
-    return dict(row) if row else None
-
-
-@schedule_bp.route('/')
-def index():
-    """Schedule hub: Today card + Reference grid."""
-    today_str = date.today().isoformat()
-
-    today_row = None
-    next_day = None
-    bell = None
-
-    with get_connection() as conn:
-        today_row = _calendar_row(conn, today_str)
-        if today_row is not None and today_row.get('is_school_day'):
-            schedule_type = today_row.get('bell_schedule')
-            bell = BELL_TIMES.get(schedule_type)
-        else:
-            next_day = _next_school_day(conn, today_str)
-
-    today_display = date.today().strftime('%A, %d %B %Y')
-
-    nav_header = get_nav_header("Schedule", "/", "Home")
-    nav_styles = get_nav_styles()
-
-    return render_template(
-        'schedule/index.html',
-        today_row=today_row,
-        today_display=today_display,
-        next_day=next_day,
-        bell=bell,
-        date_known=(today_row is not None),
-        nav_header=nav_header,
-        nav_styles=nav_styles,
-    )
 
 
 @schedule_bp.route('/bell-times')
