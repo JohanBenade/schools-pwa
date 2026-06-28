@@ -150,7 +150,7 @@
             {% endif %}
         </div>
 
-        {% if source.status == 'draft' %}
+        {% if source.status == 'draft' and not items %}
         <div class="card">
             <h2>Paste items</h2>
             <p class="hint">One row per line, columns separated by TAB. Required: date + label. A header row is skipped. Pasting replaces the current items.</p>
