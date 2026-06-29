@@ -141,12 +141,18 @@ def board():
             "ORDER BY is_pinned DESC, posted_at DESC",
             (TENANT_ID,))
         rows = [dict(r) for r in cur.fetchall()]
+    # Back target = the grid the user tapped the tile from. Management roles
+    # tap from the Operations grid (/tools/); every other role taps from their
+    # own home (/). Same privileged set the app uses in /tools/ and home().
+    role = session.get('role')
+    back_url = '/tools/' if role in ('principal', 'deputy', 'management', 'admin') else '/'
     return render_template(
         'notices/board.html',
         rows=rows,
         categories=CATEGORIES,
         category_bg=CATEGORY_BG,
         can_post=_can_post(),
+        back_url=back_url,
     )
 
 
