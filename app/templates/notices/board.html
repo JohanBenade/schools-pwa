@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Notice Board - Maragon Mooikloof</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); min-height: 100vh; padding: 60px 16px 48px; border-top: 3px solid #E7B84B; color: #1E293B; }
+        .user-bar { position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 12px 20px; font-size: 14px; color: #1E293B; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.08); }
+        .user-bar a { color: #1E4FA0; text-decoration: none; font-size: 14px; }
+
+        .header { text-align: center; margin-bottom: 20px; padding-top: 12px; }
+        .header h1 { font-size: 24px; font-weight: 600; opacity: 0.7; }
+        .header h2 { font-size: 28px; font-weight: 700; }
+
+        .new-btn { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 20px; max-width: 420px; padding: 14px 18px; border: 1px solid #1E4FA0; border-radius: 12px; color: #1E4FA0; text-decoration: none; font-size: 16px; font-weight: 600; background: #DBEAFE; }
+
+        /* Filter chips */
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 600px; margin: 0 auto 24px; }
+        .chip { border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,0.85); color: #475569; box-shadow: 0 1px 4px rgba(0,0,0,0.08); -webkit-tap-highlight-color: transparent; }
+        .chip.active { background: #1E4FA0; color: #fff; }
+
+        /* Cards */
+        .cards { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 600px; margin: 0 auto; }
+        @media (min-width: 600px) { .cards { grid-template-columns: 1fr 1fr; } }
+        .card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.12); cursor: pointer; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; display: flex; flex-direction: column; }
+        .card:active { transform: scale(0.98); }
+        .thumb { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; background: #F1F5F9; }
+        .thumb-placeholder { width: 100%; aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+        .card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .card-title { font-size: 16px; font-weight: 700; color: #1E293B; line-height: 1.3; }
+        .card-text { font-size: 14px; color: #475569; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+        .badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; color: #fff; text-transform: uppercase; letter-spacing: 0.3px; }
+        .desk { font-size: 12px; color: #64748B; }
+        .date { font-size: 12px; color: #94A3B8; margin-left: auto; }
+        .pdf-chip { font-size: 12px; font-weight: 600; color: #B91C1C; background: #FEE2E2; padding: 2px 8px; border-radius: 6px; }
+
+        .empty { text-align: center; color: #64748B; font-size: 15px; padding: 40px 20px; }
+        .footer { text-align: center; margin-top: 40px; color: #1E293B; opacity: 0.6; font-size: 12px; }
+
+        /* The bg-* gradients, copied from the home templates (kept in sync). */
+        .bg-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .bg-orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+        .bg-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .bg-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+        .bg-purple { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); }
+        .bg-slate { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
+
+        /* Tap-to-enlarge modal */
+        .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.92); z-index: 200; display: none; flex-direction: column; padding: 20px 16px; overflow-y: auto; }
+        .modal.open { display: flex; }
+        .modal-close { align-self: flex-end; background: rgba(255,255,255,0.15); color: #fff; border: none; font-size: 22px; line-height: 1; width: 40px; height: 40px; border-radius: 999px; cursor: pointer; }
+        .modal-inner { max-width: 560px; width: 100%; margin: 8px auto 0; }
+        .modal-img { width: 100%; border-radius: 12px; display: block; margin-bottom: 16px; }
+        .modal-title { color: #fff; font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .modal-text { color: #E2E8F0; font-size: 15px; line-height: 1.5; white-space: pre-wrap; margin-bottom: 16px; }
+        .modal-pdf { display: inline-block; background: #fff; color: #1E4FA0; font-weight: 600; font-size: 15px; padding: 12px 18px; border-radius: 10px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="user-bar">
+        <a href="/dashboard/">&#127968; Home</a>
+        <span>&#128204; Notice Board</span>
+    </div>
+
+    <div class="header">
+        <h1>Maragon Mooikloof</h1>
+        <h2>Notice Board</h2>
+    </div>
+
+    {% if can_post %}
+    <a href="/notices/new" class="new-btn">
+        <span style="font-size:18px;">&#10133;</span>
+        <span>New Notice</span>
+    </a>
+    {% endif %}
+
+    <div class="chips">
+        <button class="chip active" data-cat="All" onclick="filterCat(this,'All')">All</button>
+        {% for c in categories %}
+        <button class="chip" data-cat="{{ c }}" onclick="filterCat(this,'{{ c }}')">{{ c }}</button>
+        {% endfor %}
+    </div>
+
+    {% if rows %}
+    <div class="cards" id="cards">
+        {% for n in rows %}
+        <div class="card" data-cat="{{ n.category }}"
+             data-title="{{ n.title|e }}"
+             data-body="{{ (n.body or '')|e }}"
+             data-img="{{ ('/notices/file/' ~ n.id ~ '/image') if n.image_path else '' }}"
+             data-pdf="{{ ('/notices/file/' ~ n.id ~ '/pdf') if n.attachment_path else '' }}"
+             onclick="openNotice(this)">
+            {% if n.image_path %}
+            <img class="thumb" src="/notices/file/{{ n.id }}/image" alt="" loading="lazy">
+            {% else %}
+            <div class="thumb-placeholder {{ category_bg.get(n.category, 'bg-slate') }}">{{ n.category }}</div>
+            {% endif %}
+            <div class="card-body">
+                <div class="card-title">{{ n.title }}</div>
+                {% if n.body %}<div class="card-text">{{ n.body }}</div>{% endif %}
+                <div class="card-meta">
+                    <span class="badge {{ category_bg.get(n.category, 'bg-slate') }}">{{ n.category }}</span>
+                    <span class="desk">{{ n.author_desk }}</span>
+                    {% if n.attachment_path %}<span class="pdf-chip">&#128206; PDF</span>{% endif %}
+                    <span class="date">{{ n.posted_at[:10] }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No notices yet. {% if can_post %}Tap &ldquo;New Notice&rdquo; to post the first one.{% endif %}</div>
+    {% endif %}
+
+    <div class="footer">Term 3 2026 Pilot</div>
+
+    <!-- Tap-to-enlarge modal -->
+    <div class="modal" id="modal" onclick="if(event.target===this)closeNotice()">
+        <button class="modal-close" onclick="closeNotice()">&times;</button>
+        <div class="modal-inner">
+            <img class="modal-img" id="m-img" src="" alt="" style="display:none;">
+            <div class="modal-title" id="m-title"></div>
+            <div class="modal-text" id="m-text"></div>
+            <a class="modal-pdf" id="m-pdf" href="" target="_blank" rel="noopener" style="display:none;">&#128206; Open PDF</a>
+        </div>
+    </div>
+
+    <script>
+        function filterCat(btn, cat) {
+            var chips = document.querySelectorAll('.chip');
+            for (var i = 0; i < chips.length; i++) { chips[i].classList.remove('active'); }
+            btn.classList.add('active');
+            var cards = document.querySelectorAll('.card');
+            for (var j = 0; j < cards.length; j++) {
+                var show = (cat === 'All' || cards[j].getAttribute('data-cat') === cat);
+                cards[j].style.display = show ? 'flex' : 'none';
+            }
+        }
+        function openNotice(card) {
+            var img = card.getAttribute('data-img');
+            var pdf = card.getAttribute('data-pdf');
+            var mImg = document.getElementById('m-img');
+            var mPdf = document.getElementById('m-pdf');
+            if (img) { mImg.src = img; mImg.style.display = 'block'; }
+            else { mImg.removeAttribute('src'); mImg.style.display = 'none'; }
+            document.getElementById('m-title').textContent = card.getAttribute('data-title');
+            document.getElementById('m-text').textContent = card.getAttribute('data-body');
+            if (pdf) { mPdf.href = pdf; mPdf.style.display = 'inline-block'; }
+            else { mPdf.removeAttribute('href'); mPdf.style.display = 'none'; }
+            document.getElementById('modal').classList.add('open');
+        }
+        function closeNotice() {
+            document.getElementById('modal').classList.remove('open');
+        }
+    </script>
+</body>
+</html>
