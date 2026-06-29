@@ -270,6 +270,7 @@ def index():
     today = date.today()
     today_str = today.isoformat()
     today_display = today.strftime('%A, %d %B %Y')
+    latest_notices = []
     
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -345,6 +346,15 @@ def index():
             ORDER BY a.reported_at DESC
         ''', (TENANT_ID, today_str, today_str))
         absences = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute('''
+            SELECT id, title, category, image_path, posted_at
+            FROM notice
+            WHERE tenant_id = ? AND is_active = 1
+            ORDER BY is_pinned DESC, posted_at DESC
+            LIMIT 3
+        ''', (TENANT_ID,))
+        latest_notices = [dict(row) for row in cursor.fetchall()]
         
         total_absences = len(absences)
         gaps = sum(a['total_periods'] - a['covered_count'] for a in absences)
@@ -478,6 +488,30 @@ def index():
         except Exception:
             spark_dip_label = ''
     year_pixels_html = build_year_pixels(daily_attendance)
+
+    _NOTICE_CAT_HEX = {
+        'Management': '#1E4FA0', 'Sport': '#0D9488', 'Cultural': '#7C3AED',
+        'Academic': '#D97706', 'Staff': '#EA580C', 'General': '#64748B',
+    }
+    if latest_notices:
+        _items = []
+        for _n in latest_notices:
+            _cat = (_n['category'] or '').replace('<', '&lt;').replace('>', '&gt;')
+            _hex = _NOTICE_CAT_HEX.get(_cat, '#64748B')
+            _title = (_n['title'] or '').replace('<', '&lt;').replace('>', '&gt;')
+            _date = _n['posted_at'][:10] if _n['posted_at'] else ''
+            _items.append(
+                f'<div class="notice-item">'
+                f'<span class="notice-badge" style="background:{_hex};">{_cat}</span>'
+                f'<span class="notice-title">{_title}</span>'
+                f'<span class="notice-date">{_date}</span>'
+                f'</div>'
+            )
+        notices_html = '<div class="detail-list">' + ''.join(_items) + '</div>'
+        notices_status = f'{len(latest_notices)} latest'
+    else:
+        notices_html = '<div class="detail-list"><div class="detail-item" style="color:#22c55e;">No notices yet</div></div>'
+        notices_status = 'None'
     pattern_caption = build_pattern_caption(daily_attendance)
     grade_bars_html = build_grade_bars(grade_data)
     from collections import Counter
@@ -555,6 +589,11 @@ def index():
         .grade-breakdown {{ font-size: 13px; opacity: 0.85; margin-top: 12px; padding-top: 12px; border-top: 1px solid #E2E8F0; text-align: center; }}
         .card-link {{ display: block; text-align: center; margin-top: 16px; padding: 12px; background: #F1F5F9; border-radius: 8px; color: #1E4FA0; text-decoration: none; font-size: 14px; }}
         .card-link:hover {{ background: #E2E8F0; }}
+        .notice-item {{ display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #F1F5F9; }}
+        .notice-item:last-child {{ border-bottom: none; }}
+        .notice-badge {{ flex-shrink: 0; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }}
+        .notice-title {{ flex: 1; font-size: 14px; color: #1E293B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        .notice-date {{ flex-shrink: 0; font-size: 12px; color: #94A3B8; }}
         .sparkline-wrap {{ margin: 16px 0 4px; }}
         .sparkline-axis {{ display: flex; justify-content: space-between; font-size: 10px; opacity: 0.5; padding: 4px 4px 0; }}
         .grade-bars {{ display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #E2E8F0; }}
@@ -613,6 +652,15 @@ def index():
         <div class="insight-line">{insight_line}</div>
         
         <div class="cards">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📌 Latest Notices</span>
+                    <span class="card-status status-info">{notices_status}</span>
+                </div>
+                {notices_html}
+                <a href="/notices/" class="card-link">View Notice Board →</a>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">🗓️ Attendance — Daily Pattern</span>
