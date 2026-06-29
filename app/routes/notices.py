@@ -136,7 +136,7 @@ def board():
         cur = conn.cursor()
         cur.execute(
             "SELECT id, title, body, category, image_path, attachment_path, "
-            "author_desk, posted_at "
+            "posted_by_id, author_desk, posted_at "
             "FROM notice WHERE tenant_id = ? AND is_active = 1 "
             "ORDER BY is_pinned DESC, posted_at DESC",
             (TENANT_ID,))
@@ -152,6 +152,7 @@ def board():
         categories=CATEGORIES,
         category_bg=CATEGORY_BG,
         can_post=_can_post(),
+        current_staff_id=session.get('staff_id'),
         back_url=back_url,
     )
 
@@ -191,6 +192,38 @@ def serve_file(notice_id, kind):
     ext = bare.rsplit('.', 1)[-1].lower() if '.' in bare else ''
     mimetype = _MIME.get(ext, 'application/octet-stream')
     return send_file(abs_path, mimetype=mimetype, conditional=True)
+
+
+@notices_bp.route('/<notice_id>/delete', methods=['POST'])
+def delete_notice(notice_id):
+    """Author-only soft-delete. Two-layer guard, server-side:
+      1. can_post_notice = 1 (capability), AND
+      2. the notice's posted_by_id == this session's staff_id (ownership).
+    Soft-delete only (is_active = 0); the board filters is_active = 1 so the
+    notice drops off the gallery. Tenant-scoped. posted_by_id is in the UPDATE
+    WHERE as well, so even a forged id cannot delete another author's row."""
+    if not session.get('staff_id'):
+        return redirect('/')
+    if not _can_post():
+        return redirect('/notices/')
+    staff_id = session.get('staff_id')
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT posted_by_id FROM notice "
+            "WHERE id = ? AND tenant_id = ? AND is_active = 1",
+            (notice_id, TENANT_ID))
+        row = cur.fetchone()
+        # Ownership check: only the author may delete. A missing row or a
+        # different author both fall through to a no-op redirect (no leak,
+        # no destructive action).
+        if row is not None and row['posted_by_id'] == staff_id:
+            cur.execute(
+                "UPDATE notice SET is_active = 0 "
+                "WHERE id = ? AND tenant_id = ? AND posted_by_id = ?",
+                (notice_id, TENANT_ID, staff_id))
+            conn.commit()
+    return redirect('/notices/')
 
 
 @notices_bp.route('/new', methods=['GET', 'POST'])
