@@ -12,7 +12,8 @@ Tenant-scoped from day one (no S-03 residue debt for this new table).
 ASCII-only.
 """
 
-from flask import Blueprint, render_template, request, redirect, session
+from flask import (Blueprint, render_template, request, redirect,
+                   session, send_file, abort)
 from markupsafe import escape
 from datetime import datetime, timezone
 import os
@@ -41,6 +42,16 @@ JPG_MAGIC = b"\xff\xd8\xff"
 WEBP_RIFF = b"RIFF"
 WEBP_TAG = b"WEBP"
 PDF_MAGIC = b"%PDF"
+
+# Mimetypes for the serve route (mirrors schedules.py). Stored filenames
+# only ever end in jpg/png/webp/pdf (canonicalised at write time), so this
+# map is complete; anything else falls back to octet-stream.
+_MIME = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "webp": "image/webp",
+    "pdf": "application/pdf",
+}
 
 
 def _can_post():
@@ -97,42 +108,83 @@ def _render_form(error=None, form=None):
     )
 
 
+# Category -> home-grid gradient class. The six categories map onto the live
+# bg-* classes already defined in the home templates, so badges and no-image
+# placeholders read as native to the app (not a bolted-on palette).
+CATEGORY_BG = {
+    "Management": "bg-blue",
+    "Sport": "bg-teal",
+    "Cultural": "bg-purple",
+    "Academic": "bg-amber",
+    "Staff": "bg-orange",
+    "General": "bg-slate",
+}
+
+
 @notices_bp.route('/')
 def board():
     """
-    PHASE B STUB - replaced by the real gallery in Phase C.
-    Confirms a post landed; lists active notice titles so Phase B is testable.
+    PHASE C reader gallery. Everyone past the gate reads; can-post authors also
+    see the New Notice control. Cards render a poster thumbnail (served by
+    serve_file below) or a category-coloured placeholder when a notice carries
+    no image (image_path is nullable as of schema_version 14). Pinned first,
+    then newest first. Tenant-scoped.
     """
     if not session.get('staff_id'):
         return redirect('/')
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT title, category, author_desk, posted_at "
+            "SELECT id, title, body, category, image_path, attachment_path, "
+            "author_desk, posted_at "
             "FROM notice WHERE tenant_id = ? AND is_active = 1 "
             "ORDER BY is_pinned DESC, posted_at DESC",
             (TENANT_ID,))
         rows = [dict(r) for r in cur.fetchall()]
-    items = "".join(
-        "<li><strong>%s</strong> &middot; %s &middot; %s</li>" % (
-            escape(r['title']), escape(r['category']), escape(r['author_desk']))
-        for r in rows
-    ) or "<li>No notices yet.</li>"
-    can_post = _can_post()
-    new_link = ('<p><a href="/notices/new">+ New Notice</a></p>' if can_post else '')
-    return (
-        "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-        "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-        "<title>Notice Board - SchoolOps</title></head>"
-        "<body style=\"font-family:-apple-system,sans-serif;max-width:500px;"
-        "margin:0 auto;padding:20px;\">"
-        "<h1 style='font-size:22px;color:#1e293b;'>Notice Board</h1>"
-        "<p style='color:#64748b;font-size:13px;'>(Phase B stub - full gallery in Phase C)</p>"
-        + new_link +
-        "<ul style='line-height:1.8;color:#374151;'>" + items + "</ul>"
-        "<p><a href='/'>Home</a></p>"
-        "</body></html>"
+    return render_template(
+        'notices/board.html',
+        rows=rows,
+        categories=CATEGORIES,
+        category_bg=CATEGORY_BG,
+        can_post=_can_post(),
     )
+
+
+@notices_bp.route('/file/<notice_id>/<kind>')
+def serve_file(notice_id, kind):
+    """Stream a notice's image or PDF. READ-ONLY: everyone past the gate (these
+    are internal posters/documents). Mirrors schedules.py::serve_file.
+
+    Guards: kind in {image,pdf}; notice must exist (tenant-scoped, active); the
+    requested column must be populated; bare UUID filename only (no path
+    separators / traversal); file must exist on disk."""
+    if not session.get('staff_id'):
+        return redirect('/')
+    if kind not in ('image', 'pdf'):
+        abort(404)
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT image_path, attachment_path FROM notice "
+            "WHERE id = ? AND tenant_id = ? AND is_active = 1",
+            (notice_id, TENANT_ID))
+        row = cur.fetchone()
+    if row is None:
+        abort(404)
+    bare = row['image_path'] if kind == 'image' else row['attachment_path']
+    if not bare:
+        abort(404)
+    # Defence in depth: the value is a UUID filename by construction, but never
+    # trust stored data blindly - reject anything that could escape the dir.
+    if '/' in bare or '\\' in bare or '..' in bare:
+        abort(404)
+    base_dir = IMG_DIR if kind == 'image' else DOC_DIR
+    abs_path = os.path.join(base_dir, bare)
+    if not os.path.isfile(abs_path):
+        abort(404)
+    ext = bare.rsplit('.', 1)[-1].lower() if '.' in bare else ''
+    mimetype = _MIME.get(ext, 'application/octet-stream')
+    return send_file(abs_path, mimetype=mimetype, conditional=True)
 
 
 @notices_bp.route('/new', methods=['GET', 'POST'])
