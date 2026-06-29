@@ -159,8 +159,14 @@ def create_app():
     
     @app.before_request
     def enforce_active_session():
-        # Immediate revocation: if a logged-in user has been deactivated,
-        # clear their session on their very next request and bounce to gate.
+        # Runs on every request for a logged-in user. Two jobs in one DB read:
+        #   1. Immediate revocation: if the user has been deactivated, clear the
+        #      session on their very next request and bounce to gate.
+        #   2. Live capability flags: re-derive can_resolve / can_post_notice /
+        #      can_post_schedule from user_session (the source of truth) and
+        #      re-write them onto the session EVERY request. This is why a flag
+        #      seeded AFTER login (e.g. a new can_post_notice) is live without a
+        #      re-auth -- the session is never a stale login-time snapshot.
         if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
             return
         staff_id = session.get('staff_id')
@@ -170,13 +176,19 @@ def create_app():
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT 1 FROM user_session WHERE staff_id = ? AND tenant_id = ? AND is_active = 1 LIMIT 1",
+                "SELECT can_resolve, can_post_notice, can_post_schedule "
+                "FROM user_session WHERE staff_id = ? AND tenant_id = ? "
+                "AND is_active = 1 LIMIT 1",
                 (staff_id, TENANT_ID)
             )
-            active = cursor.fetchone()
-        if active is None:
+            row = cursor.fetchone()
+        if row is None:
             session.clear()
             return redirect('/gate')
+        # Refresh capability flags from the DB on every request (always correct).
+        session['can_resolve'] = bool(row['can_resolve'])
+        session['can_post_notice'] = bool(row['can_post_notice'])
+        session['can_post_schedule'] = bool(row['can_post_schedule'])
     
     @app.context_processor
     def inject_user():
