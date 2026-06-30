@@ -45,11 +45,20 @@ self.addEventListener('push', (event) => {
   }
   const notificationType = data.type || 'general';
   console.log('[SW] push event received:', data);
+  // macOS Chrome silently drops a notification whose icon is a root-relative
+  // path the SW cannot resolve at paint time. Normalise to an absolute URL on
+  // the SW's own origin so the banner (with icon) always renders. Proven fix.
+  const ORIGIN = self.location.origin;
+  function absIcon(p) {
+    if (!p) return ORIGIN + '/static/icon-192.png';
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+    return ORIGIN + (p.startsWith('/') ? p : '/' + p);
+  }
   event.waitUntil(
     self.registration.showNotification(data.title || 'SchoolOps Alert', {
       body: data.body || 'You have a new notification',
-      icon: data.icon || '/static/icon-192.png',
-      badge: '/static/icon-192.png',
+      icon: absIcon(data.icon),
+      badge: absIcon(data.badge),
       tag: 'schoolops-' + notificationType,
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 200],
