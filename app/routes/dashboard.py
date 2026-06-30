@@ -658,7 +658,7 @@ def index():
                     <span class="card-status status-info">{notices_status}</span>
                 </div>
                 {notices_html}
-                <a href="/notices/" class="card-link">View Notice Board →</a>
+                <a href="/notices/?from=dashboard" class="card-link">View Notice Board →</a>
             </div>
 
             <div class="card">
