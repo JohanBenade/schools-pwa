@@ -39,6 +39,38 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
+// Handle background push natively (primary path).
+// A stopped SW wakes via this event; event.waitUntil keeps it alive
+// until showNotification resolves. Reads the data-only FCM payload
+// (push.py sends {title, body, icon, link, type} under 'data').
+// Falls back to raw text for DevTools 'Push' (non-FCM bodies).
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      const json = event.data.json();
+      data = json.data || json || {};
+    } catch (e) {
+      data = { title: 'SchoolOps Alert', body: event.data.text() };
+    }
+  }
+  const notificationType = data.type || 'general';
+  console.log('[SW] push event received:', data);
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'SchoolOps Alert', {
+      body: data.body || 'You have a new notification',
+      icon: data.icon || '/static/icon-192.png',
+      badge: '/static/icon-192.png',
+      tag: 'schoolops-' + notificationType,
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 200],
+      data: {
+        url: data.link || data.url || '/emergency/'
+      }
+    })
+  );
+});
+
 // Handle foreground relay from push.js via postMessage
 // Ref: https://web.dev/articles/codelab-notifications-service-worker
 self.addEventListener('message', (event) => {
