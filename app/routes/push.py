@@ -764,3 +764,68 @@ def send_teacher_return_push(staff_id, action_type):
             success_count += 1
     
     return success_count
+
+
+def send_notice_posted_push(category, title, author_desk):
+    """
+    Broadcast a Notice Board post to EVERY registered device in the tenant.
+    E-04 Phase E. Author opts in per post via the "notify staff" toggle.
+
+    Tenant-wide (a notice is for everyone), so this mirrors the emergency
+    all-tenant fan-out INCLUDING invalid-token cleanup. Returns the number of
+    devices a push actually reached; the caller sets notice.notify_sent = 1
+    only when that count is > 0. All failure is swallowed by the caller per
+    the role spec -- a failed push must never break the post.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        print("WARNING: Push not configured - notice broadcast skipped")
+        return 0
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, token FROM push_token WHERE tenant_id = ?",
+            (TENANT_ID,),
+        )
+        tokens = cursor.fetchall()
+
+    if not tokens:
+        print("No push tokens registered - notice broadcast skipped")
+        return 0
+
+    push_title = f"\U0001F4E2 {category}: {title}"
+    push_body = f"Posted by {author_desk}"
+
+    success_count = 0
+    invalid_tokens = []
+    for token_row in tokens:
+        token_id, token = token_row['id'], token_row['token']
+        if send_push_notification(
+            token, push_title, push_body,
+            data={'type': 'notice', 'link': '/notices/?from=push'}
+        ):
+            success_count += 1
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE push_token SET last_used_at = ? "
+                    "WHERE id = ? AND tenant_id = ?",
+                    (now_iso(), token_id, TENANT_ID),
+                )
+                conn.commit()
+        else:
+            invalid_tokens.append(token_id)
+
+    if invalid_tokens:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            for token_id in invalid_tokens:
+                cursor.execute(
+                    'DELETE FROM push_token WHERE id = ? AND tenant_id = ?',
+                    (token_id, TENANT_ID))
+            conn.commit()
+        print(f"Cleaned {len(invalid_tokens)} invalid tokens")
+
+    print(f"Notice push sent to {success_count}/{len(tokens)} devices")
+    return success_count
