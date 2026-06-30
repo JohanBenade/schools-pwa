@@ -125,6 +125,18 @@
                     <label>PDF attachment <span class="hint">optional, e.g. exam timetable, max {{ pdf_max_mb }} MB</span></label>
                     <input type="file" name="attachment" accept="application/pdf">
                 </div>
+
+                {% if linkable_sources %}
+                <div class="form-group">
+                    <label>Link to a schedule <span class="hint">optional &middot; readers tap through to the schedule</span></label>
+                    <select name="linked_source_id">
+                        <option value="" {{ 'selected' if not linked_source_id else '' }}>No linked schedule</option>
+                        {% for s in linkable_sources %}
+                        <option value="{{ s.id }}" {{ 'selected' if linked_source_id == s.id else '' }}>{{ s.programme_name }} &mdash; {{ s.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
 
             <div class="card">
