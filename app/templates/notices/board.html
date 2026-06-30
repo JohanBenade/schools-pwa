@@ -102,7 +102,7 @@
              data-body="{{ (n.body or '')|e }}"
              data-img="{{ ('/notices/file/' ~ n.id ~ '/image') if n.image_path else '' }}"
              data-pdf="{{ ('/notices/file/' ~ n.id ~ '/pdf') if n.attachment_path else '' }}"
-             data-sched="{{ ('/schedules/file/' ~ n.linked_source_id ~ '/' ~ n.linked_file_type) if n.linked_file_type else '' }}"
+             data-sched="{{ ('/schedules/?programme=' ~ n.linked_prog_slug) if n.linked_prog_slug else '' }}"
              onclick="openNotice(this)">
             {% if n.image_path %}
             <img class="thumb" src="/notices/file/{{ n.id }}/image" alt="" loading="lazy">
@@ -116,7 +116,7 @@
                     <span class="badge {{ category_bg.get(n.category, 'bg-slate') }}">{{ n.category }}</span>
                     <span class="desk">{{ n.author_desk }}</span>
                     {% if n.attachment_path %}<span class="pdf-chip">&#128206; PDF</span>{% endif %}
-                    {% if n.linked_file_type %}<span class="sched-chip">&#128197; Schedule</span>{% endif %}
+                    {% if n.linked_prog_slug %}<span class="sched-chip">&#128197; Schedule</span>{% endif %}
                     <span class="date">{{ n.posted_at[:10] if n.posted_at else '' }}</span>
                 </div>
                 {% if can_post and n.posted_by_id == current_staff_id %}

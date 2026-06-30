@@ -160,6 +160,7 @@ def board():
             "n.attachment_path, n.posted_by_id, n.author_desk, n.posted_at, "
             "n.linked_source_id, "
             "ls.title AS linked_src_title, lp.name AS linked_prog_name, "
+            "lp.slug AS linked_prog_slug, "
             "ls.file_type AS linked_file_type "
             "FROM notice n "
             "LEFT JOIN schedule_source ls "
