@@ -41,6 +41,7 @@
         .desk { font-size: 12px; color: #64748B; }
         .date { font-size: 12px; color: #94A3B8; margin-left: auto; }
         .pdf-chip { font-size: 12px; font-weight: 600; color: #B91C1C; background: #FEE2E2; padding: 2px 8px; border-radius: 6px; }
+        .sched-chip { font-size: 12px; font-weight: 600; color: #1E4FA0; background: #DBEAFE; padding: 2px 8px; border-radius: 6px; }
         .del-form { margin-top: 10px; }
         .del-btn { font-family: inherit; font-size: 13px; font-weight: 600; color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA; padding: 7px 14px; border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
         .del-btn:active { background: #FEE2E2; }
@@ -65,6 +66,7 @@
         .modal-title { color: #fff; font-size: 20px; font-weight: 700; margin-bottom: 10px; }
         .modal-text { color: #E2E8F0; font-size: 15px; line-height: 1.5; white-space: pre-wrap; margin-bottom: 16px; }
         .modal-pdf { display: inline-block; background: #fff; color: #1E4FA0; font-weight: 600; font-size: 15px; padding: 12px 18px; border-radius: 10px; text-decoration: none; }
+        .modal-sched { display: inline-block; background: #1E4FA0; color: #fff; font-weight: 600; font-size: 15px; padding: 12px 18px; border-radius: 10px; text-decoration: none; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -100,6 +102,7 @@
              data-body="{{ (n.body or '')|e }}"
              data-img="{{ ('/notices/file/' ~ n.id ~ '/image') if n.image_path else '' }}"
              data-pdf="{{ ('/notices/file/' ~ n.id ~ '/pdf') if n.attachment_path else '' }}"
+             data-sched="{{ ('/schedules/file/' ~ n.linked_source_id ~ '/' ~ n.linked_file_type) if n.linked_file_type else '' }}"
              onclick="openNotice(this)">
             {% if n.image_path %}
             <img class="thumb" src="/notices/file/{{ n.id }}/image" alt="" loading="lazy">
@@ -113,6 +116,7 @@
                     <span class="badge {{ category_bg.get(n.category, 'bg-slate') }}">{{ n.category }}</span>
                     <span class="desk">{{ n.author_desk }}</span>
                     {% if n.attachment_path %}<span class="pdf-chip">&#128206; PDF</span>{% endif %}
+                    {% if n.linked_file_type %}<span class="sched-chip">&#128197; Schedule</span>{% endif %}
                     <span class="date">{{ n.posted_at[:10] if n.posted_at else '' }}</span>
                 </div>
                 {% if can_post and n.posted_by_id == current_staff_id %}
@@ -141,6 +145,7 @@
             <div class="modal-title" id="m-title"></div>
             <div class="modal-text" id="m-text"></div>
             <a class="modal-pdf" id="m-pdf" href="" target="_blank" rel="noopener" style="display:none;">&#128206; Open PDF</a>
+            <a class="modal-sched" id="m-sched" href="" target="_blank" rel="noopener" style="display:none;">&#128197; View linked schedule</a>
         </div>
     </div>
 
@@ -166,6 +171,10 @@
             document.getElementById('m-text').textContent = card.getAttribute('data-body');
             if (pdf) { mPdf.href = pdf; mPdf.style.display = 'inline-block'; }
             else { mPdf.removeAttribute('href'); mPdf.style.display = 'none'; }
+            var sched = card.getAttribute('data-sched');
+            var mSched = document.getElementById('m-sched');
+            if (sched) { mSched.href = sched; mSched.style.display = 'inline-block'; }
+            else { mSched.removeAttribute('href'); mSched.style.display = 'none'; }
             document.getElementById('modal').classList.add('open');
         }
         function closeNotice() {

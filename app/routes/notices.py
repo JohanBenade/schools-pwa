@@ -97,6 +97,7 @@ def _render_form(error=None, form=None):
     return render_template(
         'notices/new.html',
         categories=CATEGORIES,
+        linkable_sources=_load_linkable_sources(),
         error=error,
         image_max_mb=IMAGE_MAX_BYTES // (1024 * 1024),
         pdf_max_mb=PDF_MAX_BYTES // (1024 * 1024),
@@ -105,6 +106,7 @@ def _render_form(error=None, form=None):
         category=form.get('category', ''),
         is_pinned=form.get('is_pinned', ''),
         notify=form.get('notify', ''),
+        linked_source_id=form.get('linked_source_id', ''),
     )
 
 
@@ -121,6 +123,25 @@ CATEGORY_BG = {
 }
 
 
+def _load_linkable_sources():
+    """Published, active, tenant-scoped schedule sources for the New Notice
+    link dropdown. A notice may point at one of these; the reader then taps
+    through to that schedule's original artifact. Draft and soft-deleted
+    sources are excluded - you can only link to something teachers can
+    actually open. Title + programme name for a readable option label."""
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT s.id, s.title, p.name AS programme_name "
+            "FROM schedule_source s "
+            "JOIN programme p ON s.programme_id = p.id "
+            "WHERE s.tenant_id = ? AND s.is_active = 1 "
+            "  AND s.status = 'published' "
+            "ORDER BY s.posted_at DESC",
+            (TENANT_ID,))
+        return [dict(r) for r in cur.fetchall()]
+
+
 @notices_bp.route('/')
 def board():
     """
@@ -135,10 +156,18 @@ def board():
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, title, body, category, image_path, attachment_path, "
-            "posted_by_id, author_desk, posted_at "
-            "FROM notice WHERE tenant_id = ? AND is_active = 1 "
-            "ORDER BY is_pinned DESC, posted_at DESC",
+            "SELECT n.id, n.title, n.body, n.category, n.image_path, "
+            "n.attachment_path, n.posted_by_id, n.author_desk, n.posted_at, "
+            "n.linked_source_id, "
+            "ls.title AS linked_src_title, lp.name AS linked_prog_name, "
+            "ls.file_type AS linked_file_type "
+            "FROM notice n "
+            "LEFT JOIN schedule_source ls "
+            "  ON ls.id = n.linked_source_id AND ls.tenant_id = n.tenant_id "
+            "  AND ls.is_active = 1 AND ls.status = 'published' "
+            "LEFT JOIN programme lp ON lp.id = ls.programme_id "
+            "WHERE n.tenant_id = ? AND n.is_active = 1 "
+            "ORDER BY n.is_pinned DESC, n.posted_at DESC",
             (TENANT_ID,))
         rows = [dict(r) for r in cur.fetchall()]
     # Back target = the grid the user tapped the tile from. Management roles
@@ -256,6 +285,7 @@ def new_notice():
         'category': request.form.get('category', '').strip(),
         'is_pinned': request.form.get('is_pinned', ''),
         'notify': request.form.get('notify', ''),
+        'linked_source_id': request.form.get('linked_source_id', '').strip(),
     }
 
     # Required text fields
@@ -263,6 +293,19 @@ def new_notice():
         return _render_form("Title is required.", form)
     if form['category'] not in CATEGORIES:
         return _render_form("Please choose a valid category.", form)
+
+    # Optional schedule link. Blank = no link. A non-blank value must match a
+    # currently published+active source (server-side - never trust the posted
+    # id; a forged, draft, or foreign id is rejected). Resolve to None or the
+    # validated id.
+    linked_source_id = None
+    if form['linked_source_id']:
+        valid_source_ids = {s['id'] for s in _load_linkable_sources()}
+        if form['linked_source_id'] not in valid_source_ids:
+            return _render_form(
+                "That schedule is no longer available to link. "
+                "Pick another, or leave it unlinked.", form)
+        linked_source_id = form['linked_source_id']
 
     # Optional image (Phase C 5.1: image is no longer required).
     # Only read/validate when one is actually uploaded; image_path stays NULL
@@ -336,11 +379,11 @@ def new_notice():
             "INSERT INTO notice "
             "(id, tenant_id, title, body, category, image_path, "
             " attachment_path, attachment_type, posted_by_id, author_desk, "
-            " is_pinned, notify_sent, posted_at, is_active) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1)",
+            " is_pinned, notify_sent, posted_at, is_active, linked_source_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, ?)",
             (notice_id, TENANT_ID, form['title'], body_val, form['category'],
              image_path, attachment_path, attachment_type, posted_by_id,
-             author_desk, is_pinned, posted_at))
+             author_desk, is_pinned, posted_at, linked_source_id))
         conn.commit()
 
     # Success -> land on the board (Phase C will show the gallery).
