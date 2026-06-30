@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import os
 import uuid
 from app.services.db import get_connection
+from app.routes.push import send_notice_posted_push
 
 notices_bp = Blueprint('notices', __name__, url_prefix='/notices')
 
@@ -386,6 +387,27 @@ def new_notice():
              image_path, attachment_path, attachment_type, posted_by_id,
              author_desk, is_pinned, posted_at, linked_source_id))
         conn.commit()
+
+    # Phase E: if the author ticked "notify staff", broadcast to every
+    # registered device in the tenant. The notice is already committed;
+    # push is a best-effort side effect. Any failure is swallowed so a
+    # push problem can never break the post (role spec). notify_sent flips
+    # to 1 ONLY when a push actually reached at least one device.
+    if form['notify'] == '1':
+        try:
+            sent = send_notice_posted_push(
+                form['category'], form['title'], author_desk)
+            if sent > 0:
+                with get_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "UPDATE notice SET notify_sent = 1 "
+                        "WHERE id = ? AND tenant_id = ?",
+                        (notice_id, TENANT_ID))
+                    conn.commit()
+        except Exception as e:
+            # Never surface a push failure to the author; the post stands.
+            print("Notice push failed (swallowed): %s" % e)
 
     # Success -> land on the board (Phase C will show the gallery).
     return redirect('/notices/')
