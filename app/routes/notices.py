@@ -145,7 +145,16 @@ def board():
     # tap from the Operations grid (/tools/); every other role taps from their
     # own home (/). Same privileged set the app uses in /tools/ and home().
     role = session.get('role')
-    back_url = '/tools/' if role in ('principal', 'deputy', 'management', 'admin') else '/'
+    # Back target = where the user came from. The dashboard Latest Notices card
+    # passes ?from=dashboard; management tiles come from Operations (/tools/);
+    # everyone else from their home (/). Destination is always named.
+    origin = request.args.get('from')
+    if origin == 'dashboard':
+        back_url, back_label = '/dashboard/', 'Dashboard'
+    elif role in ('principal', 'deputy', 'management', 'admin'):
+        back_url, back_label = '/tools/', 'Operations'
+    else:
+        back_url, back_label = '/', 'Home'
     return render_template(
         'notices/board.html',
         rows=rows,
@@ -154,6 +163,7 @@ def board():
         can_post=_can_post(),
         current_staff_id=session.get('staff_id'),
         back_url=back_url,
+        back_label=back_label,
     )
 
 
