@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
   // path the SW cannot resolve at paint time. Normalise to an absolute URL on
   // the SW's own origin so the banner (with icon) always renders. Proven fix.
   const ORIGIN = self.location.origin;
-  function absIcon(p) {
-    if (!p) return ORIGIN + '/static/icon-192.png';
+  function absIcon(p, fallback) {
+    if (!p) return ORIGIN + (fallback || '/static/icon-192.png');
     if (p.startsWith('http://') || p.startsWith('https://')) return p;
     return ORIGIN + (p.startsWith('/') ? p : '/' + p);
   }
@@ -58,7 +58,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'SchoolOps Alert', {
       body: data.body || 'You have a new notification',
       icon: absIcon(data.icon),
-      badge: absIcon(data.badge),
+      badge: absIcon(data.badge, '/static/badge-72.png'),
       tag: 'schoolops-' + notificationType,
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 200],
