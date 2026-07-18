@@ -15,6 +15,7 @@
         .summary-stat .number { font-size: 28px; font-weight: 700; color: #dc2626; }
         .summary-stat .label { font-size: 12px; opacity: 0.7; }
         .as-of { font-size: 12px; opacity: 0.6; text-align: right; margin-bottom: 12px; }
+        .no-school-banner { background: #f1f5f9; color: #475569; border-radius: 10px; padding: 10px 14px; text-align: center; font-size: 13px; margin-bottom: 12px; }
         .learner-list { display: flex; flex-direction: column; gap: 8px; }
         .learner-card { background: #ffffff; border-radius: 10px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
         .learner-info { min-width: 0; }
@@ -37,22 +38,25 @@
     </div>
     
     {% if as_of_date %}
+    {% if no_school_today %}
+    <div class="no-school-banner">No school today &mdash; showing last school day ({{ as_of_date }})</div>
+    {% endif %}
     <div class="summary">
         <div class="summary-stat">
-            <div class="number">{{ total_absent }}</div>
+            <div class="number"{% if no_school_today %} style="color: #64748b;"{% endif %}>{{ total_absent }}</div>
             <div class="label">Absent</div>
         </div>
         <div class="summary-stat">
-            <div class="number" style="color: #b45309;">{{ learners|selectattr('consecutive_days', 'ge', 2)|list|length }}</div>
+            <div class="number" style="color: {% if no_school_today %}#64748b{% else %}#b45309{% endif %};">{{ learners|selectattr('consecutive_days', 'ge', 2)|list|length }}</div>
             <div class="label">2+ Days</div>
         </div>
         <div class="summary-stat">
-            <div class="number" style="color: #dc2626;">{{ learners|selectattr('consecutive_days', 'ge', 3)|list|length }}</div>
+            <div class="number" style="color: {% if no_school_today %}#64748b{% else %}#dc2626{% endif %};">{{ learners|selectattr('consecutive_days', 'ge', 3)|list|length }}</div>
             <div class="label">3+ Days</div>
         </div>
     </div>
     
-    <div class="as-of">As of {{ as_of_date }}</div>
+    {% if not no_school_today %}<div class="as-of">As of {{ as_of_date }}</div>{% endif %}
     
     <div class="learner-list">
         {% for learner in learners %}
