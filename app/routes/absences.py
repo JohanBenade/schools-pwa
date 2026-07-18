@@ -56,6 +56,21 @@ def get_last_attendance_date():
         return None
 
 
+def get_school_day_info(date_str):
+    """(is_school_day, day_name) from school_calendar for this tenant.
+    Missing row = treated as a school day (fail-open, matches dashboard #143)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT is_school_day, day_name FROM school_calendar WHERE tenant_id = ? AND date = ?",
+            (TENANT_ID, date_str)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return True, None
+        return bool(row['is_school_day']), row['day_name']
+
+
 @absences_bp.route('/')
 def index():
     """Absences home - choice between Teachers and Learners."""
@@ -70,6 +85,7 @@ def index():
 def learners():
     """Learner absence list - sorted by consecutive days descending."""
     back_url, back_label = resolve_sub_back()
+    is_school_today, _ = get_school_day_info(date.today().isoformat())
     last_date = get_last_attendance_date()
     
     if not last_date:
@@ -153,6 +169,7 @@ def learners():
                                learners=learners,
                                as_of_date=as_of_display,
                                total_absent=len(learners),
+                               no_school_today=not is_school_today,
                                back_url=back_url, back_label=back_label)
 
 
@@ -161,6 +178,7 @@ def teachers():
     """Teacher absence list with coverage status."""
     back_url, back_label = resolve_sub_back()
     today = date.today()
+    is_school, day_context = get_school_day_info(today.isoformat())
     
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -198,6 +216,8 @@ def teachers():
             absences.append(absence)
         
         return render_template('absences/teachers.html', absences=absences,
+                               no_school_day=not is_school,
+                               day_context=day_context,
                                back_url=back_url, back_label=back_label)
 
 
@@ -216,8 +236,8 @@ def my_periods():
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT cycle_day FROM school_calendar WHERE date = ?",
-            (today_str,)
+            "SELECT cycle_day FROM school_calendar WHERE tenant_id = ? AND date = ?",
+            (TENANT_ID, today_str)
         )
         row = cursor.fetchone()
         if row and row['cycle_day'] is not None:

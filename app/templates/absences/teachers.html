@@ -75,10 +75,17 @@
         {% endfor %}
     </div>
     {% else %}
+    {% if no_school_day %}
+    <div class="empty-state">
+        <p>No school today</p>
+        <span>{{ day_context or 'Outside school days' }}</span>
+    </div>
+    {% else %}
     <div class="empty-state">
         <p>No teacher absences</p>
         <span>All staff present</span>
     </div>
+    {% endif %}
     {% endif %}
 </body>
 </html>
