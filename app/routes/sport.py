@@ -39,6 +39,39 @@ def get_duty_types_for_sport(sport_type):
     return types
 
 
+def get_current_term_bounds():
+    """(start_iso, end_iso, term_no) for the term containing today from
+    school_calendar; during holidays, the next upcoming term; else the most
+    recent past term. No hardcoded dates."""
+    today_iso = date.today().isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT term FROM school_calendar WHERE tenant_id = ? AND date = ? AND term IS NOT NULL",
+            (TENANT_ID, today_iso))
+        row = cursor.fetchone()
+        term_no = row['term'] if row else None
+        if term_no is None:
+            cursor.execute(
+                "SELECT term FROM school_calendar WHERE tenant_id = ? AND date > ? AND term IS NOT NULL ORDER BY date ASC LIMIT 1",
+                (TENANT_ID, today_iso))
+            row = cursor.fetchone()
+            term_no = row['term'] if row else None
+        if term_no is None:
+            cursor.execute(
+                "SELECT term FROM school_calendar WHERE tenant_id = ? AND date < ? AND term IS NOT NULL ORDER BY date DESC LIMIT 1",
+                (TENANT_ID, today_iso))
+            row = cursor.fetchone()
+            term_no = row['term'] if row else None
+        if term_no is None:
+            return None, None, None
+        cursor.execute(
+            "SELECT MIN(date) AS s, MAX(date) AS e FROM school_calendar WHERE tenant_id = ? AND term = ?",
+            (TENANT_ID, term_no))
+        b = cursor.fetchone()
+        return b['s'], b['e'], term_no
+
+
 def get_back_url_for_user():
     """Get appropriate back URL based on user role / ?from token."""
     if request.args.get('from') == 'ops':
@@ -79,12 +112,15 @@ def events():
             """, (TENANT_ID, start_of_next_week.isoformat(), end_of_next_week.isoformat()))
             filter_label = "Next Week"
         elif filter_type == 'this_term':
-            # Term 1 2026: 19 Jan - 27 March
+            # Current term boundaries from school_calendar (never hardcoded)
+            term_start, term_end, _term_no = get_current_term_bounds()
+            if not term_start:
+                term_start = term_end = '0000-00-00'
             cursor.execute("""
                 SELECT * FROM sport_event 
                 WHERE tenant_id = ? AND event_date >= ? AND event_date <= ?
                 ORDER BY event_date ASC, start_time ASC
-            """, (TENANT_ID, '2026-01-19', '2026-03-27'))
+            """, (TENANT_ID, term_start, term_end))
             filter_label = "This Term"
         elif filter_type == 'past':
             # Past 30 days
@@ -330,9 +366,14 @@ def coordination():
         date_end = end_of_next_week
         filter_label = "Next Week"
     elif time_filter == 'this_term':
-        # Term 1 2026: 19 Jan - 27 March
-        date_start = date(2026, 1, 19)
-        date_end = date(2026, 3, 27)
+        # Current term boundaries from school_calendar (never hardcoded)
+        _ts, _te, _term_no = get_current_term_bounds()
+        if not _ts:
+            # No term data in calendar: impossible range = empty result,
+            # matching the events() sentinel semantics
+            _ts, _te = '0001-01-02', '0001-01-01'
+        date_start = date.fromisoformat(_ts)
+        date_end = date.fromisoformat(_te)
         filter_label = "This Term"
     elif time_filter == 'past':
         date_start = today - timedelta(days=30)
