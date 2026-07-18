@@ -32,6 +32,7 @@
         .view-btn:active { background: #bfdbfe; }
         .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
         .empty-state p { font-size: 16px; margin-bottom: 8px; }
+        .no-school-banner { background: #f1f5f9; color: #475569; border-radius: 10px; padding: 10px 14px; text-align: center; font-size: 13px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -41,6 +42,9 @@
     </div>
     
     {% if absences %}
+    {% if no_school_day %}
+    <div class="no-school-banner">No school today &mdash; showing current and upcoming absences</div>
+    {% endif %}
     <div class="summary">
         <div class="summary-stat">
             <div class="number orange">{{ absences|length }}</div>
@@ -75,10 +79,17 @@
         {% endfor %}
     </div>
     {% else %}
+    {% if no_school_day %}
+    <div class="empty-state">
+        <p>No school today</p>
+        <span>{{ day_context or 'Outside school days' }}</span>
+    </div>
+    {% else %}
     <div class="empty-state">
         <p>No teacher absences</p>
         <span>All staff present</span>
     </div>
+    {% endif %}
     {% endif %}
 </body>
 </html>
