@@ -423,13 +423,14 @@ def send_default():
     
     session.pop('pending_alert_type', None)
     
+    sent_n = 0
     try:
         from app.routes.push import send_emergency_alert_push
-        send_emergency_alert_push(alert_type, default_venue_name, user['display_name'])
+        sent_n = send_emergency_alert_push(alert_type, default_venue_name, user['display_name']) or 0
     except Exception as e:
         print(f"Push notification error: {e}")
     
-    return redirect(url_for('emergency.index'))
+    return redirect(url_for('emergency.index', sent=1, n=sent_n))
 
 
 @emergency_bp.route('/venues/<block>')
@@ -509,13 +510,14 @@ def send_alert():
     
     session.pop('pending_alert_type', None)
     
+    sent_n = 0
     try:
         from app.routes.push import send_emergency_alert_push
-        send_emergency_alert_push(alert_type, location_display, user['display_name'])
+        sent_n = send_emergency_alert_push(alert_type, location_display, user['display_name']) or 0
     except Exception as e:
         print(f"Push notification error: {e}")
     
-    return redirect(url_for('emergency.index'))
+    return redirect(url_for('emergency.index', sent=1, n=sent_n))
 
 
 @emergency_bp.route('/respond', methods=['POST'])

@@ -33,11 +33,16 @@
 </form>
 
 <script>
+var _sending = false;
 function selectVenue(label) {
+    if (_sending) return;
+    _sending = true;
     // Add highlight
     label.classList.add('clicked');
     // Check the radio
     label.querySelector('input').checked = true;
+    // Show sending state
+    label.querySelector('span').textContent = 'Sending alert...';
     // Submit after brief delay for visual feedback
     setTimeout(() => {
         document.getElementById('venue-form').submit();
