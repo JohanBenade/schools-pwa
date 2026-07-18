@@ -158,7 +158,7 @@
         <p class="subtitle">Select the zone, then the specific location</p>
         
         {% if default_venue_name %}
-        <form action="/emergency/send-default" method="POST">
+        <form action="/emergency/send-default" method="POST" onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#128680; Sending alert...';">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="venue_id" value="{{ default_venue_id or '' }}">
             <input type="hidden" name="venue_name" value="{{ default_venue_name }}">
