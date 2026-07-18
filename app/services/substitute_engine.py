@@ -857,12 +857,15 @@ def reassign_declined_request(request_id, declined_by_id):
             return None
 
 
-def get_eligible_terrain_staff(exclude_ids=None, target_date=None, relax_weekly=False):
+def get_eligible_terrain_staff(exclude_ids=None, target_date=None, relax_weekly=False, duty_type='terrain'):
     """
     Get staff eligible for terrain duty, sorted by first name.
     Excludes: absent staff, explicitly excluded.
     If relax_weekly=False (default): also excludes already assigned terrain this week.
     If relax_weekly=True: allows double-up in same week (better than escalating).
+    duty_type scopes the SAME-DAY hard block: staff already holding a duty of
+    this type on target_date (as original or replacement) are NEVER eligible,
+    even when relax_weekly=True. Concurrent same-day slots cannot share one person.
     """
     exclude_ids = exclude_ids or []
     
@@ -888,14 +891,35 @@ def get_eligible_terrain_staff(exclude_ids=None, target_date=None, relax_weekly=
         """, (TENANT_ID,))
         all_staff = [dict(row) for row in cursor.fetchall()]
         
-        # Get staff already assigned terrain this week
+        # Get staff already assigned terrain this week (original OR replacement)
         cursor.execute("""
-            SELECT DISTINCT staff_id 
-            FROM duty_roster 
+            SELECT staff_id AS sid FROM duty_roster
             WHERE tenant_id = ? AND duty_type = 'terrain'
               AND duty_date >= ? AND duty_date <= ?
-        """, (TENANT_ID, monday.isoformat(), friday.isoformat()))
-        assigned_this_week = {row['staff_id'] for row in cursor.fetchall()}
+            UNION
+            SELECT replacement_id AS sid FROM duty_roster
+            WHERE tenant_id = ? AND duty_type = 'terrain'
+              AND duty_date >= ? AND duty_date <= ?
+              AND replacement_id IS NOT NULL
+        """, (TENANT_ID, monday.isoformat(), friday.isoformat(),
+              TENANT_ID, monday.isoformat(), friday.isoformat()))
+        assigned_this_week = {row['sid'] for row in cursor.fetchall()}
+
+        # HARD same-day block: anyone already holding a duty of this type on
+        # the target date (as original or replacement) is never eligible,
+        # even when relax_weekly=True.
+        cursor.execute("""
+            SELECT staff_id AS sid FROM duty_roster
+            WHERE tenant_id = ? AND duty_type = ?
+              AND duty_date = ?
+            UNION
+            SELECT replacement_id AS sid FROM duty_roster
+            WHERE tenant_id = ? AND duty_type = ?
+              AND duty_date = ?
+              AND replacement_id IS NOT NULL
+        """, (TENANT_ID, duty_type, target_date.isoformat(),
+              TENANT_ID, duty_type, target_date.isoformat()))
+        assigned_same_day = {row['sid'] for row in cursor.fetchall()}
         
         # Get absent staff
         absent_staff = set(get_absent_staff_on_date(target_date))
@@ -904,6 +928,8 @@ def get_eligible_terrain_staff(exclude_ids=None, target_date=None, relax_weekly=
         eligible = []
         for staff in all_staff:
             if staff['id'] in exclude_ids:
+                continue
+            if staff['id'] in assigned_same_day:
                 continue
             if not relax_weekly and staff['id'] in assigned_this_week:
                 continue
@@ -940,7 +966,8 @@ def reassign_terrain_duty(duty_id, original_staff_id):
         # Get eligible staff (excluding original)
         eligible = get_eligible_terrain_staff(
             exclude_ids=[original_staff_id],
-            target_date=target_date
+            target_date=target_date,
+            duty_type=duty['duty_type']
         )
         
         if not eligible:
@@ -948,7 +975,8 @@ def reassign_terrain_duty(duty_id, original_staff_id):
             eligible = get_eligible_terrain_staff(
                 exclude_ids=[original_staff_id],
                 target_date=target_date,
-                relax_weekly=True
+                relax_weekly=True,
+                duty_type=duty['duty_type']
             )
         
         if not eligible:
@@ -972,11 +1000,17 @@ def reassign_terrain_duty(duty_id, original_staff_id):
             mon = target_d - timedelta(days=wd)
             fri = mon + timedelta(days=4)
             cursor.execute("""
-                SELECT DISTINCT staff_id FROM duty_roster
+                SELECT staff_id AS sid FROM duty_roster
                 WHERE tenant_id = ? AND duty_type = 'homework'
                   AND duty_date >= ? AND duty_date <= ?
-            """, (TENANT_ID, mon.isoformat(), fri.isoformat()))
-            hw_this_week = {row['staff_id'] for row in cursor.fetchall()}
+                UNION
+                SELECT replacement_id AS sid FROM duty_roster
+                WHERE tenant_id = ? AND duty_type = 'homework'
+                  AND duty_date >= ? AND duty_date <= ?
+                  AND replacement_id IS NOT NULL
+            """, (TENANT_ID, mon.isoformat(), fri.isoformat(),
+                  TENANT_ID, mon.isoformat(), fri.isoformat()))
+            hw_this_week = {row['sid'] for row in cursor.fetchall()}
             
             eligible_hw = [e for e in eligible if e['id'] not in hw_this_week]
             if not eligible_hw:
