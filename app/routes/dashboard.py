@@ -277,6 +277,14 @@ def index():
         
         cursor.execute('SELECT COUNT(*) FROM mentor_group WHERE tenant_id = ?', (TENANT_ID,))
         total_groups = cursor.fetchone()[0]
+
+        cursor.execute('SELECT is_school_day FROM school_calendar WHERE tenant_id = ? AND date = ?', (TENANT_ID, today_str))
+        _sc_row = cursor.fetchone()
+        is_school_day_today = bool(_sc_row[0]) if _sc_row is not None else True
+        no_school_body = (
+            '<div class="big-number" style="color:#94a3b8;">\u2014</div>'
+            '<div class="big-label">No school today</div>'
+        )
         
         cursor.execute('SELECT COUNT(*) FROM attendance WHERE tenant_id = ? AND date = ?', (TENANT_ID, today_str))
         submitted_count = cursor.fetchone()[0]
@@ -703,22 +711,18 @@ def index():
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">📋 Registers — Today</span>
-                    <span class="card-status {'status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red'}">{'All In' if pending_count == 0 else f'{pending_count} Pending'}</span>
+                    <span class="card-status {'status-info' if not is_school_day_today else ('status-green' if pending_count == 0 else 'status-yellow' if pending_count <= 3 else 'status-red')}">{'—' if not is_school_day_today else ('All In' if pending_count == 0 else f'{pending_count} Pending')}</span>
                 </div>
-                <div class="big-number">{submitted_count}/{total_groups}</div>
-                <div class="big-label">registers submitted</div>
-                {pending_html}
+                {no_school_body if not is_school_day_today else f'<div class=\"big-number\">{submitted_count}/{total_groups}</div><div class=\"big-label\">registers submitted</div>{pending_html}'}
                 <a href="/admin/" class="card-link">View registers →</a>
             </div>
             
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">🎒 Absent Today</span>
-                    <span class="card-status {today_pct_class}">{today_pct_display}</span>
+                    <span class="card-status {'status-info' if not is_school_day_today else today_pct_class}">{'—' if not is_school_day_today else today_pct_display}</span>
                 </div>
-                <div class="big-number">{absent_learners}</div>
-                <div class="big-label">learners absent &middot; of {total_enrolled} enrolled</div>
-                {grade_breakdown_html}
+                {no_school_body if not is_school_day_today else f'<div class=\"big-number\">{absent_learners}</div><div class=\"big-label\">learners absent &middot; of {total_enrolled} enrolled</div>{grade_breakdown_html}'}
                 <a href="/absences/learners?from=dash" class="card-link">Who's out →</a>
             </div>
             
