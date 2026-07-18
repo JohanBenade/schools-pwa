@@ -1189,7 +1189,7 @@ def handle_absent_teacher_duties(staff_id, start_date, end_date=None):
                 SELECT dr.id, dr.duty_type, ta.area_name
                 FROM duty_roster dr
                 LEFT JOIN terrain_area ta ON dr.terrain_area_id = ta.id
-                WHERE dr.staff_id = ? AND dr.duty_date = ? AND dr.duty_type IN ('terrain', 'homework')
+                WHERE COALESCE(dr.replacement_id, dr.staff_id) = ? AND dr.duty_date = ? AND dr.duty_type IN ('terrain', 'homework')
             """, (staff_id, target_date_str))
             
             terrain_duties = [dict(row) for row in cursor.fetchall()]
