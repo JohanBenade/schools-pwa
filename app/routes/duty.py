@@ -863,8 +863,11 @@ def decline_terrain_duty(duty_id):
         cutoff = datetime.combine(duty_date, time(6, 30))
         
         if now >= cutoff:
-            # Too late to decline - redirect back with no action
-            return redirect(return_to)
+            # Too late to decline - tell the user (was a silent redirect)
+            return render_template('duty/decline_too_late.html',
+                duty_label=f"Terrain duty ({duty['area_name'] or duty['duty_type']})",
+                duty_date=duty['duty_date'],
+                return_to=return_to), 400
         
         # Calculate week boundaries (Mon-Fri) for this duty
         weekday = duty_date.weekday()
@@ -966,7 +969,11 @@ def decline_homework_duty(duty_id):
         cutoff = datetime.combine(duty_date, time(6, 30))
 
         if now >= cutoff:
-            return redirect(return_to)
+            # Too late to decline - tell the user (was a silent redirect)
+            return render_template('duty/decline_too_late.html',
+                duty_label='Homework venue duty',
+                duty_date=duty['duty_date'],
+                return_to=return_to), 400
 
         cursor.execute("SELECT display_name FROM staff WHERE id = ?", (staff_id,))
         staff_row = cursor.fetchone()

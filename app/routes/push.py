@@ -70,13 +70,20 @@ def get_access_token():
     )
     
     # Exchange JWT for access token
-    response = requests.post(
-        'https://oauth2.googleapis.com/token',
-        data={
-            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion': signed_jwt
-        }
-    )
+    try:
+        response = requests.post(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion': signed_jwt
+            },
+            timeout=10
+        )
+    except requests.RequestException as e:
+        # Never hang or crash the request cycle on token failure -
+        # degrade to "pushes skipped" for this call.
+        print(f"ERROR getting access token (network): {e}")
+        return None
     
     if response.status_code == 200:
         data = response.json()
