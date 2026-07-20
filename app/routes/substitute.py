@@ -378,11 +378,17 @@ def early_return():
                 WHERE staff_id = ? AND duty_date = ? AND replacement_id IS NOT NULL
             """, (staff_id, _today))
 
-            # Does any covered period remain for this absence? If so, keep it live.
+            # Does any FUTURE covered period remain for this absence? If so,
+            # keep it live. Past Pending rows (periods that went uncovered) and
+            # past Assigned rows (history: a sub taught them) must NOT block
+            # resolution - without the time filter, a partial absence with any
+            # uncovered past period could never be marked back.
             _cur.execute("""
-                SELECT COUNT(*) AS c FROM substitute_request
-                WHERE absence_id = ? AND status IN ('Pending', 'Assigned')
-            """, (absence_id,))
+                SELECT COUNT(*) AS c FROM substitute_request sr
+                JOIN period p ON sr.period_id = p.id
+                WHERE sr.absence_id = ? AND sr.status IN ('Pending', 'Assigned')
+                  AND p.start_time >= ?
+            """, (absence_id, return_time))
             _remaining = _cur.fetchone()['c']
 
             if _remaining == 0:
@@ -648,11 +654,17 @@ def mark_back():
                 WHERE staff_id = ? AND duty_date = ? AND replacement_id IS NOT NULL
             """, (_staff_id, _today))
 
-            # Does any covered period remain for this absence? If so, keep it live.
+            # Does any FUTURE covered period remain for this absence? If so,
+            # keep it live. Past Pending rows (periods that went uncovered) and
+            # past Assigned rows (history: a sub taught them) must NOT block
+            # resolution - without the time filter, a partial absence with any
+            # uncovered past period could never be marked back.
             _cur.execute("""
-                SELECT COUNT(*) AS c FROM substitute_request
-                WHERE absence_id = ? AND status IN ('Pending', 'Assigned')
-            """, (absence_id,))
+                SELECT COUNT(*) AS c FROM substitute_request sr
+                JOIN period p ON sr.period_id = p.id
+                WHERE sr.absence_id = ? AND sr.status IN ('Pending', 'Assigned')
+                  AND p.start_time >= ?
+            """, (absence_id, return_time))
             _remaining = _cur.fetchone()['c']
 
             if _remaining == 0:
