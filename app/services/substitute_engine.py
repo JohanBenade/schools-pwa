@@ -102,11 +102,14 @@ def get_absent_staff_on_date(target_date):
 
 def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None, target_date=None):
     """
-    Find all teachers who are FREE during a specific period.
-    Now includes:
-    - Room blocking: if teacher's home room is occupied, they can't sub
-    - Absence checking: teachers who are out sick are excluded
-    Returns list sorted by first name (A-Z).
+    Find teachers available to substitute a specific period, in TWO buckets:
+      pass1: room-free teachers (home room unoccupied -> LEARNERS_MOVE) plus
+             floaters (no home room -> SUB_MOVES, R7; stay in Pass 1 rotation).
+      pass2: room-blocked teachers (home room occupied by another timetabled
+             class -> SUB_MOVES last-resort, R3).
+    Absent/teaching/excluded teachers appear in neither. Each teacher dict
+    carries reloc_direction + home_venue_id/home_venue_code.
+    Both lists sorted by first name (A-Z). Returns (pass1, pass2).
     """
     exclude_staff_ids = exclude_staff_ids or []
     
@@ -149,33 +152,52 @@ def get_free_teachers_for_period(period_id, cycle_day, exclude_staff_ids=None, t
         """, (TENANT_ID, cycle_day, period_id))
         occupied_rooms = {row['venue_id'] for row in cursor.fetchall()}
         
-        # Free = can substitute AND not teaching AND not excluded AND not absent AND room not blocked
-        free_teachers = []
+        # Home-room venue codes (for LEARNERS_MOVE destination denormalisation)
+        cursor.execute("""
+            SELECT sv.staff_id, v.venue_code
+            FROM staff_venue sv JOIN venue v ON sv.venue_id = v.id
+            WHERE sv.tenant_id = ?
+        """, (TENANT_ID,))
+        home_codes = {row['staff_id']: row['venue_code'] for row in cursor.fetchall()}
+
+        # Bucket every eligible teacher (R2 gates): pass1 = room-free + floaters,
+        # pass2 = room-blocked (reconsidered as SUB_MOVES last-resort, R3/R3a).
+        pass1 = []
+        pass2 = []
         for teacher in all_teachers:
             teacher_id = teacher['id']
-            
+
             # Skip if teaching
             if teacher_id in busy_teachers:
                 continue
-            
+
             # Skip if explicitly excluded
             if teacher_id in exclude_staff_ids:
                 continue
-            
+
             # Skip if absent/sick
             if teacher_id in absent_staff:
                 continue
-            
-            # Check room blocking (only for teachers with home rooms)
+
+            t = dict(teacher)
             home_room = home_rooms.get(teacher_id)
-            if home_room and home_room in occupied_rooms:
-                # Teacher's home room is occupied by someone else - can't sub
-                continue
-            
-            # Floaters (no home room) or room is free - available!
-            free_teachers.append(dict(teacher))
-        
-        return free_teachers
+            t['home_venue_id'] = home_room
+            t['home_venue_code'] = home_codes.get(teacher_id)
+
+            if home_room is None:
+                # Floater: no home room -> SUB_MOVES (R7), Pass 1 rotation.
+                t['reloc_direction'] = 'SUB_MOVES'
+                pass1.append(t)
+            elif home_room in occupied_rooms:
+                # Room-blocked -> Pass 2 pool, SUB_MOVES last-resort (R3).
+                t['reloc_direction'] = 'SUB_MOVES'
+                pass2.append(t)
+            else:
+                # Room-free with home room -> LEARNERS_MOVE (R1).
+                t['reloc_direction'] = 'LEARNERS_MOVE'
+                pass1.append(t)
+
+        return pass1, pass2
 
 
 
@@ -194,18 +216,21 @@ def get_teachers_assigned_on_date(target_date):
         return [row['substitute_id'] for row in cursor.fetchall()]
 
 
-def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname, target_date=None):
+def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname, target_date=None, pass_num=1):
     """
     Find the next substitute using A-Z rotation.
-    - Get free teachers for this period
+    - pass_num=1 draws from the Pass 1 pool (room-free + floaters);
+      pass_num=2 draws from the room-blocked pool (SUB_MOVES last-resort).
+      Both passes share the SAME pointer, continuous advance (R3b).
     - Exclude those already assigned today
     - Pick first one at or after pointer_surname
     - If none found after pointer, wrap to 'A'
     """
-    free_teachers = get_free_teachers_for_period(
+    pass1, pass2 = get_free_teachers_for_period(
         period_id, cycle_day, exclude_staff_ids=already_assigned_today, target_date=target_date
     )
-    
+    free_teachers = pass1 if pass_num == 1 else pass2
+
     if not free_teachers:
         return None, pointer_surname
     
@@ -372,6 +397,27 @@ def get_current_pointer():
         return row['pointer_surname'] if row else 'A'
 
 
+def _write_relocation(cursor, request_id, direction, dest_venue_id, dest_venue_code):
+    """R10: one relocation row per ASSIGNED request. Skips if destination venue
+    is unknown (NULL venue slot) - direction would be meaningless."""
+    if not dest_venue_id:
+        return
+    cursor.execute("""
+        INSERT INTO assignment_relocation
+        (id, tenant_id, substitute_request_id, direction,
+         destination_venue_id, destination_venue_code)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (str(uuid.uuid4()), TENANT_ID, request_id, direction,
+          dest_venue_id, dest_venue_code))
+
+
+def _replace_relocation(cursor, request_id, direction, dest_venue_id, dest_venue_code):
+    """Replace semantics for reassign/decline: never accumulate rows (1:1)."""
+    cursor.execute("DELETE FROM assignment_relocation WHERE substitute_request_id = ?",
+                   (request_id,))
+    _write_relocation(cursor, request_id, direction, dest_venue_id, dest_venue_code)
+
+
 def process_absence(absence_id):
     """
     Main allocation engine - process a reported absence.
@@ -521,6 +567,10 @@ def process_absence(absence_id):
                     """, (request_id, TENANT_ID, absence_id, None, cover['staff_id'],
                           absence['mentor_group_id'], absence['mentor_class'],
                           absence['venue_code'], datetime.now().isoformat(), target_date_str))
+                    # R6: register/mentor cover is always SUB_MOVES to the
+                    # absent teacher's room. R10: assigned -> one relocation row.
+                    _write_relocation(cursor, request_id, 'SUB_MOVES',
+                                      absence['venue_id'], absence['venue_code'])
                     conn.commit()
                     
                     fallback_note = f" ({cover['fallback_level']})" if cover['fallback_level'] == 'grade_head' else ""
@@ -611,11 +661,20 @@ def process_absence(absence_id):
                 
                 total_periods += 1
                 
-                # Find substitute (now passes target_date for absence checking)
+                # Two-pass rotation (R3a): Pass 1 = room-free + floaters
+                # (LEARNERS_MOVE / floater SUB_MOVES); Pass 2 = room-blocked
+                # pool, SUB_MOVES last-resort. Same pointer, continuous
+                # advance (R3b).
                 sub_teacher, new_pointer = get_next_substitute(
-                    slot['period_id'], cycle_day, already_assigned_today, pointer, target_date=target_date
+                    slot['period_id'], cycle_day, already_assigned_today, pointer,
+                    target_date=target_date, pass_num=1
                 )
-                
+                if not sub_teacher:
+                    sub_teacher, new_pointer = get_next_substitute(
+                        slot['period_id'], cycle_day, already_assigned_today, pointer,
+                        target_date=target_date, pass_num=2
+                    )
+
                 if sub_teacher:
                     request_id = str(uuid.uuid4())
                     cursor.execute("""
@@ -627,6 +686,16 @@ def process_absence(absence_id):
                           sub_teacher['id'], slot['class_name'], slot['subject'],
                           slot['venue_id'], slot['venue_code'], datetime.now().isoformat(),
                           target_date_str))
+                    # Direction resolved at the assign site (locked design):
+                    # LEARNERS_MOVE -> sub's home room; SUB_MOVES -> the
+                    # class's own room (absent teacher's slot venue).
+                    if sub_teacher['reloc_direction'] == 'LEARNERS_MOVE':
+                        _write_relocation(cursor, request_id, 'LEARNERS_MOVE',
+                                          sub_teacher['home_venue_id'],
+                                          sub_teacher['home_venue_code'])
+                    else:
+                        _write_relocation(cursor, request_id, 'SUB_MOVES',
+                                          slot['venue_id'], slot['venue_code'])
                     conn.commit()
                     
                     log_event(absence_id, 'allocated', sub_teacher['id'],
@@ -830,6 +899,37 @@ def reassign_declined_request(request_id, declined_by_id):
             WHERE id = ?
             """, (new_sub['id'], request_id))
             
+            # Re-resolve relocation direction for the NEW sub and REPLACE the
+            # 1:1 row (locked design: replace, never accumulate).
+            cursor.execute("""
+                SELECT sv.venue_id, v.venue_code
+                FROM staff_venue sv JOIN venue v ON sv.venue_id = v.id
+                WHERE sv.staff_id = ? AND sv.tenant_id = ?
+            """, (new_sub['id'], TENANT_ID))
+            home = cursor.fetchone()
+            direction = 'SUB_MOVES'
+            dest_vid, dest_code = req.get('venue_id'), req.get('venue_name')
+            if req['period_id'] and home:
+                cursor.execute("""
+                    SELECT 1 FROM timetable_slot
+                    WHERE tenant_id = ? AND cycle_day = ? AND period_id = ?
+                      AND venue_id = ?
+                """, (TENANT_ID, cycle_day, req['period_id'], home['venue_id']))
+                if not cursor.fetchone():
+                    direction = 'LEARNERS_MOVE'
+                    dest_vid, dest_code = home['venue_id'], home['venue_code']
+            elif not req['period_id']:
+                # Mentor duty: SUB_MOVES to the absent teacher's home room (R6).
+                cursor.execute("""
+                    SELECT sv.venue_id, v.venue_code
+                    FROM staff_venue sv JOIN venue v ON sv.venue_id = v.id
+                    WHERE sv.staff_id = ? AND sv.tenant_id = ?
+                """, (req['absent_staff_id'], TENANT_ID))
+                ab_home = cursor.fetchone()
+                if ab_home:
+                    dest_vid, dest_code = ab_home['venue_id'], ab_home['venue_code']
+            _replace_relocation(cursor, request_id, direction, dest_vid, dest_code)
+
             # Log the reassignment
             cursor.execute("""
                 INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
@@ -845,6 +945,9 @@ def reassign_declined_request(request_id, declined_by_id):
             cursor.execute("""
                 UPDATE substitute_request SET status = 'Escalated' WHERE id = ?
             """, (request_id,))
+            # R10: an uncovered request carries no relocation row.
+            cursor.execute("DELETE FROM assignment_relocation WHERE substitute_request_id = ?",
+                           (request_id,))
             
             cursor.execute("""
                 INSERT INTO substitute_log (id, absence_id, event_type, details, staff_id, tenant_id, created_at)
