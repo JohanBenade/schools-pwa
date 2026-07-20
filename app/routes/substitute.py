@@ -1359,12 +1359,14 @@ def sub_duties():
         # Get all future sub assignments for this teacher
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
-                   s.display_name as absent_teacher, a.absence_type as absence_reason,
+                   s.display_name as absent_teacher,
+                   ar.destination_venue_code as display_venue,
                    sr.request_date
             FROM substitute_request sr
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
+            LEFT JOIN assignment_relocation ar ON ar.substitute_request_id = sr.id
             WHERE sr.substitute_id = ? 
               AND sr.status = 'Assigned'
               AND sr.request_date >= ?
