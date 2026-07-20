@@ -134,12 +134,12 @@
                         <div class="slot-name">{{ assignment.period_name or 'Register' }}</div>
                         <div class="slot-detail">
                             {% if assignment.is_mentor_duty %}
-                                {{ assignment.class_name or 'Mentor Group' }} • {{ assignment.venue_name or 'TBC' }}
+                                {{ assignment.class_name or 'Mentor Group' }} • {{ assignment.display_venue or assignment.venue_name or 'TBC' }}
                             {% else %}
-                                {{ assignment.class_name or '' }}{% if assignment.subject %} {{ assignment.subject }}{% endif %}{% if assignment.class_name or assignment.subject %} • {% endif %}{{ assignment.venue_name or 'TBC' }}
+                                {{ assignment.class_name or '' }}{% if assignment.subject %} {{ assignment.subject }}{% endif %}{% if assignment.class_name or assignment.subject %} • {% endif %}{{ assignment.display_venue or assignment.venue_name or 'TBC' }}
                             {% endif %}
                         </div>
-                        <div class="slot-sub-info">Covering for {{ assignment.absent_teacher }}{% if assignment.absence_reason %} ({{ assignment.absence_reason }}){% endif %}</div>
+                        <div class="slot-sub-info">Covering for {{ assignment.absent_teacher }}</div>
                     </div>
                     <button class="decline-btn" onclick="openDecline('{{ assignment.id }}', '{{ assignment.period_name or "Register" }}', '{{ assignment.absent_teacher }}', '{{ day.display_date }}')">✕ Decline</button>
                 </div>
