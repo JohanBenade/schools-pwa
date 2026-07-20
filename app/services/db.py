@@ -884,6 +884,12 @@ def run_pending_migrations():
         print(f"Migration 017 check: {e}")
     
     try:
+        from app.services.apply_migration_018 import apply_migration as apply_migration_018
+        apply_migration_018()
+    except Exception as e:
+        print(f"Migration 018 check: {e}")
+    
+    try:
         from app.services.seed_sport_events import seed_sport_events
         seed_sport_events()
     except Exception as e:
