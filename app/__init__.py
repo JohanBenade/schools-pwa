@@ -117,7 +117,8 @@ def create_app():
 </head>
 <body>
     <div class="gate-box">
-        <h1>SchoolOps</h1>
+        <img src="/static/tenants/maragon/crest.png" alt="Maragon Mooikloof" style="width:80px;height:auto;display:block;margin:0 auto 8px;">
+        <div style="margin-bottom:16px;"><span style="display:inline-block;background:#8a8f98;border-radius:6px;padding:4px 22px;font-size:13px;font-weight:600;letter-spacing:2px;color:#ffffff;">MOOIKLOOF</span></div>
         <p>Pilot access only</p>
         {"<div class='error'>" + error + "</div>" if error else ""}
         <form method="POST">

@@ -653,8 +653,9 @@ def index():
     </div>
     <div class="container">
         <div class="dash-header">
-            <h1>Maragon Mooikloof</h1>
-            <h2>Overview</h2>
+            <img src="/static/tenants/maragon/crest.png" alt="Maragon Mooikloof" style="width:80px;height:auto;display:block;margin:0 auto;">
+            <div style="margin-top:8px;"><span style="display:inline-block;background:#8a8f98;border-radius:6px;padding:4px 22px;font-size:13px;font-weight:600;letter-spacing:2px;color:#ffffff;">MOOIKLOOF</span></div>
+            <h2 style="margin-top:10px;">Overview</h2>
         </div>
         <div class="header-date">{today_display}</div>
         <div class="insight-line">{insight_line}</div>
