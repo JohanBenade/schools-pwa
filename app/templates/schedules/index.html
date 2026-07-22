@@ -31,6 +31,10 @@
         .bg-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
         .bg-indigo { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
 
+        /* Author control: entry point to /schedules/upload (can_post only) */
+        .upload-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 16px; margin-bottom: 20px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(37,99,235,0.25); -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
+        .upload-btn:active { transform: scale(0.98); }
+
         /* Filter chips (Step 3) + per-item programme pills */
         .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
         .chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; text-decoration: none; border: 1.5px solid #CBD5E1; color: #475569; background: #FFFFFF; -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
@@ -78,6 +82,13 @@
                 <span class="app-label">Days Calendar</span>
             </a>
         </div>
+
+        {% if can_post %}
+        <a href="/schedules/upload" class="upload-btn">
+            <span style="font-size:17px;">&#10133;</span>
+            <span>Upload Schedule</span>
+        </a>
+        {% endif %}
 
         <!-- Filter chips: per-programme lens, "All" default (decision #2) -->
         {% if active_programmes %}
