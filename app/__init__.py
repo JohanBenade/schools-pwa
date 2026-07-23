@@ -260,6 +260,19 @@ def create_app():
         user_logged_in = 'staff_id' in session
         user_role = session.get('role', '')
         
+        # Workspace switcher: privileged roles may preview any role's
+        # home workspace (support tool: what is a teacher seeing now?).
+        ws = request.args.get('ws')
+        if ws and user_role in ['principal', 'deputy', 'management', 'admin']:
+            ws_map = {'staff': ('home/staff.html', 'Staff'),
+                      'office': ('home/office.html', 'Office'),
+                      'activities': ('home/activities.html', 'Activities')}
+            if ws in ws_map:
+                tpl, label = ws_map[ws]
+                return render_template(tpl, user_name=user_name,
+                                       active_alert=active_alert,
+                                       ws_preview=True, ws_label=label)
+
         # Route to appropriate home page based on role
         if user_role in ['principal', 'deputy', 'management', 'admin']:
             u = request.args.get('u')
