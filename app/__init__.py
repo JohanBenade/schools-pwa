@@ -103,6 +103,12 @@ def create_app():
     <title>SchoolOps</title>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <!-- iOS install tags. Mirrors app/templates/partials/pwa_head.html -
+         /gate is an f-string, not a template, so it cannot include that
+         partial. Keep the two copies in step. -->
+    <meta name="apple-mobile-web-app-title" content="Mooikloof">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }}
