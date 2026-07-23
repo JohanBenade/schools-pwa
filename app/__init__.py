@@ -68,7 +68,7 @@ def create_app():
     @app.before_request
     def check_password_gate():
         session.permanent = True
-        if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
+        if request.path.startswith('/static') or request.path.startswith('/apple-touch-icon') or request.path in ['/gate', '/login-code']:
             return
         if session.get('gate_passed'):
             return
@@ -137,6 +137,17 @@ def create_app():
 </html>
 '''
 
+    @app.route('/apple-touch-icon.png')
+    @app.route('/apple-touch-icon-precomposed.png')
+    @app.route('/apple-touch-icon-<size>.png')
+    @app.route('/apple-touch-icon-<size>-precomposed.png')
+    def apple_touch_icon_fallback(size=None):
+        # iOS root fallback: Safari requests /apple-touch-icon*.png when a
+        # page declares no apple-touch-icon tag. Serving the crest here
+        # guarantees NO page on this domain can ever produce a screenshot
+        # tile. Permanent safety net - do not remove.
+        return app.send_static_file('icon-192.png')
+
     @app.before_request
     def handle_magic_link():
         magic_code = request.args.get('u')
@@ -174,7 +185,7 @@ def create_app():
         #      re-write them onto the session EVERY request. This is why a flag
         #      seeded AFTER login (e.g. a new can_post_notice) is live without a
         #      re-auth -- the session is never a stale login-time snapshot.
-        if request.path.startswith('/static') or request.path in ['/gate', '/login-code']:
+        if request.path.startswith('/static') or request.path.startswith('/apple-touch-icon') or request.path in ['/gate', '/login-code']:
             return
         staff_id = session.get('staff_id')
         if not staff_id:
