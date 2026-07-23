@@ -76,6 +76,23 @@ def create_app():
             return
         magic_code = request.args.get('u')
         if magic_code:
+            # A valid personal magic code is stronger auth than the shared
+            # gate password, so it may bypass the gate. This lets installed
+            # PWAs (own cookie store; URL carries ?u=) launch with zero
+            # password prompts. Invalid/revoked codes fall through to the
+            # gate as before - revocation stays intact.
+            from app.services.db import get_connection
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT 1 FROM user_session WHERE magic_code = ? "
+                    "AND tenant_id = ? AND is_active = 1 LIMIT 1",
+                    (magic_code.lower(), TENANT_ID)
+                )
+                row = cursor.fetchone()
+            if row:
+                session['gate_passed'] = True
+                return
             return redirect(f'/gate?u={magic_code}')
         return redirect('/gate')
     
@@ -245,7 +262,12 @@ def create_app():
         
         # Route to appropriate home page based on role
         if user_role in ['principal', 'deputy', 'management', 'admin']:
-            return redirect('/dashboard/')
+            u = request.args.get('u')
+            # Keep the magic code in the URL: iOS builds the installed
+            # PWA from the CURRENT page URL, and its cookie store is
+            # separate from Safari's - the ?u= in the installed URL is
+            # what makes every cold launch log in automatically.
+            return redirect(f'/dashboard/?u={u}' if u else '/dashboard/')
         
         if user_role in ['activities', 'sport_coordinator']:
             return render_template('home/activities.html', user_name=user_name, active_alert=active_alert)
