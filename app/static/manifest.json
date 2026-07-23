@@ -1,11 +1,11 @@
 {
-  "name": "SchoolOps",
-  "short_name": "SchoolOps",
+  "name": "Maragon Mooikloof",
+  "short_name": "Mooikloof",
   "description": "School operations management for Maragon Mooikloof",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e3a5f",
-  "theme_color": "#1e3a5f",
+  "background_color": "#15336B",
+  "theme_color": "#15336B",
   "orientation": "portrait-primary",
   "icons": [
     {
