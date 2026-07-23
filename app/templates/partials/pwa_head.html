@@ -1,0 +1,36 @@
+{# PWA Install Head Partial
+
+   Usage: {% include 'partials/pwa_head.html' %}
+          Place immediately after the <title> tag in any template's <head>.
+
+   Required variables: none. This partial is self-contained.
+
+   WHY THIS EXISTS
+   Before this partial, only 7 of 49 templates carried install tags. A user
+   who tapped "Add to Home Screen" from any other page got an iOS page
+   SCREENSHOT instead of the school crest, because iOS falls back to a
+   thumbnail when no apple-touch-icon is declared. Teachers install from
+   wherever they happen to be - the Notice Board, Schedules, Duty - so the
+   tags must be present on every page, not just the home pages.
+
+   PLATFORM SPLIT (the two OSes read different things - this is why all four
+   tags are needed, not just the manifest):
+
+     Android  icon    <- manifest.json "icons"
+     Android  caption <- manifest.json "short_name"
+     iOS      icon    <- apple-touch-icon  (iOS IGNORES the manifest entirely)
+     iOS      caption <- apple-mobile-web-app-title
+                         (without it iOS uses <title>, which would caption
+                          the tile "Staff - Marag..." rather than "Mooikloof")
+
+   TENANCY (backlog, accepted debt)
+   The school name and icon paths below are Mooikloof-specific. Confining
+   them to this ONE file is deliberate: when per-tenant branding is built,
+   this partial becomes the single edit point rather than a 49-file sweep.
+   No tenant table exists yet (verified: sqlite_master has no %tenant% table).
+#}
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Mooikloof">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
