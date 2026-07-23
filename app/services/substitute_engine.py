@@ -9,6 +9,7 @@ from datetime import datetime, date, timedelta
 from app.services.db import get_connection, sast_now
 
 TENANT_ID = "MARAGON"
+BURDEN_WINDOW_DAYS = 28  # Addendum v161a: trailing calendar-day window
 
 
 def get_cycle_day(target_date=None):
@@ -216,15 +217,73 @@ def get_teachers_assigned_on_date(target_date):
         return [row['substitute_id'] for row in cursor.fetchall()]
 
 
+def get_burden_ratios(target_date=None):
+    """
+    Burden ratio per eligible substitute (Addendum v161a, LOCKED):
+      ratio = periods covered in the trailing BURDEN_WINDOW_DAYS calendar
+              days / free periods per 7-day cycle. Lowest goes next.
+    - Numerator: substitute_request rows with status Assigned/Confirmed in
+      (target_date - window, target_date]. Mentor-register covers COUNT
+      (Johan, 23 Jul 2026). Cancelled/Declined rows drop out automatically,
+      which replaces the old pointer-restore "back in line" semantics.
+    - Denominator: teaching periods x cycle length minus the teacher's
+      timetable slots, derived from the DB (nothing hardcoded).
+    - free <= 0 ranks last (inf). Unknown ids rank last (inf).
+    """
+    if target_date is None:
+        target_date = date.today()
+    if isinstance(target_date, date):
+        target_date = target_date.isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) AS c FROM period
+            WHERE tenant_id = ? AND is_teaching = 1
+        """, (TENANT_ID,))
+        teaching_periods = cursor.fetchone()['c']
+        cursor.execute("""
+            SELECT cycle_length FROM substitute_config WHERE tenant_id = ?
+        """, (TENANT_ID,))
+        row = cursor.fetchone()
+        cycle_len = row['cycle_length'] if row and row['cycle_length'] else 7
+        slots_per_cycle = teaching_periods * cycle_len
+        cursor.execute("""
+            SELECT s.id, COALESCE(t.c, 0) AS taught
+            FROM staff s
+            LEFT JOIN (
+                SELECT staff_id, COUNT(*) AS c FROM timetable_slot
+                WHERE tenant_id = ? GROUP BY staff_id
+            ) t ON t.staff_id = s.id
+            WHERE s.tenant_id = ? AND s.is_active = 1 AND s.can_substitute = 1
+        """, (TENANT_ID, TENANT_ID))
+        free = {r['id']: slots_per_cycle - r['taught'] for r in cursor.fetchall()}
+        cursor.execute("""
+            SELECT substitute_id, COUNT(*) AS c FROM substitute_request
+            WHERE tenant_id = ?
+              AND status IN ('Assigned', 'Confirmed')
+              AND substitute_id IS NOT NULL
+              AND request_date > date(?, ?)
+              AND request_date <= ?
+            GROUP BY substitute_id
+        """, (TENANT_ID, target_date, '-' + str(BURDEN_WINDOW_DAYS) + ' day',
+              target_date))
+        covered = {r['substitute_id']: r['c'] for r in cursor.fetchall()}
+    return {sid: ((covered.get(sid, 0) / f) if f > 0 else float('inf'))
+            for sid, f in free.items()}
+
+
 def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_surname, target_date=None, pass_num=1):
     """
-    Find the next substitute using A-Z rotation.
-    - pass_num=1 draws from the Pass 1 pool (room-free + floaters);
-      pass_num=2 draws from the room-blocked pool (SUB_MOVES last-resort).
-      Both passes share the SAME pointer, continuous advance (R3b).
-    - Exclude those already assigned today
-    - Pick first one at or after pointer_surname
-    - If none found after pointer, wrap to 'A'
+    Select the next substitute by burden ratio (Addendum v161a).
+    - Ranking applies WITHIN each pass: pass_num=1 draws from the Pass 1
+      pool (room-free + floaters); pass_num=2 from the room-blocked pool
+      (SUB_MOVES last-resort). Pass structure and R1/R3 preserved.
+    - Tie-break: first name A-Z (also the cold-start path -- empty windows
+      after holidays degrade gracefully to alphabetical order).
+    - Excludes those already assigned today (caller-supplied).
+    - pointer_surname is DORMANT, not deleted: accepted and returned
+      unchanged, so all pointer plumbing (persist, capture on book-out,
+      restore on early return) becomes a no-op. Rollback = revert this PR.
     """
     pass1, pass2 = get_free_teachers_for_period(
         period_id, cycle_day, exclude_staff_ids=already_assigned_today, target_date=target_date
@@ -233,28 +292,14 @@ def get_next_substitute(period_id, cycle_day, already_assigned_today, pointer_su
 
     if not free_teachers:
         return None, pointer_surname
-    
-    # Find first teacher at or after pointer
-    for teacher in free_teachers:
-        if teacher['first_name'].upper() >= pointer_surname.upper():
-            # Move pointer to next letter after this surname
-            name_part = teacher['display_name'].split(' ')[-1] if teacher['display_name'] else 'A'
-            next_pointer = name_part[0].upper()
-            if next_pointer < 'Z':
-                next_pointer = chr(ord(next_pointer) + 1)
-            else:
-                next_pointer = 'A'
-            return teacher, next_pointer
-    
-    # Wrap around - pick first in list
-    teacher = free_teachers[0]
-    name_part = teacher["first_name"] if teacher["display_name"] else "A"
-    next_pointer = name_part[0].upper()
-    if next_pointer < 'Z':
-        next_pointer = chr(ord(next_pointer) + 1)
-    else:
-        next_pointer = 'A'
-    return teacher, next_pointer
+
+    ratios = get_burden_ratios(target_date)
+    teacher = min(
+        free_teachers,
+        key=lambda t: (ratios.get(t['id'], float('inf')),
+                       (t['first_name'] or '').upper()),
+    )
+    return teacher, pointer_surname
 
 
 # Room proximity map based on Maragon building layout
@@ -824,15 +869,13 @@ def reassign_declined_request(request_id, declined_by_id):
         # for the candidate busy-teacher filter.)
         cycle_day = get_cycle_day(target_date)
         
-        # Get current pointer
-        cursor.execute("SELECT pointer_surname FROM substitute_config WHERE tenant_id = ?", (TENANT_ID,))
-        config = cursor.fetchone()
-        pointer = config['pointer_surname'] if config else 'A'
+        # Burden-ratio ordering (Addendum v161a; pointer dormant, unused here).
+        ratios = get_burden_ratios(target_date)
         
         # Get available teachers for this period (free this period, not absent, not the decliner)
         if req['period_id']:
             cursor.execute("""
-                SELECT s.id, s.surname, s.display_name
+                SELECT s.id, s.surname, s.display_name, s.first_name
                 FROM staff s
                 WHERE s.tenant_id = ?
                   AND s.is_active = 1
@@ -848,15 +891,13 @@ def reassign_declined_request(request_id, declined_by_id):
                       SELECT staff_id FROM timetable_slot 
                       WHERE period_id = ? AND cycle_day = ?
                   )
-                ORDER BY 
-                    CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
-                    s.surname
+                ORDER BY s.first_name
             """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date,
-                  req['period_id'], cycle_day, pointer))
+                  req['period_id'], cycle_day))
         else:
             # Mentor duty - find nearest available teacher or any available
             cursor.execute("""
-                SELECT s.id, s.surname, s.display_name
+                SELECT s.id, s.surname, s.display_name, s.first_name
                 FROM staff s
                 WHERE s.tenant_id = ?
                   AND s.is_active = 1
@@ -868,12 +909,14 @@ def reassign_declined_request(request_id, declined_by_id):
                       WHERE absence_date <= ? AND COALESCE(end_date, absence_date) >= ?
                         AND status IN ('Reported', 'Covered', 'Partial')
                   )
-                ORDER BY 
-                    CASE WHEN s.surname >= ? THEN 0 ELSE 1 END,
-                    s.surname
-            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date, pointer))
+                ORDER BY s.first_name
+            """, (TENANT_ID, req['absent_staff_id'], declined_by_id, target_date, target_date))
         
         candidates = [dict(row) for row in cursor.fetchall()]
+        # Burden-ratio order; Pass 1/Pass 2 (0-subs-today first) loops below
+        # then pick the lowest-ratio candidate in each pass.
+        candidates.sort(key=lambda c: (ratios.get(c['id'], float('inf')),
+                                       (c['first_name'] or '').upper()))
         
         # Pass 1: Teachers with 0 subs today
         new_sub = None
