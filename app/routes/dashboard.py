@@ -752,6 +752,9 @@ def index():
                 <a href="/substitute/overview" class="card-link">Substitute Overview →</a>
             </div>
         </div>
+        <div style="text-align:center;margin-top:28px;font-size:13px;opacity:0.65;">
+            View as: <a href="/?ws=staff" style="color:#1E4FA0;">Staff</a> &middot; <a href="/?ws=office" style="color:#1E4FA0;">Office</a> &middot; <a href="/?ws=activities" style="color:#1E4FA0;">Activities</a>
+        </div>
     </div>
     <script>
     (function() {{

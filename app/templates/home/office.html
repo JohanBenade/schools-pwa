@@ -36,6 +36,11 @@
     </style>
 </head>
 <body>
+    {% if ws_preview %}
+    <div style="background:#15336B;color:#ffffff;text-align:center;padding:8px 12px;font-size:13px;">
+        Viewing as {{ ws_label }} &middot; <a href="/dashboard/" style="color:#ffffff;text-decoration:underline;">Back to Dashboard</a>
+    </div>
+    {% endif %}
     <div class="user-bar">
         <span>🏢 {{ user_name }}</span>
     </div>
