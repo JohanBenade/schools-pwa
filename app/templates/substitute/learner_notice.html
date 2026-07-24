@@ -91,9 +91,13 @@ button.copy.done { background: #34C759; }
 
     <pre class="notice" id="noticeText">{{ notice_text }}</pre>
 
+    {% if can_copy %}
     <button type="button" class="copy" id="copyBtn" onclick="copyNotice()">Copy for Teams</button>
 
     <div class="hint">Paste into the Teams Subs channel.</div>
+    {% else %}
+    <div class="hint">Shared to the Teams Subs channel by the office.</div>
+    {% endif %}
 
 </div>
 

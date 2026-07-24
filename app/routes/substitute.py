@@ -1215,7 +1215,8 @@ def substitute_overview():
                           filter_start=filter_start.strftime('%a %d %b'),
                           filter_end=filter_end.strftime('%a %d %b'),
                           tab1_label=day1_label,
-                          tab2_label=day2_label)
+                          tab2_label=day2_label,
+                          notice_date_iso=(day2.isoformat() if tab == 'tomorrow' else day1.isoformat()))
 
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
@@ -1791,9 +1792,10 @@ def learner_notice():
       SUB_MOVES     -> "no move, sub comes to you"
       no reloc row  -> "no move, sub comes to you"
     """
-    role = session.get('role', 'teacher')
-    if role not in ['principal', 'deputy', 'office', 'admin'] and not session.get('can_share_learner_notice'):
+    if not session.get('staff_id'):
         return redirect('/')
+    role = session.get('role', 'teacher')
+    can_copy = role in ['principal', 'deputy', 'office', 'admin'] or bool(session.get('can_share_learner_notice'))
 
     d_param = request.args.get('d')
     if d_param:
@@ -1861,4 +1863,5 @@ def learner_notice():
                            notice_text=notice_text,
                            notice_date=date_str,
                            date_display=date_display,
-                           row_count=len(rows))
+                           row_count=len(rows),
+                           can_copy=can_copy)
