@@ -187,6 +187,7 @@ def create_app():
                     session['can_resolve'] = bool(row['can_resolve'])
                     session['can_post_notice'] = bool(row['can_post_notice'])
                     session['can_post_schedule'] = bool(row['can_post_schedule'])
+                    session['can_share_learner_notice'] = bool(row['can_share_learner_notice'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
@@ -198,7 +199,7 @@ def create_app():
         #   1. Immediate revocation: if the user has been deactivated, clear the
         #      session on their very next request and bounce to gate.
         #   2. Live capability flags: re-derive can_resolve / can_post_notice /
-        #      can_post_schedule from user_session (the source of truth) and
+        #      can_post_schedule / can_share_learner_notice from user_session (the source of truth) and
         #      re-write them onto the session EVERY request. This is why a flag
         #      seeded AFTER login (e.g. a new can_post_notice) is live without a
         #      re-auth -- the session is never a stale login-time snapshot.
@@ -211,7 +212,7 @@ def create_app():
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT can_resolve, can_post_notice, can_post_schedule "
+                "SELECT can_resolve, can_post_notice, can_post_schedule, can_share_learner_notice "
                 "FROM user_session WHERE staff_id = ? AND tenant_id = ? "
                 "AND is_active = 1 LIMIT 1",
                 (staff_id, TENANT_ID)
@@ -224,6 +225,7 @@ def create_app():
         session['can_resolve'] = bool(row['can_resolve'])
         session['can_post_notice'] = bool(row['can_post_notice'])
         session['can_post_schedule'] = bool(row['can_post_schedule'])
+        session['can_share_learner_notice'] = bool(row['can_share_learner_notice'])
     
     @app.context_processor
     def inject_user():
@@ -347,6 +349,7 @@ def create_app():
                     session['can_resolve'] = bool(row['can_resolve'])
                     session['can_post_notice'] = bool(row['can_post_notice'])
                     session['can_post_schedule'] = bool(row['can_post_schedule'])
+                    session['can_share_learner_notice'] = bool(row['can_share_learner_notice'])
                     session['default_venue_id'] = row['default_venue_id']
                     session['default_venue_name'] = row['default_venue_name']
                     session['tenant_id'] = TENANT_ID
