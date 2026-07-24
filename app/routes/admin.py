@@ -563,9 +563,9 @@ def import_timetable():
                 
                 cursor.execute('''
                     INSERT INTO timetable_slot 
-                    (id, tenant_id, staff_id, cycle_day, period_id, class_name, subject, venue_id)
-                    VALUES (?, 'MARAGON', ?, ?, ?, ?, ?, ?)
-                ''', (str(uuid.uuid4()), staff_id, day, period_id, class_name, subject, venue_id))
+                    (id, tenant_id, staff_id, cycle_day, period_id, class_name, subject, venue_id, grade)
+                    VALUES (?, 'MARAGON', ?, ?, ?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), staff_id, day, period_id, class_name, subject, venue_id, int(grade)))
                 
                 results['slots_imported'] += 1
         

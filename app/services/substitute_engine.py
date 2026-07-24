@@ -673,11 +673,12 @@ def process_absence(absence_id):
                     cursor.execute("""
                         INSERT INTO substitute_request
                         (id, tenant_id, absence_id, period_id, substitute_id, status,
-                         class_name, subject, venue_id, venue_name, request_date)
-                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?)
+                         class_name, subject, venue_id, venue_name, request_date, grade)
+                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?, ?)
                     """, (gap_request_id, TENANT_ID, absence_id, slot['period_id'],
                           slot['class_name'], slot['subject'],
-                          slot['venue_id'], slot['venue_code'], target_date_str))
+                          slot['venue_id'], slot['venue_code'], target_date_str,
+                          slot.get('grade')))
                     conn.commit()
                     log_event(absence_id, 'no_cover', None,
                              f"[{target_date_str}] {slot['period_name']}: period already ended - uncovered (late book-out)",
@@ -725,12 +726,12 @@ def process_absence(absence_id):
                     cursor.execute("""
                         INSERT INTO substitute_request
                         (id, tenant_id, absence_id, period_id, substitute_id, status,
-                         class_name, subject, venue_id, venue_name, assigned_at, request_date)
-                        VALUES (?, ?, ?, ?, ?, 'Assigned', ?, ?, ?, ?, ?, ?)
+                         class_name, subject, venue_id, venue_name, assigned_at, request_date, grade)
+                        VALUES (?, ?, ?, ?, ?, 'Assigned', ?, ?, ?, ?, ?, ?, ?)
                     """, (request_id, TENANT_ID, absence_id, slot['period_id'],
                           sub_teacher['id'], slot['class_name'], slot['subject'],
                           slot['venue_id'], slot['venue_code'], datetime.now().isoformat(),
-                          target_date_str))
+                          target_date_str, slot.get('grade')))
                     # Direction resolved at the assign site (locked design):
                     # LEARNERS_MOVE -> sub's home room; SUB_MOVES -> the
                     # class's own room (absent teacher's slot venue).
@@ -762,11 +763,12 @@ def process_absence(absence_id):
                     cursor.execute("""
                         INSERT INTO substitute_request
                         (id, tenant_id, absence_id, period_id, substitute_id, status,
-                         class_name, subject, venue_id, venue_name, request_date)
-                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?)
+                         class_name, subject, venue_id, venue_name, request_date, grade)
+                        VALUES (?, ?, ?, ?, NULL, 'Pending', ?, ?, ?, ?, ?, ?)
                     """, (request_id, TENANT_ID, absence_id, slot['period_id'],
                           slot['class_name'], slot['subject'],
-                          slot['venue_id'], slot['venue_code'], target_date_str))
+                          slot['venue_id'], slot['venue_code'], target_date_str,
+                          slot.get('grade')))
                     conn.commit()
                     
                     log_event(absence_id, 'no_cover', None,
