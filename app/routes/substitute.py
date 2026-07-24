@@ -1883,7 +1883,9 @@ def learner_notice():
               AND sr.request_date = ?
               AND sr.status = 'Assigned'
               AND sr.is_mentor_duty = 0
-            ORDER BY p.sort_order
+            ORDER BY (p.sort_order IS NULL), p.sort_order,
+                     (sr.grade IS NULL), sr.grade,
+                     sr.class_name, sr.id
         """, (TENANT_ID, date_str))
         rows = cursor.fetchall()
 
