@@ -1201,6 +1201,20 @@ def substitute_overview():
         nav_header = get_nav_header("Substitute Overview", "/", "Home")
     nav_styles = get_nav_styles()
     
+    # Notice date per tab. Day tabs use their own day; range tabs (week /
+    # nextweek) cannot map a range onto a single notice, so they offer the
+    # next school day from the calendar rather than silently defaulting to
+    # today. Falls back to day1 only if the calendar has no forward row.
+    if tab == 'tomorrow':
+        notice_dt = day2
+    elif tab in ('week', 'nextweek'):
+        _nxt = adjacent_school_day(TENANT_ID, today.isoformat(), 'next')
+        notice_dt = datetime.strptime(_nxt, '%Y-%m-%d').date() if _nxt else day1
+    else:
+        notice_dt = day1
+    notice_date_iso = notice_dt.isoformat()
+    notice_date_label = notice_dt.strftime('%a %d')
+
     return render_template('substitute/mission_control.html',
                           absences=absences,
                           config=config,
@@ -1216,7 +1230,8 @@ def substitute_overview():
                           filter_end=filter_end.strftime('%a %d %b'),
                           tab1_label=day1_label,
                           tab2_label=day2_label,
-                          notice_date_iso=(day2.isoformat() if tab == 'tomorrow' else day1.isoformat()))
+                          notice_date_iso=notice_date_iso,
+                          notice_date_label=notice_date_label)
 
 
 @substitute_bp.route('/decline/<request_id>', methods=['POST'])
@@ -1854,9 +1869,19 @@ def learner_notice():
 
     notice_text = '\n'.join(lines)
 
-    prev_date = adjacent_school_day(TENANT_ID, date_str, 'prev')
-    next_date = adjacent_school_day(TENANT_ID, date_str, 'next')
-    is_today = (notice_date == sast_now().date())
+    # Two-choice bar: today and the next school day cover ~95% of real use.
+    # Any other date is reachable via the collapsed picker.
+    today_dt = sast_now().date()
+    today_iso = today_dt.isoformat()
+    today_label = today_dt.strftime('%a %d')
+
+    next_iso = adjacent_school_day(TENANT_ID, today_iso, 'next')
+    next_label = None
+    if next_iso:
+        next_label = datetime.strptime(next_iso, '%Y-%m-%d').date().strftime('%a %d')
+
+    is_today = (notice_date == today_dt)
+    is_next = (next_iso is not None and date_str == next_iso)
 
     nav_header = get_nav_header('Learner Notice', '/substitute/overview', 'Overview')
     nav_styles = get_nav_styles()
@@ -1868,7 +1893,10 @@ def learner_notice():
                            notice_date=date_str,
                            date_display=date_display,
                            row_count=len(rows),
-                           prev_date=prev_date,
-                           next_date=next_date,
+                           today_iso=today_iso,
+                           today_label=today_label,
+                           next_iso=next_iso,
+                           next_label=next_label,
                            is_today=is_today,
+                           is_next=is_next,
                            can_copy=can_copy)

@@ -41,27 +41,40 @@ body {
     background: #fff;
     cursor: pointer;
 }
-.datebar a.step, .datebar span.step {
-    font-size: 18px;
-    line-height: 1;
-    padding: 9px 13px;
+.daychoice {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.daychoice a {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 11px 8px;
     border: 1px solid #d2d2d7;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #fff;
     color: #1d1d1f;
     text-decoration: none;
+    white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
 }
-.datebar span.step { opacity: 0.35; }
-.datebar a.today {
-    font-size: 14px;
-    padding: 9px 12px;
-    border: 1px solid #007AFF;
-    border-radius: 8px;
+.daychoice a.on {
+    background: #007AFF;
+    border-color: #007AFF;
+    color: #fff;
+}
+.otherlink {
+    display: inline-block;
+    font-size: 13px;
     color: #007AFF;
     text-decoration: none;
-    white-space: nowrap;
+    margin-bottom: 14px;
+    cursor: pointer;
 }
+.datebar { display: none; }
+.datebar.open { display: flex; }
 pre.notice {
     background: #fff;
     border: 1px solid #d2d2d7;
@@ -101,28 +114,19 @@ button.copy.done { background: #34C759; }
 
     {{ nav_header|safe }}
 
-    <div class="datebar">
-        {% if prev_date %}
-        <a class="step" href="/substitute/learner-notice?d={{ prev_date }}"
-           title="Previous school day" aria-label="Previous school day">&lsaquo;</a>
-        {% else %}
-        <span class="step" aria-hidden="true">&lsaquo;</span>
+    <div class="daychoice">
+        <a href="/substitute/learner-notice?d={{ today_iso }}"
+           class="{{ 'on' if is_today else '' }}">{{ today_label }}</a>
+        {% if next_iso %}
+        <a href="/substitute/learner-notice?d={{ next_iso }}"
+           class="{{ 'on' if is_next else '' }}">{{ next_label }}</a>
         {% endif %}
+    </div>
 
-        <input type="date" id="noticeDate" value="{{ notice_date }}">
+    <a class="otherlink" id="otherLink" onclick="toggleOther()">Other date</a>
 
-        {% if next_date %}
-        <a class="step" href="/substitute/learner-notice?d={{ next_date }}"
-           title="Next school day" aria-label="Next school day">&rsaquo;</a>
-        {% else %}
-        <span class="step" aria-hidden="true">&rsaquo;</span>
-        {% endif %}
-
-        <button type="button" onclick="goDate()">Show</button>
-
-        {% if not is_today %}
-        <a class="today" href="/substitute/learner-notice">Today</a>
-        {% endif %}
+    <div class="datebar{% if not is_today and not is_next %} open{% endif %}" id="dateBar">
+        <input type="date" id="noticeDate" value="{{ notice_date }}" onchange="goDate()">
     </div>
 
     <div class="meta">
@@ -145,6 +149,10 @@ button.copy.done { background: #34C759; }
 function goDate() {
     var d = document.getElementById('noticeDate').value;
     if (d) { window.location.href = '/substitute/learner-notice?d=' + d; }
+}
+
+function toggleOther() {
+    document.getElementById('dateBar').classList.toggle('open');
 }
 
 function copyNotice() {
