@@ -1792,7 +1792,7 @@ def learner_notice():
       no reloc row  -> "no move, sub comes to you"
     """
     role = session.get('role', 'teacher')
-    if role not in ['principal', 'deputy', 'office', 'admin']:
+    if role not in ['principal', 'deputy', 'office', 'admin'] and not session.get('can_share_learner_notice'):
         return redirect('/')
 
     d_param = request.args.get('d')
