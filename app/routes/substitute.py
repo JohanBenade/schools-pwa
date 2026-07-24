@@ -1652,6 +1652,45 @@ def mark_absent_submit():
             end_period_id = None
             is_full_day = True
     
+    # F-2 duplicate guard. Block only LIVE overlapping absences for this
+    # teacher; Resolved / Cancelled rows must NOT block a legitimate
+    # re-report. Range overlap (absences are multi-day), and an open-ended
+    # absence overlaps everything forward. Same live-status vocabulary as
+    # the self-service /report guard.
+    with get_connection() as _dconn:
+        _dc = _dconn.cursor()
+        _dc.execute("""
+            SELECT a.id, a.absence_date, a.end_date, a.status,
+                   a.is_open_ended, s.display_name
+            FROM absence a
+            JOIN staff s ON a.staff_id = s.id
+            WHERE a.staff_id = ? AND a.tenant_id = ?
+              AND a.status IN ('Reported', 'Covered', 'Partial')
+              AND a.absence_date <= ?
+              AND (COALESCE(a.end_date, a.absence_date) >= ?
+                   OR a.is_open_ended = 1)
+            ORDER BY a.absence_date ASC
+            LIMIT 1
+        """, (staff_id, TENANT_ID, end_date, start_date))
+        _dup = _dc.fetchone()
+
+    if _dup:
+        _dup = dict(_dup)
+        if _dup.get('is_open_ended'):
+            _existing = '%s onwards (open-ended)' % _dup['absence_date']
+        elif _dup.get('end_date') and _dup['end_date'] != _dup['absence_date']:
+            _existing = '%s to %s' % (_dup['absence_date'], _dup['end_date'])
+        else:
+            _existing = _dup['absence_date']
+        return render_template(
+            'substitute/partials/duplicate_absence.html',
+            teacher_name=_dup['display_name'],
+            existing_range=_existing,
+            existing_status=_dup['status'],
+            existing_id=_dup['id'],
+            attempted_range=(start_date if start_date == end_date
+                             else '%s to %s' % (start_date, end_date)))
+
     # Create absence using existing function
     absence_id = create_absence_multiday(
         staff_id=staff_id,

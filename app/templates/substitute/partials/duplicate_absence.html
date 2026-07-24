@@ -1,0 +1,95 @@
+<!--
+  duplicate_absence.html
+  F-2 guard result: this teacher already has a LIVE absence overlapping the
+  requested dates, so no new absence was created. Swaps into #markAbsentCard
+  (the mark_absent form is hx-post / hx-target="#markAbsentCard").
+  Expects: teacher_name, existing_range, existing_status, existing_id,
+           attempted_range.
+  Light theme, matches report.html / mark_absent.html card style.
+-->
+<div class="card" id="markAbsentCard" style="padding: 28px 24px;">
+
+    <div class="dup-icon" aria-hidden="true">!</div>
+
+    <h2 style="font-size: 20px; color: #1e293b; margin: 16px 0 6px; text-align: center;">
+        Already marked absent
+    </h2>
+    <p style="color: #64748b; font-size: 14px; margin: 0 0 20px; text-align: center;">
+        No new absence was created.
+    </p>
+
+    <dl class="dup-facts">
+        <dt>Teacher</dt><dd>{{ teacher_name }}</dd>
+        <dt>Existing</dt><dd>{{ existing_range }} &middot; {{ existing_status }}</dd>
+        <dt>You tried</dt><dd>{{ attempted_range }}</dd>
+    </dl>
+
+    <a class="dup-btn primary" href="/substitute/status/{{ existing_id }}">View the existing absence</a>
+    <a class="dup-btn" href="/substitute/mark-absent">Mark someone else absent</a>
+
+    <p class="dup-note">
+        To replace it, resolve or cancel the existing absence first.
+    </p>
+</div>
+
+<style>
+    .dup-icon {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: #fef3c7;
+        color: #b45309;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 44px;
+        text-align: center;
+    }
+    .dup-facts {
+        margin: 0 0 20px;
+        padding: 14px 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    .dup-facts dt {
+        color: #64748b;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-top: 8px;
+    }
+    .dup-facts dt:first-child { margin-top: 0; }
+    .dup-facts dd {
+        margin: 2px 0 0;
+        color: #1e293b;
+        font-weight: 600;
+    }
+    .dup-btn {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 13px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        border: 1px solid #d2d2d7;
+        background: #fff;
+        color: #1e293b;
+    }
+    .dup-btn.primary {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+    .dup-note {
+        margin: 6px 0 0;
+        font-size: 13px;
+        color: #64748b;
+        text-align: center;
+    }
+</style>
