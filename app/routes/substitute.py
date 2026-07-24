@@ -1774,3 +1774,91 @@ def mark_absent_process(absence_id):
                            sick_teacher=results.get('sick_teacher', {}),
                            advance_url='/substitute/overview',
                            advance_label='View Coverage')
+
+
+# ---------------------------------------------------------------------------
+# Daily Learner Notice - copy/paste block for the school Teams channel
+# ---------------------------------------------------------------------------
+
+@substitute_bp.route('/learner-notice')
+def learner_notice():
+    """
+    Plain-text substitute notice for learners, ready to copy into Teams.
+
+    Excludes mentor/register cover and never names the absent teacher.
+    Direction comes from assignment_relocation:
+      LEARNERS_MOVE -> "GO TO <room>"
+      SUB_MOVES     -> "no move, sub comes to you"
+      no reloc row  -> "no move, sub comes to you"
+    """
+    role = session.get('role', 'teacher')
+    if role not in ['principal', 'deputy', 'office', 'admin']:
+        return redirect('/')
+
+    d_param = request.args.get('d')
+    if d_param:
+        try:
+            notice_date = datetime.strptime(d_param, '%Y-%m-%d').date()
+        except ValueError:
+            notice_date = sast_now().date()
+    else:
+        notice_date = sast_now().date()
+
+    date_str = notice_date.isoformat()
+    date_display = notice_date.strftime('%A %d %B %Y')
+
+    rows = []
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.period_name AS period_name,
+                   p.sort_order AS sort_order,
+                   sr.class_name AS class_name,
+                   sr.subject AS subject,
+                   s.display_name AS sub_name,
+                   ar.direction AS direction,
+                   ar.destination_venue_code AS dest_code
+            FROM substitute_request sr
+            JOIN staff s ON s.id = sr.substitute_id
+            LEFT JOIN period p ON p.id = sr.period_id
+            LEFT JOIN assignment_relocation ar
+                   ON ar.substitute_request_id = sr.id
+            WHERE sr.tenant_id = ?
+              AND sr.request_date = ?
+              AND sr.status = 'Assigned'
+              AND sr.is_mentor_duty = 0
+            ORDER BY p.sort_order
+        """, (TENANT_ID, date_str))
+        rows = cursor.fetchall()
+
+    lines = ['SUBSTITUTE ARRANGEMENTS', date_display, '']
+
+    if not rows:
+        lines.append('No substitute arrangements today.')
+    else:
+        for r in rows:
+            period_name = r['period_name'] or 'TBC'
+            class_name = r['class_name'] or ''
+            subject = r['subject'] or ''
+            sub_name = r['sub_name'] or ''
+            if r['direction'] == 'LEARNERS_MOVE' and r['dest_code']:
+                move = 'GO TO ' + r['dest_code']
+            else:
+                move = 'no move, sub comes to you'
+            group = (class_name + ' ' + subject).strip()
+            lines.append(period_name + ' - ' + group + ' - ' + sub_name + ' - ' + move)
+        lines.append('')
+        lines.append('Check the period and subject. If it is not your lesson, ignore it.')
+
+    notice_text = '\n'.join(lines)
+
+    nav_header = get_nav_header('Learner Notice', '/substitute/overview', 'Overview')
+    nav_styles = get_nav_styles()
+
+    return render_template('substitute/learner_notice.html',
+                           nav_header=nav_header,
+                           nav_styles=nav_styles,
+                           notice_text=notice_text,
+                           notice_date=date_str,
+                           date_display=date_display,
+                           row_count=len(rows))

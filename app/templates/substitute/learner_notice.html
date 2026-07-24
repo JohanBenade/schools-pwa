@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learner Notice</title>
+<style>
+{{ nav_styles|safe }}
+* { box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+.meta {
+    font-size: 14px;
+    color: #6e6e73;
+    margin-bottom: 12px;
+}
+.datebar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.datebar input[type="date"] {
+    font-size: 16px;
+    padding: 8px 10px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    background: #fff;
+}
+.datebar button {
+    font-size: 15px;
+    padding: 9px 14px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}
+pre.notice {
+    background: #fff;
+    border: 1px solid #d2d2d7;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
+    margin: 0 0 16px 0;
+}
+button.copy {
+    width: 100%;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: #007AFF;
+    color: #fff;
+    cursor: pointer;
+}
+button.copy:active { opacity: 0.85; }
+button.copy.done { background: #34C759; }
+.hint {
+    font-size: 13px;
+    color: #6e6e73;
+    margin-top: 12px;
+    text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    {{ nav_header|safe }}
+
+    <div class="datebar">
+        <input type="date" id="noticeDate" value="{{ notice_date }}">
+        <button type="button" onclick="goDate()">Show</button>
+    </div>
+
+    <div class="meta">
+        {{ date_display }} &middot; {{ row_count }} arrangement{% if row_count != 1 %}s{% endif %}
+    </div>
+
+    <pre class="notice" id="noticeText">{{ notice_text }}</pre>
+
+    <button type="button" class="copy" id="copyBtn" onclick="copyNotice()">Copy for Teams</button>
+
+    <div class="hint">Paste into the Teams Subs channel.</div>
+
+</div>
+
+<script>
+function goDate() {
+    var d = document.getElementById('noticeDate').value;
+    if (d) { window.location.href = '/substitute/learner-notice?d=' + d; }
+}
+
+function copyNotice() {
+    var text = document.getElementById('noticeText').textContent;
+    var btn = document.getElementById('copyBtn');
+
+    function done() {
+        btn.textContent = 'Copied';
+        btn.classList.add('done');
+        setTimeout(function () {
+            btn.textContent = 'Copy for Teams';
+            btn.classList.remove('done');
+        }, 2000);
+    }
+
+    function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); }
+        catch (e) { btn.textContent = 'Copy failed - select manually'; }
+        document.body.removeChild(ta);
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+</script>
+</body>
+</html>
