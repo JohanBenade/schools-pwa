@@ -55,7 +55,7 @@
             <a href="?tab=nextweek" class="tab {{ 'active' if current_tab == 'nextweek' else '' }}">Next Week</a>
         </div>
         
-        <a href="/substitute/learner-notice?d={{ notice_date_iso }}" class="notice-link">📋 Learner Notice</a>
+        <a href="/substitute/learner-notice" class="notice-link">📋 Learner Notice</a>
         
         <div id="live-content"
              hx-get="/substitute/overview-partial?tab={{ current_tab }}"

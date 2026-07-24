@@ -1050,3 +1050,30 @@ def get_period_roster(class_name: str, subject: str, date_str: str, tenant_id: s
             'exception_count': total - present_count,
         }
 
+
+def adjacent_school_day(tenant_id: str, date_str: str, direction: str) -> Optional[str]:
+    """
+    Return the ISO date of the nearest school day before/after date_str.
+
+    Reads school_calendar (is_school_day=1), so public holidays and term
+    breaks are honoured - NOT weekday arithmetic.
+
+    direction: 'next' or 'prev'
+    Returns None at the edge of seeded calendar data, so callers can
+    disable navigation rather than silently produce a wrong date.
+    """
+    if direction == 'next':
+        sql = ("SELECT date FROM school_calendar "
+               "WHERE tenant_id = ? AND is_school_day = 1 AND date > ? "
+               "ORDER BY date ASC LIMIT 1")
+    elif direction == 'prev':
+        sql = ("SELECT date FROM school_calendar "
+               "WHERE tenant_id = ? AND is_school_day = 1 AND date < ? "
+               "ORDER BY date DESC LIMIT 1")
+    else:
+        raise ValueError("direction must be 'next' or 'prev'")
+
+    with get_connection() as conn:
+        row = conn.cursor().execute(sql, (tenant_id, date_str)).fetchone()
+
+    return row[0] if row else None
