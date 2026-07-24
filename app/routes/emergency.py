@@ -101,19 +101,21 @@ def get_smart_location(staff_id):
             cursor.execute("""
                 SELECT sr.venue_name, p.period_number,
                        s.display_name as absent_teacher,
-                       v_mg.venue_code as mentor_venue
+                       v_mg.venue_code as mentor_venue,
+                       ar.destination_venue_code as reloc_venue
                 FROM substitute_request sr
                 JOIN absence a ON sr.absence_id = a.id
                 JOIN staff s ON a.staff_id = s.id
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN mentor_group mg ON mg.mentor_id = a.staff_id
                 LEFT JOIN venue v_mg ON mg.venue_id = v_mg.id
+                LEFT JOIN assignment_relocation ar ON ar.substitute_request_id = sr.id
                 WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
                   AND p.period_number = ?
             """, (staff_id, today_str, period_num))
             sub = cursor.fetchone()
             if sub:
-                venue_name = sub['venue_name'] or sub['mentor_venue'] or 'Unknown'
+                venue_name = sub['reloc_venue'] or sub['venue_name'] or sub['mentor_venue'] or 'Unknown'
                 return {
                     'venue_id': None,
                     'venue_name': venue_name,
