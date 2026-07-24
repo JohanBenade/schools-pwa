@@ -218,13 +218,15 @@ def my_day():
         cursor.execute("""
             SELECT sr.*, p.period_number, p.period_name, p.start_time, p.end_time,
                    s.display_name as absent_teacher, sr.venue_name, a.absence_type as absence_reason,
-                   v_mg.venue_code as absent_mentor_venue
+                   v_mg.venue_code as absent_mentor_venue,
+                   ar.direction as reloc_direction, ar.destination_venue_code as reloc_venue
             FROM substitute_request sr
             JOIN absence a ON sr.absence_id = a.id
             JOIN staff s ON a.staff_id = s.id
             LEFT JOIN period p ON sr.period_id = p.id
             LEFT JOIN mentor_group mg ON mg.mentor_id = a.staff_id
             LEFT JOIN venue v_mg ON mg.venue_id = v_mg.id
+            LEFT JOIN assignment_relocation ar ON ar.substitute_request_id = sr.id
             WHERE sr.substitute_id = ? AND sr.request_date = ? AND sr.status = 'Assigned'
             ORDER BY sr.is_mentor_duty DESC, p.sort_order
         """, (staff_id, target_date_str))
@@ -337,10 +339,12 @@ def my_day():
         mentor_coverage = None
         if is_absent and absence_id:
             cursor.execute("""
-                SELECT sr.*, p.period_number, p.period_name, s.display_name as substitute_name, sr.venue_name
+                SELECT sr.*, p.period_number, p.period_name, s.display_name as substitute_name, sr.venue_name,
+                       ar.destination_venue_code as reloc_venue
                 FROM substitute_request sr
                 LEFT JOIN period p ON sr.period_id = p.id
                 LEFT JOIN staff s ON sr.substitute_id = s.id
+                LEFT JOIN assignment_relocation ar ON ar.substitute_request_id = sr.id
                 WHERE sr.absence_id = ? AND sr.request_date = ?
                 ORDER BY sr.is_mentor_duty DESC, p.sort_order
             """, (absence_id, target_date_str))
@@ -356,7 +360,7 @@ def my_day():
                         'status': row['status'],
                         'class_name': row['class_name'],
                         'subject': row['subject'],
-                        'venue_name': row['venue_name']
+                        'venue_name': row['reloc_venue'] or row['venue_name']
                     }
         
         mentor_group = dict(mentor_row) if mentor_row else None
@@ -536,7 +540,7 @@ def my_day():
                 elif p_num and p_num in sub_by_period:
                     # Sub duty takes priority
                     sub = sub_by_period[p_num]
-                    venue = sub.get('venue_name') or 'TBC'
+                    venue = sub.get('reloc_venue') or sub.get('venue_name') or 'TBC'
                     item['content'] = f"{sub.get('class_name', '')} {sub.get('subject', '')} • {venue}"
                     item['badge'] = f"SUB for {sub['absent_teacher']}" + (f" ({sub.get('absence_reason')})" if sub.get('absence_reason') else "")
                     item['badge_color'] = 'orange'
