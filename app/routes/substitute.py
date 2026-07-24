@@ -5,7 +5,7 @@ Substitute routes - Report absence, view assignments, Substitute Overview
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
 from datetime import date, datetime, timedelta
 import uuid
-from app.services.db import get_connection, create_absence_multiday, sast_now
+from app.services.db import get_connection, create_absence_multiday, sast_now, adjacent_school_day
 from app.services.substitute_engine import (
     create_absence, process_absence, get_cycle_day,
     get_teacher_schedule, get_current_pointer
@@ -1854,6 +1854,10 @@ def learner_notice():
 
     notice_text = '\n'.join(lines)
 
+    prev_date = adjacent_school_day(TENANT_ID, date_str, 'prev')
+    next_date = adjacent_school_day(TENANT_ID, date_str, 'next')
+    is_today = (notice_date == sast_now().date())
+
     nav_header = get_nav_header('Learner Notice', '/substitute/overview', 'Overview')
     nav_styles = get_nav_styles()
 
@@ -1864,4 +1868,7 @@ def learner_notice():
                            notice_date=date_str,
                            date_display=date_display,
                            row_count=len(rows),
+                           prev_date=prev_date,
+                           next_date=next_date,
+                           is_today=is_today,
                            can_copy=can_copy)

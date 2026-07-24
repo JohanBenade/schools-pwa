@@ -41,6 +41,27 @@ body {
     background: #fff;
     cursor: pointer;
 }
+.datebar a.step, .datebar span.step {
+    font-size: 18px;
+    line-height: 1;
+    padding: 9px 13px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    background: #fff;
+    color: #1d1d1f;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.datebar span.step { opacity: 0.35; }
+.datebar a.today {
+    font-size: 14px;
+    padding: 9px 12px;
+    border: 1px solid #007AFF;
+    border-radius: 8px;
+    color: #007AFF;
+    text-decoration: none;
+    white-space: nowrap;
+}
 pre.notice {
     background: #fff;
     border: 1px solid #d2d2d7;
@@ -81,8 +102,27 @@ button.copy.done { background: #34C759; }
     {{ nav_header|safe }}
 
     <div class="datebar">
+        {% if prev_date %}
+        <a class="step" href="/substitute/learner-notice?d={{ prev_date }}"
+           title="Previous school day" aria-label="Previous school day">&lsaquo;</a>
+        {% else %}
+        <span class="step" aria-hidden="true">&lsaquo;</span>
+        {% endif %}
+
         <input type="date" id="noticeDate" value="{{ notice_date }}">
+
+        {% if next_date %}
+        <a class="step" href="/substitute/learner-notice?d={{ next_date }}"
+           title="Next school day" aria-label="Next school day">&rsaquo;</a>
+        {% else %}
+        <span class="step" aria-hidden="true">&rsaquo;</span>
+        {% endif %}
+
         <button type="button" onclick="goDate()">Show</button>
+
+        {% if not is_today %}
+        <a class="today" href="/substitute/learner-notice">Today</a>
+        {% endif %}
     </div>
 
     <div class="meta">
